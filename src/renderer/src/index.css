@@ -1,0 +1,185 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* İnce, Arduino IDE benzeri kaydırma çubuğu */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+::-webkit-scrollbar-thumb {
+  background: #4a4a4a;
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #5a5a5a;
+}
+
+/* "AI ile Geliştir" düğmesinin etrafındaki parıltının (halo) yavaşça kayan gradyanı */
+@keyframes ai-gradient-shift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+.ai-button-gradient {
+  background-size: 200% 200%;
+  animation: ai-gradient-shift 6s ease infinite;
+}
+
+/*
+ * "AI ile Geliştir" düğmesinin kendisi: içi koyu (paneller gibi), yalnızca
+ * KENARI gradyanlı — çift background-clip tekniği (biri padding-box'ta içi
+ * dolduran düz koyu renk, biri border-box'ta kenarda görünen gradyan).
+ * Düz gradyan DOLGU (önceki hâl) araç çubuğunda çok göz alıcıydı; kenar +
+ * çevresindeki blur halo daha zarif duruyor.
+ */
+@keyframes ai-border-gradient-shift {
+  0%,
+  100% {
+    background-position:
+      0% 0%,
+      0% 50%;
+  }
+  50% {
+    background-position:
+      0% 0%,
+      100% 50%;
+  }
+}
+.ai-button-border-gradient {
+  background-image:
+    linear-gradient(#1e1e1e, #1e1e1e),
+    linear-gradient(to right, #3b82f6, #8b5cf6, #3b82f6);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  background-size:
+    100% 100%,
+    200% 200%;
+  border: 1.5px solid transparent;
+  animation: ai-border-gradient-shift 6s ease infinite;
+}
+
+/* Öneri kartlarının sonsuz döngüde yavaşça kayması (bkz. AIModeScreen); üzerine gelince durur ki tıklanabilsinler */
+@keyframes ai-suggestions-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.ai-suggestions-marquee {
+  animation: ai-suggestions-scroll 28s linear infinite;
+}
+.ai-suggestions-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   AI Tarafından Eklenen/Düzenlenen Kod İçin Yeni Nesil Lazer & Işıltı (Shimmer)
+   ──────────────────────────────────────────────────────────────────────── */
+
+/* Aktif yazılan uç satır için parıldayan lazer hüzmesi (Cursor / Windsurf tarzı) */
+@keyframes ai-laser-pulse {
+  0%, 100% {
+    box-shadow: inset 0 0 14px rgba(56, 189, 248, 0.25), 0 0 16px rgba(99, 102, 241, 0.2);
+    border-left-color: #38bdf8;
+  }
+  50% {
+    box-shadow: inset 0 0 22px rgba(56, 189, 248, 0.4), 0 0 24px rgba(129, 140, 248, 0.35);
+    border-left-color: #818cf8;
+  }
+}
+
+.ai-code-active-line {
+  background: linear-gradient(
+    90deg,
+    rgba(56, 189, 248, 0.22) 0%,
+    rgba(99, 102, 241, 0.16) 25%,
+    rgba(139, 92, 246, 0.08) 60%,
+    transparent 100%
+  ) !important;
+  border-left: 3px solid #38bdf8 !important;
+  animation: ai-laser-pulse 1.2s ease-in-out infinite !important;
+  z-index: 10 !important;
+}
+
+/* Sol olukta (gutter) aktif satır için neon parıltı */
+.ai-code-active-margin {
+  background: linear-gradient(180deg, #38bdf8, #818cf8) !important;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.85) !important;
+}
+
+/* Eklenen/değiştirilen tüm bloğu saran lüks koyu cam diff aurası */
+.ai-code-block-highlight {
+  background: linear-gradient(
+    90deg,
+    rgba(99, 102, 241, 0.08) 0%,
+    rgba(99, 102, 241, 0.04) 45%,
+    transparent 100%
+  ) !important;
+  border-left: 2px solid rgba(129, 140, 248, 0.55) !important;
+  transition: opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s ease !important;
+}
+
+.ai-code-block-margin {
+  background: rgba(99, 102, 241, 0.35) !important;
+}
+
+/* Yazım tamamlandığında tüm bloğun üzerinden tek seferlik akan pürüzsüz ışık dalgası */
+@keyframes ai-shimmer-sweep {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.ai-code-shimmer-done {
+  background: linear-gradient(
+    90deg,
+    rgba(99, 102, 241, 0.06) 0%,
+    rgba(56, 189, 248, 0.18) 35%,
+    rgba(165, 180, 252, 0.25) 50%,
+    rgba(56, 189, 248, 0.18) 65%,
+    rgba(99, 102, 241, 0.06) 100%
+  ) !important;
+  background-size: 200% 100% !important;
+  animation: ai-shimmer-sweep 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  border-left: 2.5px solid #34d399 !important;
+}
+
+/* Yazım tamamlandığında eriyerek sönen sınıf */
+.ai-code-gradient-fadeout {
+  opacity: 0 !important;
+}
+
+/* Editör İçi Floating AI Review Çubuğu (Linear / Apple Dark Glass) */
+.ai-diff-floating-bar {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(13, 15, 23, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(99, 102, 241, 0.12);
+}
+

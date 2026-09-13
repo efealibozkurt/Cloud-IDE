@@ -1,0 +1,15 @@
+node_modules
+dist
+out
+.env
+*.log
+.DS_Store
+resources/arduino-cli-data
+resources/arduino-cli/*.exe
+resources/arduino-cli/*.zip
+resources/arduino-cli/*.tar.gz
+.opencode
+.gemini
+.vscode
+release
+CONTEXT.md

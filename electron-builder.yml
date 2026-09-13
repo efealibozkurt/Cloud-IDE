@@ -1,0 +1,55 @@
+appId: com.efe.cloudide
+productName: Cloud IDE
+copyright: Copyright © 2026 Cloud IDE
+
+directories:
+  output: release
+  buildResources: resources
+
+files:
+  - out/**/*
+  - package.json
+  - "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}"
+  - "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}"
+  - "!**/node_modules/*.d.ts"
+  - "!**/node_modules/.bin"
+
+extraResources:
+  - from: resources/arduino-cli
+    to: arduino-cli
+    filter:
+      - "**/*"
+
+asar: true
+asarUnpack:
+  - "**/node_modules/serialport/**"
+  - "**/node_modules/@serialport/**"
+  - "**/*.node"
+
+win:
+  icon: resources/icon.ico
+  legalTrademarks: Cloud IDE
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Cloud IDE
+  uninstallDisplayName: Cloud IDE
+  installerIcon: resources/icon.ico
+  uninstallerIcon: resources/icon.ico
+  installerHeaderIcon: resources/icon.ico
+  runAfterFinish: true
+  artifactName: ${productName}-Setup-${version}.${ext}
+
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}
