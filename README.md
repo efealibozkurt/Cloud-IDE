@@ -64,7 +64,7 @@ Kodlama ve gömülü sistemler bilmeyen insanların dahi aklındaki fiziksel pro
 - Dahili seri port izleyici
 
 ### 🤖 Cloud AI
-- Kimi K3 (Moonshot), Gemini, DeepSeek, Claude, GPT-4o ve NVIDIA NIM dâhil çoklu model desteği, canlı akışla
+- Kimi K3 (Moonshot), Gemini, DeepSeek, Claude, ChatGPT ve NVIDIA NIM dâhil çoklu model desteği, canlı akışla
 - Sürüklenebilir 3 kademeli muhakeme anahtarı: Düşük ⚡ · Orta 🧠 · Yüksek ⚛️
 - Editör ile sohbeti ayıran Agent Eylem Kartları
 
