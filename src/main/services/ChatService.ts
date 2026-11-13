@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs'
 import { join } from 'path'
-import { createHash } from 'crypto'
+import { createHash, randomUUID } from 'crypto'
 import type { ChatSession, ChatSessionSummary } from '@shared/types'
 
 /**
@@ -13,7 +13,7 @@ function normalizePath(p: string): string {
 
 /**
  * Proje / sketch bazlı AI sohbet oturumlarını disk üzerinde saklayan ve
- * yöneten servis. Her sketch'in oturumları `%APPDATA%/dret-ide/chats/<hash>.json`
+ * yöneten servis. Her sketch'in oturumları `%APPDATA%/Cloud IDE/chats/<hash>.json`
  * dosyasında izole olarak tutulur. Böylece farklı bir sketch açıldığında diğer
  * projelerin sohbet geçmişi asla karışmaz.
  */
@@ -107,10 +107,10 @@ export class ChatService {
   /**
    * Yeni bir sohbet oturumu oluşturur ve kaydeder.
    */
-  async createSession(sketchPath: string, sketchName: string, baslik?: string): Promise<ChatSession> {
+  private async createSessionHam(sketchPath: string, sketchName: string, baslik?: string): Promise<ChatSession> {
     const simdi = Date.now()
     const yeniOturum: ChatSession = {
-      id: 'chat_' + Math.random().toString(36).slice(2, 10) + '_' + simdi,
+      id: 'chat_' + randomUUID().slice(0, 12) + '_' + simdi,
       sketchPath,
       sketchName: sketchName || 'Sketch',
       baslik: baslik?.trim() || 'Yeni Sohbet',
@@ -130,7 +130,7 @@ export class ChatService {
   /**
    * Mevcut bir oturumu kaydeder veya günceller.
    */
-  async saveSession(session: ChatSession): Promise<void> {
+  private async saveSessionHam(session: ChatSession): Promise<void> {
     if (!session || !session.sketchPath || !session.id) return
     const filePath = this.getFilePathForSketch(session.sketchPath)
     const sessions = await this.readSessionsForFile(filePath)
@@ -150,7 +150,7 @@ export class ChatService {
   /**
    * Bir oturumu ID'sine göre siler.
    */
-  async deleteSession(sessionId: string): Promise<void> {
+  private async deleteSessionHam(sessionId: string): Promise<void> {
     if (!sessionId) return
     await this.ensureChatsDir()
     try {
@@ -173,7 +173,7 @@ export class ChatService {
   /**
    * Bir oturumun başlığını günceller.
    */
-  async renameSession(sessionId: string, yeniBaslik: string): Promise<void> {
+  private async renameSessionHam(sessionId: string, yeniBaslik: string): Promise<void> {
     if (!sessionId || !yeniBaslik.trim()) return
     await this.ensureChatsDir()
     try {
@@ -198,7 +198,7 @@ export class ChatService {
   /**
    * Bir sketch'e ait tüm oturumları siler.
    */
-  async clearSessions(sketchPath: string): Promise<void> {
+  private async clearSessionsHam(sketchPath: string): Promise<void> {
     if (!sketchPath) return
     const filePath = this.getFilePathForSketch(sketchPath)
     try {
@@ -213,7 +213,7 @@ export class ChatService {
    * eski klasördeki tüm sohbet oturumlarını yeni klasörün hash dosyasına taşır
    * ve oturumların içindeki sketchPath ve sketchName değerlerini günceller.
    */
-  async migrateSessions(oldSketchPath: string, newSketchPath: string, newSketchName: string): Promise<void> {
+  private async migrateSessionsHam(oldSketchPath: string, newSketchPath: string, newSketchName: string): Promise<void> {
     if (!oldSketchPath || !newSketchPath) return
     const normOld = normalizePath(oldSketchPath)
     const normNew = normalizePath(newSketchPath)
@@ -246,5 +246,38 @@ export class ChatService {
     } catch {
       // Hata yok sayılır
     }
+  }
+
+  /** Tüm yazma işlemleri sırayla çalışır: oku-değiştir-yaz döngüleri birbirinin verisini ezmesin */
+  private zincir: Promise<unknown> = Promise.resolve()
+
+  private kilitli<T>(is: () => Promise<T>): Promise<T> {
+    const sonuc = this.zincir.then(is, is)
+    this.zincir = sonuc.catch(() => undefined)
+    return sonuc
+  }
+
+  createSession(sketchPath: string, sketchName: string, baslik?: string): Promise<ChatSession> {
+    return this.kilitli(() => this.createSessionHam(sketchPath, sketchName, baslik))
+  }
+
+  saveSession(session: ChatSession): Promise<void> {
+    return this.kilitli(() => this.saveSessionHam(session))
+  }
+
+  deleteSession(sessionId: string): Promise<void> {
+    return this.kilitli(() => this.deleteSessionHam(sessionId))
+  }
+
+  renameSession(sessionId: string, yeniBaslik: string): Promise<void> {
+    return this.kilitli(() => this.renameSessionHam(sessionId, yeniBaslik))
+  }
+
+  clearSessions(sketchPath: string): Promise<void> {
+    return this.kilitli(() => this.clearSessionsHam(sketchPath))
+  }
+
+  migrateSessions(oldSketchPath: string, newSketchPath: string, newSketchName: string): Promise<void> {
+    return this.kilitli(() => this.migrateSessionsHam(oldSketchPath, newSketchPath, newSketchName))
   }
 }

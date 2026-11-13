@@ -49,11 +49,12 @@ export function ToastProvider({ children }: { children: ReactNode }): ReactEleme
   return (
     <ToastContext.Provider value={{ toastGoster }}>
       {children}
-      <div className="pointer-events-none fixed bottom-4 right-4 z-50 flex w-80 flex-col gap-2">
+      {/* Modalların (en yükseği z-90) üstünde kalır; uzun mesajlar bölünür */}
+      <div className="pointer-events-none fixed bottom-4 right-4 z-[100] flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2">
         {toastlar.map((t) => (
           <div
             key={t.id}
-            className={`pointer-events-auto rounded border px-3 py-2 text-xs shadow-lg ${TUR_STILI[t.tur]}`}
+            className={`pointer-events-auto max-h-40 overflow-y-auto rounded border px-3 py-2 text-xs shadow-lg [overflow-wrap:anywhere] ${TUR_STILI[t.tur]}`}
           >
             {t.mesaj}
           </div>

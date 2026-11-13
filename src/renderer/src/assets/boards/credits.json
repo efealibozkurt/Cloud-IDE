@@ -1,0 +1,98 @@
+{
+  "uno": {
+    "dosya": "uno.jpg",
+    "baslik": "File:Arduino Uno - R3.jpg",
+    "lisans": "CC BY 2.0",
+    "lisansUrl": "https://creativecommons.org/licenses/by/2.0",
+    "yazar": "SparkFun Electronics from Boulder, USA",
+    "kaynak": "https://commons.wikimedia.org/wiki/File:Arduino_Uno_-_R3.jpg"
+  },
+  "nano": {
+    "dosya": "nano.jpg",
+    "baslik": "File:Arduino Nano.jpg",
+    "lisans": "CC BY 2.0",
+    "lisansUrl": "https://creativecommons.org/licenses/by/2.0",
+    "yazar": "David Mellis",
+    "kaynak": "https://commons.wikimedia.org/wiki/File:Arduino_Nano.jpg"
+  },
+  "mega": {
+    "dosya": "mega.jpg",
+    "baslik": "File:Arduino MEGA 2560 R3, front side.jpg",
+    "lisans": "CC BY-SA 4.0",
+    "lisansUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "yazar": "Dsimic",
+    "kaynak": "https://commons.wikimedia.org/wiki/File:Arduino_MEGA_2560_R3,_front_side.jpg"
+  },
+  "leonardo": {
+    "dosya": "leonardo.jpg",
+    "baslik": "File:Arduino Leonardo board (cropped).JPG",
+    "lisans": "CC BY-SA 4.0",
+    "lisansUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "yazar": "Kszapsza",
+    "kaynak": "https://commons.wikimedia.org/wiki/File:Arduino_Leonardo_board_(cropped).JPG"
+  },
+  "micro": {
+    "dosya": "micro.jpg",
+    "baslik": "File:Arduino Micro.jpg",
+    "lisans": "CC BY-SA 3.0",
+    "lisansUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "yazar": "Geek3 (talk)",
+    "kaynak": "https://commons.wikimedia.org/wiki/File:Arduino_Micro.jpg"
+  },
+  "due": {
+    "dosya": "due.jpg",
+    "baslik": "File:ArduinoDue Front.jpg",
+    "lisans": "CC BY-SA 3.0",
+    "lisansUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "yazar": "Arduino SA",
+    "kaynak": "https://commons.wikimedia.org/wiki/File:ArduinoDue_Front.jpg"
+  },
+  "promini": {
+    "dosya": "promini.jpg",
+    "baslik": "File:Arduino Pro Mini (2).jpg",
+    "lisans": "CC BY-SA 2.0",
+    "lisansUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "yazar": "oomlout",
+    "kaynak": "https://commons.wikimedia.org/wiki/File:Arduino_Pro_Mini_(2).jpg"
+  },
+  "esp32": {
+    "dosya": "esp32.jpg",
+    "baslik": "File:ESP32 Dev Board.jpg",
+    "lisans": "CC BY-SA 4.0",
+    "lisansUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "yazar": "Edwiyanto",
+    "kaynak": "https://commons.wikimedia.org/wiki/File:ESP32_Dev_Board.jpg"
+  },
+  "nodemcu": {
+    "dosya": "nodemcu.jpg",
+    "baslik": "File:NodeMCU DEVKIT 1.0.jpg",
+    "lisans": "CC BY-SA 4.0",
+    "lisansUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "yazar": "Vowstar",
+    "kaynak": "https://commons.wikimedia.org/wiki/File:NodeMCU_DEVKIT_1.0.jpg"
+  },
+  "d1mini": {
+    "dosya": "d1mini.jpg",
+    "baslik": "File:WeMos D1 Mini front.jpg",
+    "lisans": "CC BY-SA 4.0",
+    "lisansUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "yazar": "Tpkull",
+    "kaynak": "https://commons.wikimedia.org/wiki/File:WeMos_D1_Mini_front.jpg"
+  },
+  "pico": {
+    "dosya": "pico.jpg",
+    "baslik": "File:Raspberry Pi Pico top and bottom.jpg",
+    "lisans": "CC BY-SA 4.0",
+    "lisansUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "yazar": "Ogidya",
+    "kaynak": "https://commons.wikimedia.org/wiki/File:Raspberry_Pi_Pico_top_and_bottom.jpg"
+  },
+  "bluepill": {
+    "dosya": "bluepill.jpg",
+    "baslik": "File:Blue Pill.jpg",
+    "lisans": "CC BY-SA 4.0",
+    "lisansUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "yazar": "Avandalen",
+    "kaynak": "https://commons.wikimedia.org/wiki/File:Blue_Pill.jpg"
+  }
+}

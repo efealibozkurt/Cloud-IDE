@@ -10,17 +10,25 @@ const SATIR_SONU_EKLERI: Record<LineEnding, string> = {
   nlcr: '\n\r'
 }
 
+interface Oturum {
+  port: SerialPort
+  yol: string
+  baud: number
+  /** Satır sonu görülmemiş, bir sonraki parçayla birleştirilecek veri */
+  yarimSatir: string
+}
+
 /**
- * Seri port bağlantısını yöneten servis. IPC'den tamamen bağımsızdır;
- * gelen veriyi satır satır tamponlayıp tam satırlar oluştukça 'data'
- * olayı olarak yayar. Yarım kalan (satır sonu görülmemiş) veri bir
- * sonraki parçayla birleştirilmek üzere saklanır.
+ * Seri port bağlantılarını yöneten servis. Aynı anda birden çok port açık olabilir
+ * (örn. iki kart yan yana izlenirken). IPC'den tamamen bağımsızdır; gelen veriyi
+ * port başına satır satır tamponlayıp tam satırlar oluştukça 'data' olayı olarak
+ * yayar. "Birincil" port, en son açılan ve hâlâ açık olan porttur; port belirtmeyen
+ * eski çağrılar (kapat/yaz) onu hedefler.
  */
 export class SerialService extends EventEmitter {
-  private port: SerialPort | null = null
-  private yarimSatir = ''
-  private acikPortYolu: string | null = null
-  private acikBaud: number | null = null
+  private oturumlar = new Map<string, Oturum>()
+  /** Açılış sırası: sonuncusu birincil port */
+  private sira: string[] = []
 
   /** Sistemdeki tüm seri portları listeler (serialport paketi üzerinden, arduino-cli'den bağımsız) */
   async listPorts(): Promise<SerialPortInfo[]> {
@@ -33,23 +41,36 @@ export class SerialService extends EventEmitter {
     }))
   }
 
-  isOpen(): boolean {
-    return this.port?.isOpen ?? false
+  /** Port verilirse o port, verilmezse herhangi biri açık mı */
+  isOpen(port?: string): boolean {
+    if (port) return this.oturumlar.get(port)?.port.isOpen ?? false
+    return this.oturumlar.size > 0
   }
 
+  /** Birincil (en son açılan) portun yolu */
   aktifPort(): string | null {
-    return this.acikPortYolu
+    return this.sira.length ? this.sira[this.sira.length - 1] : null
   }
 
   aktifBaud(): number | null {
-    return this.acikBaud
+    const yol = this.aktifPort()
+    return yol ? (this.oturumlar.get(yol)?.baud ?? null) : null
   }
 
-  /** Belirtilen portu belirtilen baud hızıyla açar; zaten açık bir port varsa önce onu kapatır */
+  baudAl(port: string): number | null {
+    return this.oturumlar.get(port)?.baud ?? null
+  }
+
+  acikPortlar(): Array<{ port: string; baud: number }> {
+    return this.sira.flatMap((yol) => {
+      const o = this.oturumlar.get(yol)
+      return o ? [{ port: yol, baud: o.baud }] : []
+    })
+  }
+
+  /** Belirtilen portu belirtilen baud hızıyla açar; aynı port zaten açıksa önce onu yeniden açar. Diğer portlara dokunmaz. */
   async open(port: string, baud: number): Promise<void> {
-    if (this.port?.isOpen) {
-      await this.close()
-    }
+    if (this.oturumlar.has(port)) await this.close(port)
 
     await new Promise<void>((resolve, reject) => {
       const yeniPort = new SerialPort({ path: port, baudRate: baud, autoOpen: false })
@@ -58,34 +79,34 @@ export class SerialService extends EventEmitter {
           reject(new Error(`Port açılamadı: ${hata.message}`))
           return
         }
-        this.port = yeniPort
-        this.acikPortYolu = port
-        this.acikBaud = baud
-        this.yarimSatir = ''
-        this.dinleyicileriBagla(yeniPort)
+        const oturum: Oturum = { port: yeniPort, yol: port, baud, yarimSatir: '' }
+        this.oturumlar.set(port, oturum)
+        this.sira = this.sira.filter((y) => y !== port)
+        this.sira.push(port)
+        this.dinleyicileriBagla(oturum)
         this.emit('status')
         resolve()
       })
     })
   }
 
-  private dinleyicileriBagla(port: SerialPort): void {
+  private dinleyicileriBagla(oturum: Oturum): void {
+    const { port, yol } = oturum
     port.on('data', (parca: Buffer) => {
       // Gelen veriyi önceki yarım satırla birleştirip satırlara böl.
       // split sonucundaki SON eleman: parça bir satır sonuyla bitmediyse
       // yarım kalmış demektir, bir sonraki 'data' olayına taşınır.
-      const birlesikMetin = this.yarimSatir + parca.toString('utf8')
+      const birlesikMetin = oturum.yarimSatir + parca.toString('utf8')
       const satirlar = birlesikMetin.split(/\r\n|\r|\n/)
-      this.yarimSatir = satirlar.pop() ?? ''
+      oturum.yarimSatir = satirlar.pop() ?? ''
       const zamanDamgasi = Date.now()
       for (const satir of satirlar) {
-        this.emit('data', satir, zamanDamgasi)
+        this.emit('data', satir, zamanDamgasi, yol)
       }
     })
     port.on('close', () => {
-      this.port = null
-      this.acikPortYolu = null
-      this.acikBaud = null
+      // Aynı yol için yeni bir oturum açılmışsa (yeniden bağlanma) ona dokunma
+      if (this.oturumlar.get(yol) === oturum) this.oturumuKaldir(yol)
       this.emit('status')
     })
     port.on('error', () => {
@@ -93,16 +114,22 @@ export class SerialService extends EventEmitter {
     })
   }
 
-  /** Portu kapatır; zaten kapalıysa hata fırlatmadan sessizce döner */
-  async close(): Promise<void> {
-    if (!this.port || !this.port.isOpen) {
-      this.port = null
-      this.acikPortYolu = null
-      this.acikBaud = null
+  private oturumuKaldir(yol: string): void {
+    this.oturumlar.delete(yol)
+    this.sira = this.sira.filter((y) => y !== yol)
+  }
+
+  /** Portu kapatır (verilmezse birincil portu); zaten kapalıysa hata fırlatmadan sessizce döner */
+  async close(port?: string): Promise<void> {
+    const yol = port ?? this.aktifPort()
+    if (!yol) return
+    const oturum = this.oturumlar.get(yol)
+    if (!oturum || !oturum.port.isOpen) {
+      this.oturumuKaldir(yol)
       return
     }
     await new Promise<void>((resolve, reject) => {
-      this.port!.close((hata) => {
+      oturum.port.close((hata) => {
         if (hata) {
           reject(new Error(`Port kapatılamadı: ${hata.message}`))
           return
@@ -110,23 +137,27 @@ export class SerialService extends EventEmitter {
         resolve()
       })
     })
-    this.port = null
-    this.acikPortYolu = null
-    this.acikBaud = null
+    if (this.oturumlar.get(yol) === oturum) this.oturumuKaldir(yol)
     // Alttaki port'un kendi 'close' olayının zamanlamasına güvenmek yerine,
     // burada da açıkça yayınlayarak IPC katmanının durumu anında iletmesini
     // garanti ediyoruz.
     this.emit('status')
   }
 
-  /** Porta veri yazar; seçilen satır sonu ekini otomatik ekler */
-  async write(data: string, satirSonu: LineEnding): Promise<void> {
-    if (!this.port || !this.port.isOpen) {
+  async closeAll(): Promise<void> {
+    for (const yol of [...this.sira]) await this.close(yol)
+  }
+
+  /** Porta (verilmezse birincil porta) veri yazar; seçilen satır sonu ekini otomatik ekler */
+  async write(data: string, satirSonu: LineEnding, port?: string): Promise<void> {
+    const yol = port ?? this.aktifPort()
+    const oturum = yol ? this.oturumlar.get(yol) : undefined
+    if (!oturum || !oturum.port.isOpen) {
       throw new Error('Seri port açık değil')
     }
     const gonderilecekVeri = data + SATIR_SONU_EKLERI[satirSonu]
     await new Promise<void>((resolve, reject) => {
-      this.port!.write(gonderilecekVeri, (hata) => {
+      oturum.port.write(gonderilecekVeri, (hata) => {
         if (hata) {
           reject(new Error(`Veri gönderilemedi: ${hata.message}`))
           return
@@ -138,8 +169,8 @@ export class SerialService extends EventEmitter {
 }
 
 export declare interface SerialService {
-  on(event: 'data', listener: (satir: string, zamanDamgasi: number) => void): this
+  on(event: 'data', listener: (satir: string, zamanDamgasi: number, port: string) => void): this
   on(event: 'status', listener: () => void): this
-  off(event: 'data', listener: (satir: string, zamanDamgasi: number) => void): this
+  off(event: 'data', listener: (satir: string, zamanDamgasi: number, port: string) => void): this
   off(event: 'status', listener: () => void): this
 }

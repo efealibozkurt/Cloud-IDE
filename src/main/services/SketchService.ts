@@ -71,6 +71,43 @@ void loop() {
     return this.openSketch(klasorYolu)
   }
 
+  /**
+   * Mevcut bir sketch'in üst dizininde bağımsız kardeş bir sketch (ayrı klasör + .ino) oluşturur.
+   * Çoklu kart/cihaz projelerinde (Alıcı/Verici vb.) her kodun derleme çakışması olmadan
+   * ayrı sketch olarak derlenebilmesi için kritik önemdedir.
+   */
+  async createSiblingSketch(baseFolderPath: string, sketchName: string, initialCode?: string): Promise<SketchInfo> {
+    const parentDir = dirname(baseFolderPath)
+    const hamAd = adDogrula(sketchName.replace(/\.ino$/i, ''))
+    let sonAd = hamAd
+    let hedefKlasorYolu = join(parentDir, sonAd)
+    let sayac = 1
+
+    while (existsSync(hedefKlasorYolu)) {
+      sonAd = `${hamAd}_${sayac}`
+      hedefKlasorYolu = join(parentDir, sonAd)
+      sayac++
+    }
+
+    await mkdir(hedefKlasorYolu, { recursive: true })
+    const varsayilanKod = `// ==========================================
+// PROJE: ${sonAd}
+// DOSYA: ${sonAd}.ino
+// ==========================================
+
+void setup() {
+  Serial.begin(115200);
+}
+
+void loop() {
+
+}
+`
+    const kod = initialCode && initialCode.trim() ? initialCode : varsayilanKod
+    await writeFile(join(hedefKlasorYolu, `${sonAd}.ino`), kod, 'utf8')
+    return this.openSketch(hedefKlasorYolu)
+  }
+
   /** Bir klasörü sketch olarak açar; klasörle aynı adda .ino dosyası yoksa hata verir */
   async openSketch(folderPath: string): Promise<SketchInfo> {
     const dosyalar = await this.listFiles(folderPath)

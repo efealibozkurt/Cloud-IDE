@@ -5,13 +5,12 @@ import { basename, dirname, join } from 'path'
 import { IPC_CHANNELS } from '@shared/types'
 import { SketchService } from '../services/SketchService'
 import { SettingsService } from '../services/SettingsService'
+import { mutlakYol, okunabilirDosya, yazilabilirDosya } from './yolDogrulama'
 
 /** Yeni sketch'lerin varsayılan olarak oluşturulduğu klasör adı (Belgelerim altında) */
 const SKETCHBOOK_KLASOR_ADI = 'Cloud_IDE_Sketches'
 
-function varsayilanSketchbookDizini(documentsDir: string): string {
-  const eskiYol = join(documentsDir, 'Dret_IDE_Sketches')
-  if (existsSync(eskiYol)) return eskiYol
+export function varsayilanSketchbookDizini(documentsDir: string): string {
   return join(documentsDir, SKETCHBOOK_KLASOR_ADI)
 }
 
@@ -27,6 +26,12 @@ function otomatikIsimUret(sketchbookDir: string): string {
     if (!existsSync(join(sketchbookDir, aday))) return aday
   }
   return `sketch_${Date.now()}`
+}
+
+const initialSketchPathMap = new Map<number, string>()
+
+export function setPendingInitialSketchPath(webContentsId: number, sketchPath: string): void {
+  initialSketchPathMap.set(webContentsId, sketchPath)
 }
 
 /**
@@ -52,12 +57,40 @@ export function sketchIpcKaydet(
     return bilgi
   })
 
-  ipcMain.handle(C.openDialog, async () => {
+  ipcMain.handle(C.createFromTemplate, async (_e, name: unknown, code: unknown) => {
+    if (typeof name !== 'string' || typeof code !== 'string' || code.length > 200_000) throw new Error('Geçersiz şablon verisi')
+    await mkdir(sketchbookDir, { recursive: true })
+    const taban = name.trim() || otomatikIsimUret(sketchbookDir)
+    let ad = taban
+    for (let i = 2; existsSync(join(sketchbookDir, ad)); i++) ad = `${taban}_${i}`
+    const bilgi = await service.createNew(sketchbookDir, ad)
+    await service.writeFile(join(bilgi.folderPath, `${basename(bilgi.folderPath)}.ino`), code)
+    settings.sonAcilanaEkle(bilgi.folderPath)
+    return service.openSketch(bilgi.folderPath)
+  })
+
+  ipcMain.handle(C.createSiblingSketch, async (_e, baseFolderPath: unknown, sketchName: string, initialCode?: string) => {
+    const bilgi = await service.createSiblingSketch(mutlakYol(baseFolderPath, 'Klasör yolu'), sketchName, initialCode)
+    settings.sonAcilanaEkle(bilgi.folderPath)
+    return bilgi
+  })
+
+  ipcMain.handle(C.getInitialSketchPath, (e) => {
+    const yol = initialSketchPathMap.get(e.sender.id)
+    if (yol) {
+      initialSketchPathMap.delete(e.sender.id)
+      return yol
+    }
+    return null
+  })
+
+  ipcMain.handle(C.openDialog, async (e) => {
     // Kullanıcı doğal olarak .ino dosyasını seçmek ister (Arduino IDE'nin
     // kendisi de böyle davranır); klasörü seçilen dosyanın konumundan
     // türetiyoruz. Ana .ino, klasörle aynı isimde olmalıdır (Arduino
     // kuralı) — değilse service.openSketch anlaşılır bir hata fırlatır.
-    const sonuc = await dialog.showOpenDialog(mainWindow, {
+    const hedefPencere = BrowserWindow.fromWebContents(e.sender) || mainWindow
+    const sonuc = await dialog.showOpenDialog(hedefPencere, {
       title: 'Sketch dosyasını seç (.ino)',
       properties: ['openFile'],
       filters: [{ name: 'Arduino Sketch', extensions: ['ino'] }]
@@ -68,9 +101,10 @@ export function sketchIpcKaydet(
     return bilgi
   })
 
-  ipcMain.handle(C.saveAsDialog, async (_e, currentFolderPath: string) => {
+  ipcMain.handle(C.saveAsDialog, async (e, currentFolderPath: string) => {
     const suAnkiAd = basename(currentFolderPath)
-    const sonuc = await dialog.showSaveDialog(mainWindow, {
+    const hedefPencere = BrowserWindow.fromWebContents(e.sender) || mainWindow
+    const sonuc = await dialog.showSaveDialog(hedefPencere, {
       title: "Sketch'i farklı kaydet",
       defaultPath: join(sketchbookDir, suAnkiAd, `${suAnkiAd}.ino`),
       filters: [{ name: 'Arduino Sketch', extensions: ['ino'] }]
@@ -83,20 +117,24 @@ export function sketchIpcKaydet(
     return bilgi
   })
 
-  ipcMain.handle(C.openPath, async (_e, folderPath: string) => {
+  ipcMain.handle(C.openPath, async (_e, folderPath: unknown) => {
     // Diyalog açmadan, bilinen bir klasör yolunu doğrudan sketch olarak açar
     // (ör. Örnekler menüsünden bir kütüphane/kart örneği seçildiğinde).
-    const bilgi = await service.openSketch(folderPath)
+    const bilgi = await service.openSketch(mutlakYol(folderPath, 'Klasör yolu'))
     settings.sonAcilanaEkle(bilgi.folderPath)
     return bilgi
   })
 
-  ipcMain.handle(C.readFile, (_e, filePath: string) => service.readFile(filePath))
-  ipcMain.handle(C.writeFile, (_e, filePath: string, content: string) => service.writeFile(filePath, content))
-  ipcMain.handle(C.listFiles, (_e, folderPath: string) => service.listFiles(folderPath))
-  ipcMain.handle(C.addFile, (_e, folderPath: string, fileName: string) => service.addFile(folderPath, fileName))
-  ipcMain.handle(C.deleteFile, (_e, filePath: string) => service.deleteFile(filePath))
-  ipcMain.handle(C.renameFile, async (_e, filePath: string, newName: string) => {
+  ipcMain.handle(C.readFile, (_e, filePath: unknown) => service.readFile(okunabilirDosya(filePath)))
+  ipcMain.handle(C.writeFile, (_e, filePath: unknown, content: unknown) => {
+    if (typeof content !== 'string' || content.length > 20_000_000) throw new Error('Geçersiz dosya içeriği')
+    return service.writeFile(yazilabilirDosya(filePath), content)
+  })
+  ipcMain.handle(C.listFiles, (_e, folderPath: unknown) => service.listFiles(mutlakYol(folderPath, 'Klasör yolu')))
+  ipcMain.handle(C.addFile, (_e, folderPath: unknown, fileName: string) => service.addFile(mutlakYol(folderPath, 'Klasör yolu'), fileName))
+  ipcMain.handle(C.deleteFile, (_e, filePath: unknown) => service.deleteFile(yazilabilirDosya(filePath)))
+  ipcMain.handle(C.renameFile, async (_e, filePathHam: unknown, newName: string) => {
+    const filePath = yazilabilirDosya(filePathHam)
     const eskiKlasor = dirname(filePath)
     const sonuc = await service.renameFile(filePath, newName)
     const yeniKlasor = dirname(sonuc.path)

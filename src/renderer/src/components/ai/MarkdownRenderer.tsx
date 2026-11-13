@@ -16,10 +16,11 @@ export function sanitizeMarkdownContent(raw: string): string {
   // Satır sonlarını ve unicode kaçışlarını normalize et
   let text = raw.replace(/\r\n/g, '\n')
 
-  // Model bazen <explanation> veya </explanation> etiketlerini metin içine bırakmış olabilir
+  // Model etiketleri veya düşünce bloklarını temizle (kapalı veya kapanmamış)
   text = text
-    .replace(/<editor_action[\s\S]*?<\/editor_action>/gi, '') // editor action chate basılmaz
-    .replace(/<\/?explanation>/gi, '')
+    .replace(/<think>[\s\S]*?(?:<\/think>|$)/gi, '')
+    .replace(/<(?:editor[_-]?action|code[_-]?action|action)\b[\s\S]*?(?:<\/(?:editor[_-]?action|code[_-]?action|action)>|$)/gi, '')
+    .replace(/<\/?(?:editor[_-]?action|code[_-]?action|action|explanation|think)>/gi, '')
 
   // Kod bloklarının (```...```) dışındaki metinlerde C++ başlıklarını ve açısal parantezleri koru
   const parts = text.split(/(```[\s\S]*?```)/g)
@@ -52,7 +53,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps): ReactEleme
   const sanitizedContent = useMemo(() => sanitizeMarkdownContent(content), [content])
 
   return (
-    <div className="dret-markdown-container text-[12px] leading-relaxed text-gray-200">
+    <div className="dret-markdown-container min-w-0 text-[12px] leading-relaxed text-gray-200 [overflow-wrap:anywhere]">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -62,12 +63,12 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps): ReactEleme
             </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="mb-1 mt-2 text-[12.5px] font-semibold text-[#c4b5fd]">
+            <h2 className="mb-1 mt-2 text-[12.5px] font-semibold text-[#8fd0f7]">
               {children}
             </h2>
           ),
           h3: ({ children }) => (
-            <h3 className="mb-1 mt-1.5 text-[11.5px] font-semibold text-[#93a5fb]">
+            <h3 className="mb-1 mt-1.5 text-[11.5px] font-semibold text-[#7cc4f0]">
               {children}
             </h3>
           ),
@@ -102,7 +103,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps): ReactEleme
             </li>
           ),
           blockquote: ({ children }) => (
-            <blockquote className="my-2 rounded-r border-l-2 border-[#8b5cf6]/70 bg-[#8b5cf6]/10 px-2.5 py-1 text-[11px] italic text-gray-300">
+            <blockquote className="my-2 rounded-r border-l-2 border-[#2aa8f2]/70 bg-[#2aa8f2]/10 px-2.5 py-1 text-[11px] italic text-gray-300">
               {children}
             </blockquote>
           ),
@@ -144,19 +145,22 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps): ReactEleme
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#93a5fb] underline hover:text-[#c4b5fd] transition-colors"
+              className="text-[#7cc4f0] underline hover:text-[#8fd0f7] transition-colors"
             >
               {children}
             </a>
           ),
-          code: ({ inline, className, children, ...props }: any) => {
+          code: ({ className, children, ...props }) => {
             const match = /language-(\w+)/.exec(className || '')
             const textContent = String(children).replace(/\n$/, '')
+            // react-markdown v9+ `inline` prop'unu kaldırdı: dil sınıfı yoksa
+            // ve içerik tek satırsa satır içi koddur.
+            const inline = !match && !textContent.includes('\n')
 
             if (inline) {
               return (
                 <code
-                  className="rounded border border-[#8b5cf6]/25 bg-[#8b5cf6]/15 px-1.5 py-0.5 font-mono text-[11px] font-medium text-[#c4b5fd]"
+                  className="rounded border border-[#2aa8f2]/25 bg-[#2aa8f2]/15 px-1.5 py-0.5 font-mono text-[11px] font-medium text-[#8fd0f7]"
                   {...props}
                 >
                   {children}

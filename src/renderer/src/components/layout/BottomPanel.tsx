@@ -6,17 +6,24 @@ import {
   type ReactElement,
   type MouseEvent as ReactMouseEvent
 } from 'react'
+import type { BuildSizeItem } from '@shared/types'
 import { useAppState } from '../../state/AppStateContext'
 import ProblemsPanel from '../build/ProblemsPanel'
+import PinPanel from '../build/PinPanel'
+import { YardimDugmesi } from '../common/YardimDugmesi'
+import type { YardimKonuId } from '../help/yardimKonulari'
+import { usePinSorunlari } from '../../hooks/usePinSorunlari'
 import SerialMonitor from '../serial/SerialMonitor'
 
-export type BottomPanelTab = 'cikti' | 'seri' | 'problems'
+export type BottomPanelTab = 'cikti' | 'seri' | 'problems' | 'pinler'
 
 interface BottomPanelProps {
   activeTab: BottomPanelTab
   onTabChange: (tab: BottomPanelTab) => void
   onClose: () => void
 }
+
+const YARDIM_KONUSU: Record<BottomPanelTab, YardimKonuId> = { cikti: 'derleme', seri: 'seri', problems: 'derleme', pinler: 'pin' }
 
 const MIN_HEIGHT = 120
 const MAX_HEIGHT = 640
@@ -34,8 +41,11 @@ function BottomPanel({ activeTab, onTabChange, onClose }: BottomPanelProps): Rea
   const dragStartHeight = useRef(0)
   const ciktiRef = useRef<HTMLPreElement>(null)
 
-  const hataSayisi = state.build.errors.filter((h) => h.tur === 'error').length
-  const uyariSayisi = state.build.errors.filter((h) => h.tur === 'warning').length
+  const pinSonuc = usePinSorunlari()
+  const pinSorunlari = pinSonuc.sorunlar
+  const hataSayisi = state.build.errors.filter((h) => h.tur === 'error').length + pinSorunlari.filter((p) => p.tur === 'error').length
+  const uyariSayisi =
+    state.build.errors.filter((h) => h.tur === 'warning').length + pinSorunlari.filter((p) => p.tur !== 'error').length
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging.current) return
@@ -72,6 +82,7 @@ function BottomPanel({ activeTab, onTabChange, onClose }: BottomPanelProps): Rea
   const TABS: { id: BottomPanelTab; label: string }[] = [
     { id: 'cikti', label: 'Çıktı' },
     { id: 'seri', label: 'Seri Monitör' },
+    { id: 'pinler', label: pinSorunlari.length > 0 ? `Pin denetimi (${pinSorunlari.length})` : 'Pin denetimi' },
     {
       id: 'problems',
       label: hataSayisi + uyariSayisi > 0 ? `Problems (${hataSayisi + uyariSayisi})` : 'Problems'
@@ -105,6 +116,13 @@ function BottomPanel({ activeTab, onTabChange, onClose }: BottomPanelProps): Rea
           </button>
         ))}
         <div className="flex-1" />
+        {state.build.boyut && (
+          <div className="mr-3 flex items-center gap-4" aria-label="Bellek kullanımı">
+            {state.build.boyut.flash && <BoyutCubugu ad="Flash" oge={state.build.boyut.flash} />}
+            {state.build.boyut.ram && <BoyutCubugu ad="RAM" oge={state.build.boyut.ram} />}
+          </div>
+        )}
+        <YardimDugmesi konu={YARDIM_KONUSU[activeTab]} />
         <button
           onClick={onClose}
           title="Alt paneli kapat"
@@ -116,7 +134,7 @@ function BottomPanel({ activeTab, onTabChange, onClose }: BottomPanelProps): Rea
 
       <div className="min-h-0 flex-1">
         {activeTab === 'cikti' && (
-          <pre ref={ciktiRef} className="h-full overflow-y-auto whitespace-pre-wrap p-2 font-mono text-xs text-gray-400">
+          <pre ref={ciktiRef} className="h-full overflow-y-auto overflow-x-hidden whitespace-pre-wrap p-2 font-mono text-xs text-gray-400 [overflow-wrap:anywhere]">
             {state.build.currentOperation && (
               <div className="mb-1 flex items-center gap-1.5 text-accent-hover">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
@@ -127,9 +145,31 @@ function BottomPanel({ activeTab, onTabChange, onClose }: BottomPanelProps): Rea
           </pre>
         )}
         {activeTab === 'seri' && <SerialMonitor />}
-        {activeTab === 'problems' && <ProblemsPanel />}
+        {activeTab === 'pinler' && <PinPanel sonuc={pinSonuc} />}
+        {activeTab === 'problems' && <ProblemsPanel pinSorunlari={pinSorunlari} />}
       </div>
     </section>
+  )
+}
+
+function bayt(n: number): string {
+  return n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${(n / 1024).toFixed(n >= 10240 ? 0 : 1)} KB`
+}
+
+/** Derleme sonrası bellek kullanımı: ince çubuk + oran; %85 üstü amber, %95 üstü kırmızı */
+function BoyutCubugu({ ad, oge }: { ad: string; oge: BuildSizeItem }): ReactElement {
+  const oran = Math.min(100, (oge.kullanilan / oge.azami) * 100)
+  const renk = oran >= 95 ? 'bg-red-400' : oran >= 85 ? 'bg-amber-400' : 'bg-accent'
+  return (
+    <div className="flex items-center gap-2 text-[11px] text-gray-400" title={`${ad}: ${oge.kullanilan.toLocaleString('tr-TR')} / ${oge.azami.toLocaleString('tr-TR')} bayt`}>
+      <span>{ad}</span>
+      <span className="h-1.5 w-20 overflow-hidden rounded-full bg-white/[0.08]">
+        <span className={`block h-full ${renk}`} style={{ width: `${oran}%` }} />
+      </span>
+      <span className="w-[88px] font-mono text-[10.5px] text-gray-500">
+        %{Math.round(oran)} · {bayt(oge.kullanilan)}
+      </span>
+    </div>
   )
 }
 

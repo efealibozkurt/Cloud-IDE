@@ -4,6 +4,28 @@ import { join } from 'path'
 import type { ArduinoCliService } from './ArduinoCliService'
 import type { BoardContext } from './BoardSkillEngine'
 import type { CustomSkill, RagStatusInfo, RagChunkSummary } from '@shared/types'
+import { Bm25Dizini, kodTanimlayicilari, rrfBirlestir } from './knowledge/bm25'
+import { icCarpim, vektorleriAc, vektorleriPaketle } from './knowledge/vectorStore'
+import { anahtarKelimeleriOku, apiOzetiniParcala, basliktanApiCikar, type KutuphaneApiOzeti } from './knowledge/libraryApi'
+
+const MODEL_ADI = 'Xenova/multilingual-e5-small'
+const VEKTOR_BOYUTU = 384
+const STORE_SURUMU = 2
+/**
+ * e5-small'da kosinüs değerleri sıkışıktır: ilgili sorgularda en iyi sonuç 0,83–0,90, ilgisiz sorgularda
+ * (hava durumu, tarif, denklem…) 0,79–0,84 çıkar (14 ilgili + 6 ilgisiz sorguyla ölçüldü). Bu yüzden tek bir eşik
+ * yetmez: KESIN üstü tek başına kabul edilir; GEVSEK ile KESIN arası yalnızca sözcük araması da destekliyorsa.
+ */
+const ANLAMSAL_KESIN = 0.855
+const ANLAMSAL_GEVSEK = 0.82
+const BM25_MIN_SKOR = 0.8
+
+/** Parçanın kaynağı; aramada kaynağa göre süzmek için kullanılır */
+export type RagKind = 'snippet' | 'example' | 'library' | 'skill'
+
+export interface RagAramaSecenekleri {
+  kinds?: RagKind[]
+}
 
 export interface RagChunk {
   id: string
@@ -13,8 +35,9 @@ export interface RagChunk {
   content: string
   boardFamily?: 'deneyap' | 'esp32' | 'avr' | 'rp2040' | 'stm32' | 'general'
   mtime: number
-  embedding?: number[]
+  embedding?: Float32Array
   isCustom?: boolean
+  kind?: RagKind
 }
 
 export interface RagSearchResult {
@@ -22,10 +45,11 @@ export interface RagSearchResult {
   score: number
 }
 
-interface RagStoreData {
+interface RagStoreMeta {
   version: number
-  updatedAt: string
-  chunks: RagChunk[]
+  model?: string
+  dim?: number
+  updatedAt?: string
 }
 
 /**
@@ -154,19 +178,27 @@ export class RagService {
   private initPromise: Promise<void> | null = null
   private chunks: RagChunk[] = []
   private storePath: string
+  private vektorPath: string
   private isIndexing = false
+  private bekleyenIndeks: { ornek?: number; kutuphane?: number } | null = null
+  private embedding = false
+  private depoHazir: Promise<void>
+  private bm25: Bm25Dizini | null = null
 
   constructor(private arduinoCliService?: ArduinoCliService) {
+    let klasor: string
     try {
-      this.storePath = join(app.getPath('userData'), 'rag_store.json')
+      klasor = app.getPath('userData')
     } catch {
-      this.storePath = join(process.cwd(), 'rag_store.json')
+      klasor = process.cwd()
     }
+    this.storePath = join(klasor, 'rag_store.json')
+    this.vektorPath = join(klasor, 'rag_vectors.bin')
+    // Depo model yüklemesinden bağımsız okunur: model yüklenemese de BM25 araması çalışır
+    this.depoHazir = this.loadStore()
   }
 
-  /**
-   * Xenova/multilingual-e5-small modelini lazy (ihtiyaç anında) yükler.
-   */
+  /** Xenova/multilingual-e5-small modelini ihtiyaç anında yükler. */
   async ensureModelLoaded(): Promise<boolean> {
     if (this.extractor) return true
     if (this.initPromise) {
@@ -177,25 +209,20 @@ export class RagService {
     this.initPromise = (async () => {
       try {
         console.log('[RagService] multilingual-e5-small modeli yükleniyor...')
-        // Dynamic import: ESM uyumluluğu için
         const { pipeline, env } = await import('@xenova/transformers')
-
         try {
           env.cacheDir = join(app.getPath('userData'), 'models')
         } catch {
-          // Fallback
+          // varsayılan önbellek
         }
-
-        // Quantized INT8 modeli: ~118 MB, CPU üzerinde son derece hızlı
-        this.extractor = await pipeline('feature-extraction', 'Xenova/multilingual-e5-small', {
-          quantized: true
-        })
-
+        this.extractor = await pipeline('feature-extraction', MODEL_ADI, { quantized: true })
         console.log('[RagService] multilingual-e5-small başarıyla yüklendi.')
-        await this.loadStore()
+        void this.eksikVektorleriHesapla()
       } catch (err) {
         console.warn('[RagService] Model yüklenirken hata oluştu:', err)
         this.extractor = null
+        // Sonraki çağrıda yeniden denenebilsin
+        this.initPromise = null
       }
     })()
 
@@ -203,332 +230,419 @@ export class RagService {
     return !!this.extractor
   }
 
-  /**
-   * Verilen metin için normalize edilmiş embedding vektörü üretir.
-   */
-  private async embedText(text: string, type: 'query' | 'passage'): Promise<number[] | null> {
+  /** Normalize edilmiş embedding vektörü üretir; model yoksa null döner. */
+  private async embedText(text: string, type: 'query' | 'passage'): Promise<Float32Array | null> {
     const ready = await this.ensureModelLoaded()
     if (!ready || !this.extractor) return null
-
     try {
-      // E5 formatı: sorgular için "query: ...", dokümanlar için "passage: ..."
-      const prefixed = `${type}: ${text.trim()}`
-      const output = await this.extractor(prefixed, {
-        pooling: 'mean',
-        normalize: true
-      })
-      return Array.from(output.data) as number[]
+      const output = await this.extractor(`${type}: ${text.trim().slice(0, 2000)}`, { pooling: 'mean', normalize: true })
+      return Float32Array.from(output.data as ArrayLike<number>)
     } catch (err) {
       console.warn('[RagService] Embedding hesaplama hatası:', err)
       return null
     }
   }
 
-  /**
-   * İki normalize vektör arasındaki kosinüs benzerliğini (Cosine Similarity / Dot Product) hesaplar.
-   */
-  private cosineSimilarity(a: number[], b: number[]): number {
-    if (a.length !== b.length) return 0
-    let dot = 0
-    for (let i = 0; i < a.length; i++) {
-      dot += a[i] * b[i]
-    }
-    return dot
-  }
+  // ── Depo ──
 
-  /**
-   * Kalıcı depodaki parçaları diskten okur; yoksa hazır altın standart parçacıklarla başlatır.
-   */
   private async loadStore(): Promise<void> {
     try {
-      const dataStr = await fs.readFile(this.storePath, 'utf-8')
-      const parsed = JSON.parse(dataStr) as RagStoreData
-      if (parsed && Array.isArray(parsed.chunks)) {
-        this.chunks = parsed.chunks
-        console.log(`[RagService] Önbellekten ${this.chunks.length} RAG parçası yüklendi.`)
+      const ham = JSON.parse(await fs.readFile(this.storePath, 'utf-8')) as RagStoreMeta & {
+        chunks: Array<RagChunk & { embedding?: number[]; embIdx?: number }>
+      }
+      if (Array.isArray(ham.chunks)) {
+        this.chunks = ham.chunks.map((c) => {
+          const { embedding: _e, embIdx: _i, ...diger } = c
+          return diger as RagChunk
+        })
+        const surum = ham.version ?? 1
+        if (surum >= 2 && ham.model === MODEL_ADI && ham.dim === VEKTOR_BOYUTU) {
+          try {
+            const vekt = vektorleriAc(await fs.readFile(this.vektorPath), ham.dim)
+            ham.chunks.forEach((c, i) => {
+              if (typeof c.embIdx === 'number' && vekt[c.embIdx]) this.chunks[i].embedding = vekt[c.embIdx]
+            })
+          } catch (err) {
+            console.warn('[RagService] Vektör dosyası okunamadı, yeniden hesaplanacak:', err)
+          }
+        } else if (surum === 1) {
+          // Eski biçim: vektörler JSON içindeydi
+          ham.chunks.forEach((c, i) => {
+            if (Array.isArray(c.embedding) && c.embedding.length === VEKTOR_BOYUTU) {
+              this.chunks[i].embedding = Float32Array.from(c.embedding)
+            }
+          })
+        }
+        this.chunks.forEach((c) => {
+          c.kind = c.kind ?? this.tahminEtKind(c)
+        })
+        this.bm25 = null
+        console.log(`[RagService] Depodan ${this.chunks.length} parça yüklendi (${this.chunks.filter((c) => c.embedding).length} vektörlü).`)
+        this.cekirdekEksikleriniEkle()
         return
       }
     } catch {
-      // Dosya yoksa veya bozuksa
+      // Dosya yok veya bozuk: çekirdek parçalarla başla
     }
-
-    // Hazır snippet'leri yükle ve embed et
-    await this.bootstrapCoreSnippets()
-  }
-
-  /**
-   * Hazır donanım snippet'lerini vektörleştirip depolar.
-   */
-  private async bootstrapCoreSnippets(): Promise<void> {
-    console.log('[RagService] Hazır çekirdek snippet parçacıkları hazırlanıyor...')
     this.chunks = []
-
-    for (const [idx, item] of HAZIR_DONANIM_SNIPPETLERI.entries()) {
-      const chunk: RagChunk = {
-        id: `core_snippet_${idx}`,
-        sourceFile: item.sourceFile,
-        sourceOwner: item.sourceOwner,
-        title: item.title,
-        boardFamily: item.boardFamily,
-        content: item.content,
-        mtime: Date.now()
-      }
-
-      // Parça metnini başlık + içerik olarak embed et
-      const textToEmbed = `${chunk.title}\n${chunk.content}`
-      const vec = await this.embedText(textToEmbed, 'passage')
-      if (vec) {
-        chunk.embedding = vec
-        this.chunks.push(chunk)
-      }
-    }
-
-    await this.saveStore()
+    this.cekirdekEksikleriniEkle()
   }
 
-  /**
-   * Depoyu diske kaydeder.
-   */
+  private tahminEtKind(c: RagChunk): RagKind {
+    if (c.isCustom) return 'skill'
+    if (c.id.startsWith('core_snippet_')) return 'snippet'
+    if (c.id.startsWith('lib_')) return 'library'
+    return 'example'
+  }
+
+  /** Hazır donanım parçalarından depoda olmayanları (vektörsüz) ekler. */
+  private cekirdekEksikleriniEkle(): void {
+    HAZIR_DONANIM_SNIPPETLERI.forEach((item, idx) => {
+      const id = `core_snippet_${idx}`
+      if (this.chunks.some((c) => c.id === id)) return
+      this.chunks.push({ id, ...item, kind: 'snippet', mtime: Date.now() })
+      this.bm25 = null
+    })
+  }
+
   private async saveStore(): Promise<void> {
     try {
-      const storeData: RagStoreData = {
-        version: 1,
+      const vektorlu = this.chunks.filter((c) => c.embedding)
+      const meta = {
+        version: STORE_SURUMU,
+        model: MODEL_ADI,
+        dim: VEKTOR_BOYUTU,
         updatedAt: new Date().toISOString(),
-        chunks: this.chunks
+        chunks: this.chunks.map((c) => {
+          const { embedding, ...diger } = c
+          return embedding ? { ...diger, embIdx: vektorlu.indexOf(c) } : diger
+        })
       }
-      await fs.writeFile(this.storePath, JSON.stringify(storeData, null, 2), 'utf-8')
+      const bin = vektorleriPaketle(vektorlu.map((c) => c.embedding as Float32Array), VEKTOR_BOYUTU)
+      // Atomik yazım: yarım kalan dosya depoyu bozmasın
+      await fs.writeFile(`${this.vektorPath}.tmp`, bin)
+      await fs.writeFile(`${this.storePath}.tmp`, JSON.stringify(meta), 'utf-8')
+      await fs.rename(`${this.vektorPath}.tmp`, this.vektorPath)
+      await fs.rename(`${this.storePath}.tmp`, this.storePath)
     } catch (err) {
       console.warn('[RagService] Depo diske yazılırken hata:', err)
     }
   }
 
-  /**
-   * Kullanıcının sorusuna veya promptuna göre en alakalı RAG referans kodlarını arar.
-   */
-  async search(query: string, boardContext?: BoardContext, topK = 2): Promise<RagSearchResult[]> {
-    if (!query || query.trim().length < 2) return []
-
-    const queryVec = await this.embedText(query, 'query')
-    if (!queryVec || this.chunks.length === 0) return []
-
-    const fqbn = (boardContext?.fqbn || '').toLowerCase()
-    const boardName = (boardContext?.name || '').toLowerCase()
-
-    let targetFamily: 'deneyap' | 'esp32' | 'avr' | 'rp2040' | 'stm32' | undefined
-    if (fqbn.includes('deneyap') || boardName.includes('deneyap')) targetFamily = 'deneyap'
-    else if (fqbn.includes('esp32') || boardName.includes('esp32')) targetFamily = 'esp32'
-    else if (fqbn.includes('avr') || boardName.includes('uno') || boardName.includes('nano')) targetFamily = 'avr'
-    else if (fqbn.includes('rp2040') || boardName.includes('pico')) targetFamily = 'rp2040'
-    else if (fqbn.includes('stm32')) targetFamily = 'stm32'
-
-    const sonuclar: RagSearchResult[] = []
-
-    for (const chunk of this.chunks) {
-      if (!chunk.embedding) continue
-
-      let score = this.cosineSimilarity(queryVec, chunk.embedding)
-
-      // Kart ailesi uyumu için hafif pozitif boost
-      if (targetFamily && chunk.boardFamily) {
-        if (chunk.boardFamily === targetFamily) {
-          score += 0.08 // Hedef kart ailesiyle tam eşleşen kodlara öncelik ver
-        } else if (chunk.boardFamily !== 'general') {
-          score -= 0.05 // Farklı spesifik bir kart ailesiyse hafif düşür
-        }
+  /** Vektörü olmayan parçalar için gömme hesaplar (model yüklendikten sonra arka planda). */
+  private async eksikVektorleriHesapla(): Promise<void> {
+    if (this.embedding) return
+    this.embedding = true
+    try {
+      await this.depoHazir
+      let degisti = false
+      for (const c of this.chunks) {
+        if (c.embedding) continue
+        const v = await this.embedText(`${c.title}\n${c.content}`, 'passage')
+        if (!v) break
+        c.embedding = v
+        degisti = true
+        await new Promise((r) => setTimeout(r, 5))
       }
-
-      sonuclar.push({ chunk, score })
+      if (degisti) await this.saveStore()
+    } finally {
+      this.embedding = false
     }
+  }
 
-    // Skora göre sırala
-    sonuclar.sort((a, b) => b.score - a.score)
+  // ── Arama ──
 
-    // En alakalı ilk topK sonucu filtrele (belirli bir benzerlik eşiğinin üzerindekiler)
-    return sonuclar.filter((s) => s.score >= 0.60).slice(0, topK)
+  private bm25Dizini(): Bm25Dizini {
+    if (!this.bm25) this.bm25 = new Bm25Dizini(this.chunks.map((c) => `${c.title}\n${c.sourceOwner}\n${kodTanimlayicilari(c.content)}`))
+    return this.bm25
+  }
+
+  private kartAilesi(ctx?: BoardContext): RagChunk['boardFamily'] | undefined {
+    const fqbn = (ctx?.fqbn || '').toLowerCase()
+    const ad = (ctx?.name || '').toLowerCase()
+    if (fqbn.includes('deneyap') || ad.includes('deneyap')) return 'deneyap'
+    if (fqbn.includes('esp32') || ad.includes('esp32')) return 'esp32'
+    if (fqbn.includes('avr') || ad.includes('uno') || ad.includes('nano')) return 'avr'
+    if (fqbn.includes('rp2040') || ad.includes('pico')) return 'rp2040'
+    if (fqbn.includes('stm32')) return 'stm32'
+    return undefined
   }
 
   /**
-   * Kurulu kütüphanelerden ve çekirdek örneklerinden arka planda RAG indeksleme yapar.
-   * UI donmalarını engellemek için parça parça işler.
+   * Hibrit arama: anlamsal (e5 kosinüs) ve sözcük tabanlı (BM25) sıralamalar RRF ile birleştirilir.
+   * Model yüklenemezse yalnızca BM25 ile çalışmaya devam eder.
+   */
+  async search(query: string, boardContext?: BoardContext, topK = 5, secenekler?: RagAramaSecenekleri): Promise<RagSearchResult[]> {
+    if (!query || query.trim().length < 2) return []
+    await this.depoHazir
+    if (this.chunks.length === 0) return []
+
+    const izinli = (c: RagChunk): boolean => !secenekler?.kinds || secenekler.kinds.includes(c.kind ?? 'example')
+
+    // 1) Sözcük sırası
+    const sozcuk = this.bm25Dizini()
+      .ara(query, 30)
+      .filter((r) => izinli(this.chunks[r.indeks]))
+    const enBm = sozcuk[0]?.skor ?? 0
+    const bm25Idx = enBm >= BM25_MIN_SKOR ? sozcuk.filter((r) => r.skor >= enBm * 0.35).map((r) => r.indeks) : []
+    const bm25Kumesi = new Set(bm25Idx)
+
+    // 2) Anlamsal sıra (kesin eşik, ya da sözcük desteğiyle gevşek eşik)
+    const sorguVektoru = await this.embedText(query, 'query')
+    let anlamsal: number[] = []
+    if (sorguVektoru) {
+      const puanlar = this.chunks
+        .map((c, i) => ({ i, cos: c.embedding && izinli(c) ? icCarpim(sorguVektoru, c.embedding) : -1 }))
+        .filter((x) => x.cos >= ANLAMSAL_KESIN || (x.cos >= ANLAMSAL_GEVSEK && bm25Kumesi.has(x.i)))
+        .sort((a, b) => b.cos - a.cos)
+      const en = puanlar[0]?.cos ?? 0
+      anlamsal = puanlar.filter((x) => x.cos >= en - 0.12).slice(0, 20).map((x) => x.i)
+    }
+
+    if (anlamsal.length === 0 && bm25Idx.length === 0) return []
+
+    // 3) Birleştir + kart ailesi ayarı
+    const aile = this.kartAilesi(boardContext)
+    const birlesik = rrfBirlestir([anlamsal, bm25Idx]).map((r) => {
+      const c = this.chunks[r.indeks]
+      let skor = r.skor
+      if (aile && c.boardFamily && c.boardFamily !== 'general') skor *= c.boardFamily === aile ? 1.25 : 0.8
+      return { chunk: c, score: skor }
+    })
+    birlesik.sort((a, b) => b.score - a.score)
+    return birlesik.slice(0, topK)
+  }
+
+  // ── İndeksleme ──
+
+  /**
+   * Kurulu kütüphane örneklerini arka planda indeksler. Başka bir indeksleme sürüyorsa istek
+   * kuyruğa alınır ve mevcut iş bitince çalıştırılır.
    */
   async indexInstalledExamples(maxExamples = 30): Promise<number> {
-    if (!this.arduinoCliService || this.isIndexing) return 0
-    this.isIndexing = true
+    return this.indeksle({ ornek: maxExamples })
+  }
 
-    console.log('[RagService] Kurulu örnek kodlar taranıyor ve indeksleniyor...')
-    let eklenenSayisi = 0
+  /** Kurulu kütüphanelerin başlık dosyalarından API özetleri çıkarıp indeksler. */
+  async indexLibraryApis(maxLibraries = 40): Promise<number> {
+    return this.indeksle({ kutuphane: maxLibraries })
+  }
 
-    try {
-      const gruplar = await this.arduinoCliService.listExamples()
-      let islenenDosyaSayisi = 0
-
-      for (const grup of gruplar) {
-        if (islenenDosyaSayisi >= maxExamples) break
-
-        const ownerName = grup.ownerName
-
-        let family: 'deneyap' | 'esp32' | 'avr' | 'rp2040' | 'stm32' | 'general' = 'general'
-        const lowerOwner = ownerName.toLowerCase()
-        if (lowerOwner.includes('deneyap')) family = 'deneyap'
-        else if (lowerOwner.includes('esp32')) family = 'esp32'
-        else if (lowerOwner.includes('avr')) family = 'avr'
-
-        for (const ornek of grup.examples) {
-          if (islenenDosyaSayisi >= maxExamples) break
-
-          try {
-            const dosyalar = await fs.readdir(ornek.folderPath)
-            const inoDosyasi = dosyalar.find((d) => d.endsWith('.ino'))
-            if (!inoDosyasi) continue
-
-            const tamYol = join(ornek.folderPath, inoDosyasi)
-            const stats = await fs.stat(tamYol)
-
-            // Zaten aynı mtime ile indekslenmiş mi?
-            const mevcut = this.chunks.find((c) => c.sourceFile === tamYol && c.mtime === stats.mtimeMs)
-            if (mevcut) continue
-
-            const icerik = await fs.readFile(tamYol, 'utf-8')
-            const chunks = this.chunkInoFile(tamYol, ownerName, ornek.name, icerik, family, stats.mtimeMs)
-
-            for (const c of chunks) {
-              const textToEmbed = `${c.title}\n${c.content}`
-              const vec = await this.embedText(textToEmbed, 'passage')
-              if (vec) {
-                c.embedding = vec
-                // Varsa eskisini güncelle veya yenisini ekle
-                const idx = this.chunks.findIndex((x) => x.id === c.id)
-                if (idx >= 0) this.chunks[idx] = c
-                else this.chunks.push(c)
-                eklenenSayisi++
-              }
-              // CPU'yu rahatlatmak için kısa nefes payı
-              await new Promise((resolve) => setTimeout(resolve, 10))
-            }
-
-            islenenDosyaSayisi++
-          } catch {
-            // Tekil dosya hatası es geçilir
-          }
-        }
+  private async indeksle(istek: { ornek?: number; kutuphane?: number }): Promise<number> {
+    await this.depoHazir
+    if (!this.arduinoCliService) return 0
+    if (this.isIndexing) {
+      this.bekleyenIndeks = {
+        ornek: Math.max(this.bekleyenIndeks?.ornek ?? 0, istek.ornek ?? 0) || undefined,
+        kutuphane: Math.max(this.bekleyenIndeks?.kutuphane ?? 0, istek.kutuphane ?? 0) || undefined
       }
-
-      if (eklenenSayisi > 0) {
+      return 0
+    }
+    this.isIndexing = true
+    let eklenen = 0
+    try {
+      if (istek.ornek) eklenen += await this.ornekleriIndeksle(istek.ornek)
+      if (istek.kutuphane) eklenen += await this.kutuphaneleriIndeksle(istek.kutuphane)
+      if (eklenen > 0) {
+        this.bm25 = null
         await this.saveStore()
-        console.log(`[RagService] İndeksleme tamamlandı. ${eklenenSayisi} yeni parça eklendi. Toplam parça: ${this.chunks.length}`)
+        console.log(`[RagService] İndeksleme tamamlandı: ${eklenen} yeni parça, toplam ${this.chunks.length}.`)
       }
     } catch (err) {
       console.warn('[RagService] İndeksleme sırasında hata:', err)
     } finally {
       this.isIndexing = false
     }
-
-    return eklenenSayisi
+    const siradaki = this.bekleyenIndeks
+    this.bekleyenIndeks = null
+    if (siradaki) eklenen += await this.indeksle(siradaki)
+    return eklenen
   }
 
-  /**
-   * Bir Arduino .ino dosyasını fonksiyonel bloklarına (setup, loop, fonksiyonlar) parçalar.
-   */
-  private chunkInoFile(
-    filePath: string,
-    owner: string,
-    exampleName: string,
-    code: string,
-    family: 'deneyap' | 'esp32' | 'avr' | 'rp2040' | 'stm32' | 'general',
+  private async parcaEkle(c: RagChunk): Promise<void> {
+    c.embedding = (await this.embedText(`${c.title}\n${c.content}`, 'passage')) ?? undefined
+    const idx = this.chunks.findIndex((x) => x.id === c.id)
+    if (idx >= 0) this.chunks[idx] = c
+    else this.chunks.push(c)
+    this.bm25 = null
+    await new Promise((r) => setTimeout(r, 10))
+  }
+
+  private async ornekleriIndeksle(maxExamples: number): Promise<number> {
+    const gruplar = await this.arduinoCliService!.listExamples()
+    const mevcutMtime = new Map<string, number>()
+    for (const c of this.chunks) if (c.kind === 'example') mevcutMtime.set(c.sourceFile, c.mtime)
+
+    let islenen = 0
+    let eklenen = 0
+    for (const grup of gruplar) {
+      if (islenen >= maxExamples) break
+      const sahip = grup.ownerName
+      const kucuk = sahip.toLowerCase()
+      const aile: RagChunk['boardFamily'] = kucuk.includes('deneyap')
+        ? 'deneyap'
+        : kucuk.includes('esp32')
+        ? 'esp32'
+        : kucuk.includes('avr')
+        ? 'avr'
+        : 'general'
+
+      for (const ornek of grup.examples) {
+        if (islenen >= maxExamples) break
+        try {
+          const ino = (await fs.readdir(ornek.folderPath)).find((d) => d.endsWith('.ino'))
+          if (!ino) continue
+          const tamYol = join(ornek.folderPath, ino)
+          const st = await fs.stat(tamYol)
+          if (mevcutMtime.get(tamYol) === st.mtimeMs) {
+            islenen++
+            continue
+          }
+          const kod = await fs.readFile(tamYol, 'utf-8')
+          for (const c of this.inoParcala(tamYol, sahip, ornek.name, kod, aile, st.mtimeMs)) {
+            await this.parcaEkle(c)
+            eklenen++
+          }
+          islenen++
+        } catch {
+          // tekil dosya hatası es geçilir
+        }
+      }
+    }
+    return eklenen
+  }
+
+  private async kutuphaneleriIndeksle(maxLibraries: number): Promise<number> {
+    const kutuphaneler = await this.arduinoCliService!.listLibraries()
+    let eklenen = 0
+    let islenen = 0
+    for (const kut of kutuphaneler) {
+      if (islenen >= maxLibraries) break
+      const onek = `lib_${kut.name}@${kut.version}_`
+      if (this.chunks.some((c) => c.id.startsWith(onek))) {
+        islenen++
+        continue
+      }
+      try {
+        const ozet = await this.kutuphaneApiOzeti(kut.installDir, kut.name)
+        if (!ozet) continue
+        // Aynı kütüphanenin eski sürüm parçalarını temizle
+        this.chunks = this.chunks.filter((c) => !c.id.startsWith(`lib_${kut.name}@`))
+        const parcalar = apiOzetiniParcala(ozet)
+        for (const [i, metin] of parcalar.entries()) {
+          await this.parcaEkle({
+            id: `${onek}${i}`,
+            sourceFile: kut.installDir,
+            sourceOwner: `Kütüphane: ${kut.name} ${kut.version}`,
+            title: `${kut.name} kütüphanesi API (${i + 1}/${parcalar.length})`,
+            content: `#include <${ozet.baslikAdi}>\n${metin}`,
+            boardFamily: 'general',
+            kind: 'library',
+            mtime: Date.now()
+          })
+          eklenen++
+        }
+        islenen++
+      } catch {
+        // tekil kütüphane hatası es geçilir
+      }
+    }
+    return eklenen
+  }
+
+  private async kutuphaneApiOzeti(kutDizini: string, ad: string): Promise<(KutuphaneApiOzeti & { baslikAdi: string }) | null> {
+    const adaylar = [join(kutDizini, 'src'), kutDizini]
+    for (const dizin of adaylar) {
+      let dosyalar: string[]
+      try {
+        dosyalar = (await fs.readdir(dizin)).filter((d) => /\.(h|hpp)$/i.test(d))
+      } catch {
+        continue
+      }
+      if (dosyalar.length === 0) continue
+      const kisa = ad.toLowerCase().replace(/[^a-z0-9]/g, '')
+      const oncelik = (d: string): number => (d.toLowerCase().replace(/[^a-z0-9.]/g, '').startsWith(kisa) ? 0 : 1)
+      dosyalar.sort((a, b) => oncelik(a) - oncelik(b) || a.localeCompare(b))
+
+      const birlesik: KutuphaneApiOzeti = { siniflar: [], fonksiyonlar: [], sabitler: [] }
+      for (const d of dosyalar.slice(0, 4)) {
+        const o = basliktanApiCikar(await fs.readFile(join(dizin, d), 'utf-8'))
+        birlesik.siniflar.push(...o.siniflar)
+        birlesik.fonksiyonlar.push(...o.fonksiyonlar)
+        birlesik.sabitler.push(...o.sabitler)
+      }
+      if (birlesik.fonksiyonlar.length === 0 && birlesik.siniflar.length === 0) {
+        try {
+          birlesik.fonksiyonlar.push(...anahtarKelimeleriOku(await fs.readFile(join(kutDizini, 'keywords.txt'), 'utf-8')))
+        } catch {
+          return null
+        }
+      }
+      if (birlesik.fonksiyonlar.length === 0 && birlesik.siniflar.length === 0) return null
+      birlesik.fonksiyonlar = birlesik.fonksiyonlar.slice(0, 140)
+      return { ...birlesik, baslikAdi: dosyalar[0] }
+    }
+    return null
+  }
+
+  /** Bir .ino dosyasını anlamlı parçalara böler (kısa dosya tek parça; uzun dosya setup/loop blokları). */
+  private inoParcala(
+    dosya: string,
+    sahip: string,
+    ornekAdi: string,
+    kod: string,
+    aile: RagChunk['boardFamily'],
     mtime: number
   ): RagChunk[] {
-    const lines = code.split('\n')
-    const chunks: RagChunk[] = []
-
-    // Dosya kısaysa (60 satırdan az) tek parça al
-    if (lines.length <= 60) {
-      const cleanContent = lines.slice(0, 50).join('\n').trim()
-      chunks.push({
-        id: `${filePath}_full`,
-        sourceFile: filePath,
-        sourceOwner: owner,
-        title: `${owner} / ${exampleName} (Tam Örnek Kod)`,
-        content: cleanContent,
-        boardFamily: family,
-        mtime
-      })
-      return chunks
+    const satirlar = kod.split('\n')
+    const temel = { sourceFile: dosya, sourceOwner: sahip, boardFamily: aile, kind: 'example' as const, mtime }
+    if (satirlar.length <= 60) {
+      return [{ ...temel, id: `${dosya}_full`, title: `${sahip} / ${ornekAdi} (Tam Örnek Kod)`, content: satirlar.slice(0, 55).join('\n').trim() }]
     }
 
-    // Büyük dosyalarda: Başlık tanımları + setup + loop fonksiyon bloklarını ayır
-    const headerLines: string[] = []
-    let currentBlock: string[] = []
-    let currentTitle = ''
-    let insideFunction = false
+    // Üst bilgi: ilk fonksiyondan önceki #include/#define/global tanımlar
+    let ilkFonksiyon = satirlar.findIndex((s) => /^\s*(?:void|int|float|bool|double|long|char|String)\s+\w+\s*\(/.test(s))
+    if (ilkFonksiyon < 0) ilkFonksiyon = Math.min(satirlar.length, 15)
+    const ust = satirlar.slice(0, ilkFonksiyon).filter((s) => {
+      const t = s.trim()
+      return t && !t.startsWith('//') && !t.startsWith('/*') && !t.startsWith('*')
+    })
+    const ustMetin = ust.slice(0, 15).join('\n')
 
-    for (const line of lines) {
-      const trimmed = line.trim()
-
-      if (!insideFunction && (trimmed.startsWith('#include') || trimmed.startsWith('#define') || trimmed.includes('const ') || (trimmed.includes(';') && !trimmed.startsWith('//')))) {
-        headerLines.push(line)
-        continue
-      }
-
-      if (trimmed.startsWith('void setup(')) {
-        insideFunction = true
-        currentTitle = `${owner} - ${exampleName} (setup / Başlatma Mantığı)`
-        currentBlock = [line]
-        continue
-      }
-
-      if (trimmed.startsWith('void loop(')) {
-        // Önceki setup bloğu varsa bitir ve kaydet
-        if (currentBlock.length > 0) {
-          chunks.push({
-            id: `${filePath}_setup`,
-            sourceFile: filePath,
-            sourceOwner: owner,
-            title: currentTitle || `${owner} - ${exampleName} (setup)`,
-            content: (headerLines.slice(0, 15).join('\n') + '\n\n' + currentBlock.slice(0, 35).join('\n')).trim(),
-            boardFamily: family,
-            mtime
-          })
+    const blokAl = (baslangicDeseni: RegExp): string | null => {
+      const bas = satirlar.findIndex((s) => baslangicDeseni.test(s))
+      if (bas < 0) return null
+      let derinlik = 0
+      let basladi = false
+      const blok: string[] = []
+      for (let i = bas; i < satirlar.length && blok.length < 45; i++) {
+        blok.push(satirlar[i])
+        for (const ch of satirlar[i]) {
+          if (ch === '{') {
+            derinlik++
+            basladi = true
+          } else if (ch === '}') derinlik--
         }
-        insideFunction = true
-        currentTitle = `${owner} - ${exampleName} (loop / Döngü ve Sensör İşlemleri)`
-        currentBlock = [line]
-        continue
+        if (basladi && derinlik <= 0) break
       }
-
-      if (insideFunction) {
-        currentBlock.push(line)
-        if (currentBlock.length >= 40) {
-          // Çok uzadıysa kes
-          insideFunction = false
-        }
-      }
+      return blok.join('\n')
     }
 
-    if (currentBlock.length > 0) {
-      chunks.push({
-        id: `${filePath}_loop`,
-        sourceFile: filePath,
-        sourceOwner: owner,
-        title: currentTitle || `${owner} - ${exampleName} (Fonksiyonel Blok)`,
-        content: currentBlock.slice(0, 40).join('\n').trim(),
-        boardFamily: family,
-        mtime
-      })
-    }
-
-    return chunks.slice(0, 2)
+    const sonuc: RagChunk[] = []
+    const setup = blokAl(/^\s*void\s+setup\s*\(/)
+    const loop = blokAl(/^\s*void\s+loop\s*\(/)
+    if (setup) sonuc.push({ ...temel, id: `${dosya}_setup`, title: `${sahip} / ${ornekAdi} (setup: başlatma)`, content: `${ustMetin}\n\n${setup}`.trim() })
+    if (loop) sonuc.push({ ...temel, id: `${dosya}_loop`, title: `${sahip} / ${ornekAdi} (loop: ana döngü)`, content: loop.trim() })
+    if (sonuc.length === 0) sonuc.push({ ...temel, id: `${dosya}_full`, title: `${sahip} / ${ornekAdi}`, content: satirlar.slice(0, 55).join('\n').trim() })
+    return sonuc
   }
 
-  /**
-   * İndeksteki toplam parça sayısını döner.
-   */
+  // ── Okuma / yönetim ──
+
   getChunkCount(): number {
     return this.chunks.length
   }
 
-  /**
-   * RAG modelinin ve depolamanın güncel durumunu döner.
-   */
   getStats(): RagStatusInfo {
     return {
       modelLoaded: !!this.extractor,
@@ -539,27 +653,18 @@ export class RagService {
     }
   }
 
-  /**
-   * İndekslenmiş RAG parçalarını sorgu veya kart ailesine göre listeler.
-   */
   listChunks(query?: string, boardFamily?: string): RagChunkSummary[] {
     let filtered = this.chunks
-
     if (boardFamily && boardFamily !== 'all') {
-      const target = boardFamily.toLowerCase()
-      filtered = filtered.filter((c) => (c.boardFamily || 'general').toLowerCase() === target)
+      const hedef = boardFamily.toLowerCase()
+      filtered = filtered.filter((c) => (c.boardFamily || 'general').toLowerCase() === hedef)
     }
-
     if (query && query.trim()) {
       const q = query.toLowerCase().trim()
       filtered = filtered.filter(
-        (c) =>
-          c.title.toLowerCase().includes(q) ||
-          c.sourceOwner.toLowerCase().includes(q) ||
-          c.content.toLowerCase().includes(q)
+        (c) => c.title.toLowerCase().includes(q) || c.sourceOwner.toLowerCase().includes(q) || c.content.toLowerCase().includes(q)
       )
     }
-
     return filtered.map((c) => ({
       id: c.id,
       title: c.title,
@@ -571,60 +676,52 @@ export class RagService {
     }))
   }
 
-  /**
-   * Kullanıcının eklediği özel beceriyi embedding üretip RAG indeksine kaydeder.
-   */
-  async addCustomSkillChunk(skill: CustomSkill): Promise<void> {
-    const chunkId = `custom_${skill.id}`
-    const chunk: RagChunk = {
-      id: chunkId,
+  private beceriParcasi(skill: CustomSkill): RagChunk {
+    return {
+      id: `custom_${skill.id}`,
       sourceFile: 'custom_skill',
       sourceOwner: 'Özel Beceri (Kullanıcı)',
       title: skill.title,
       content: skill.content,
-      boardFamily: (skill.boardFamily || 'general') as any,
+      boardFamily: (skill.boardFamily || 'general') as RagChunk['boardFamily'],
+      kind: 'skill',
       mtime: skill.updatedAt || Date.now(),
       isCustom: true
     }
+  }
 
-    const textToEmbed = `${skill.title}\n${skill.content}`
-    const vec = await this.embedText(textToEmbed, 'passage')
-    if (vec) {
-      chunk.embedding = vec
-    }
-
-    const idx = this.chunks.findIndex((c) => c.id === chunkId)
-    if (idx >= 0) {
-      this.chunks[idx] = chunk
-    } else {
-      this.chunks.unshift(chunk)
-    }
-
+  async addCustomSkillChunk(skill: CustomSkill): Promise<void> {
+    await this.depoHazir
+    await this.parcaEkle(this.beceriParcasi(skill))
     await this.saveStore()
   }
 
-  /**
-   * Özel beceriyi RAG indeksinden kaldırır.
-   */
   async removeCustomSkillChunk(skillId: string): Promise<void> {
-    const chunkId = `custom_${skillId}`
-    const initialLen = this.chunks.length
-    this.chunks = this.chunks.filter((c) => c.id !== chunkId)
-    if (this.chunks.length !== initialLen) {
+    await this.depoHazir
+    const onceki = this.chunks.length
+    this.chunks = this.chunks.filter((c) => c.id !== `custom_${skillId}`)
+    if (this.chunks.length !== onceki) {
+      this.bm25 = null
       await this.saveStore()
     }
   }
 
-  /**
-   * Özel becerileri RAG deposuyla senkronize eder.
-   */
+  /** Özel becerileri depoyla eşitler: eksikleri ekler, silinmiş olanları kaldırır. */
   async syncCustomSkills(skills: CustomSkill[]): Promise<void> {
+    await this.depoHazir
+    const kimlikler = new Set(skills.map((s) => `custom_${s.id}`))
+    const onceki = this.chunks.length
+    this.chunks = this.chunks.filter((c) => !c.isCustom || kimlikler.has(c.id))
+    let degisti = this.chunks.length !== onceki
     for (const skill of skills) {
-      const chunkId = `custom_${skill.id}`
-      const existing = this.chunks.find((c) => c.id === chunkId)
-      if (!existing) {
-        await this.addCustomSkillChunk(skill)
+      if (!this.chunks.some((c) => c.id === `custom_${skill.id}`)) {
+        await this.parcaEkle(this.beceriParcasi(skill))
+        degisti = true
       }
+    }
+    if (degisti) {
+      this.bm25 = null
+      await this.saveStore()
     }
   }
 }

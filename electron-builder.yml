@@ -19,12 +19,20 @@ extraResources:
     to: arduino-cli
     filter:
       - "**/*"
+  # Pencere/görev çubuğu ikonu (src/main/index.ts: process.resourcesPath/icon.ico)
+  - from: resources/icon.ico
+    to: icon.ico
 
 asar: true
 asarUnpack:
   - "**/node_modules/serialport/**"
   - "**/node_modules/@serialport/**"
+  # RAG gömme modeli: onnxruntime'ın DLL'leri asar dışında olmalı
+  - "**/node_modules/onnxruntime-node/**"
+  - "**/node_modules/sharp/**"
+  - "**/node_modules/@img/**"
   - "**/*.node"
+  - "**/*.dll"
 
 win:
   icon: resources/icon.ico
@@ -49,7 +57,13 @@ nsis:
   uninstallerIcon: resources/icon.ico
   installerHeaderIcon: resources/icon.ico
   runAfterFinish: true
-  artifactName: ${productName}-Setup-${version}.${ext}
+  # Boşluksuz ad: GitHub yüklemede boşluğu noktaya çevirir ve latest.yml ile uyuşmazlık çıkar
+  artifactName: Cloud-IDE-Setup-${version}.${ext}
+
+publish:
+  provider: github
+  owner: efealibozkurt
+  repo: Cloud-IDE
 
 portable:
-  artifactName: ${productName}-${version}-portable.${ext}
+  artifactName: Cloud-IDE-${version}-portable.${ext}

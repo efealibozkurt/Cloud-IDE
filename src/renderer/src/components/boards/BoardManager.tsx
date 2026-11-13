@@ -2,6 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } 
 import type { PlatformSearchResult } from '@shared/types'
 import { useAppState } from '../../state/AppStateContext'
 import { useToast } from '../../state/ToastContext'
+import { kartRengi, platformGorseli } from '../../utils/boardImages'
+import BoardThumb from '../common/BoardThumb'
+import SegmentKontrol from '../common/SegmentKontrol'
+import { EylemSatiri, KurulumGunlugu, Led, SECICI_SINIFI, Tus } from '../common/Tus'
 
 type SekmeTuru = 'tumu' | 'kurulu'
 
@@ -165,40 +169,18 @@ function BoardManager(): ReactElement {
 
   return (
     <div className="flex h-full flex-col text-xs">
-      {/* ── Üst Sekme Kontrolü (Tümü / Kurulu Kartlar) ── */}
-      <div className="flex border-b border-panel-border bg-panel/50 p-1">
-        <button
-          onClick={() => setAktifSekme('tumu')}
-          className={`flex-1 rounded py-1 text-center font-medium transition-colors ${
-            aktifSekme === 'tumu'
-              ? 'bg-panel-border/80 text-gray-100 shadow-sm'
-              : 'text-gray-400 hover:text-gray-200'
-          }`}
-        >
-          Katalog (Tümü)
-        </button>
-        <button
-          onClick={() => {
-            setAktifSekme('kurulu')
-            void refreshPlatforms()
+      <div className="shrink-0 border-b border-white/[0.06] p-2">
+        <SegmentKontrol
+          secenekler={[
+            { id: 'tumu', ad: 'Katalog' },
+            { id: 'kurulu', ad: 'Kurulu', sayi: state.arduinoCli.platforms.length }
+          ]}
+          deger={aktifSekme}
+          onDegis={(id) => {
+            setAktifSekme(id)
+            if (id === 'kurulu') void refreshPlatforms()
           }}
-          className={`flex items-center justify-center gap-1.5 flex-1 rounded py-1 text-center font-medium transition-colors ${
-            aktifSekme === 'kurulu'
-              ? 'bg-panel-border/80 text-emerald-300 shadow-sm'
-              : 'text-gray-400 hover:text-gray-200'
-          }`}
-        >
-          <span>Kurulu Kartlar</span>
-          <span
-            className={`rounded-full px-1.5 py-0.2 text-[10px] font-semibold ${
-              aktifSekme === 'kurulu'
-                ? 'bg-emerald-500/20 text-emerald-300'
-                : 'bg-panel-border text-gray-400'
-            }`}
-          >
-            {state.arduinoCli.platforms.length}
-          </span>
-        </button>
+        />
       </div>
 
       {/* ── Kontrol Çubuğu ── */}
@@ -210,11 +192,11 @@ function BoardManager(): ReactElement {
               onChange={(e) => setSorgu(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && void aramaYap(sorgu)}
               placeholder="Kart veya çekirdek ara (Uno, ESP32...)"
-              className="flex-1 rounded border border-panel-border bg-panel px-2 py-1 text-gray-200 outline-none focus:ring-1 focus:ring-accent"
+              className="h-7 flex-1 rounded-[5px] border border-panel-border bg-panel px-2.5 text-gray-200 outline-none placeholder:text-gray-600 focus:border-accent"
             />
             <button
               onClick={() => void aramaYap(sorgu)}
-              className="rounded border border-panel-border bg-panel px-2.5 py-1 text-gray-300 hover:bg-panel-border"
+              className="h-7 rounded-[5px] border border-panel-border px-3 text-gray-200 hover:bg-white/[0.06]"
             >
               Ara
             </button>
@@ -223,7 +205,7 @@ function BoardManager(): ReactElement {
             <button
               onClick={() => void indeksiGuncelle()}
               disabled={indeksGuncelleniyor}
-              className="rounded border border-panel-border bg-panel px-2 py-1 text-gray-300 hover:enabled:bg-panel-border disabled:opacity-50"
+              className="h-7 rounded-[5px] border border-panel-border px-3 text-gray-100 whitespace-nowrap hover:enabled:bg-white/10 disabled:opacity-50"
             >
               {indeksGuncelleniyor ? 'İndeks güncelleniyor...' : 'İndeksi Güncelle'}
             </button>
@@ -268,12 +250,12 @@ function BoardManager(): ReactElement {
             value={kuruluArama}
             onChange={(e) => setKuruluArama(e.target.value)}
             placeholder="Kurulu kart/model süz (Uno, ESP32, Deneyap)..."
-            className="flex-1 rounded border border-panel-border bg-panel px-2 py-1 text-gray-200 outline-none focus:ring-1 focus:ring-accent"
+            className="h-7 flex-1 rounded-[5px] border border-panel-border bg-panel px-2.5 text-gray-200 outline-none placeholder:text-gray-600 focus:border-accent"
           />
           <button
             onClick={() => void refreshPlatforms()}
             title="Kurulu kartları yenile"
-            className="rounded border border-panel-border bg-panel p-1 text-gray-400 hover:text-gray-200"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[5px] border border-panel-border text-gray-400 hover:bg-white/[0.06] hover:text-gray-100"
           >
             <RefreshIcon className="h-4 w-4" />
           </button>
@@ -288,73 +270,39 @@ function BoardManager(): ReactElement {
             {yukleniyor && <p className="p-3 text-gray-500">Kart kataloğu taranıyor...</p>}
             {!yukleniyor && gorunenListe.length === 0 && <p className="p-3 text-gray-500">Sonuç bulunamadı.</p>}
             {gorunenListe.map((p) => (
-              <div key={p.id} className="border-b border-panel-border/70 p-2.5 hover:bg-panel/20 transition-colors">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-xs font-semibold text-gray-100">{p.name}</div>
-                    <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-gray-400">
-                      <span className="font-mono text-gray-500">{p.id}</span>
-                      {p.maintainer && (
-                        <>
-                          <span>·</span>
-                          <span className="text-[#93a5fb] font-medium">{p.maintainer}</span>
-                        </>
-                      )}
-                    </div>
+              <div key={p.id} className="border-b border-panel-border/70 px-3 py-3 transition-colors hover:bg-white/[0.03]">
+                <div className="flex items-baseline justify-between gap-2">
+                  <div className="min-w-0 truncate text-[13px] font-medium text-gray-100" title={p.name}>
+                    {p.name}
                   </div>
-
-                  {p.installed && (
-                    <span
-                      title="Bu kart platformu bilgisayarınızda kurulu"
-                      className="shrink-0 flex items-center gap-1 rounded bg-emerald-950/70 border border-emerald-800/80 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300"
-                    >
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                      v{p.installedVersion}
-                    </span>
-                  )}
+                  {p.installed && <Led metin={`v${p.installedVersion}`} baslik="Bu kart platformu bilgisayarınızda kurulu" />}
                 </div>
-
-                <div className="mt-2 flex items-center gap-1.5">
+                <div className="mt-0.5 truncate font-mono text-[10.5px] text-gray-500" title={p.id}>
+                  {p.id}
+                  {p.maintainer ? ` · ${p.maintainer}` : ''}
+                </div>
+                <EylemSatiri>
                   <select
                     value={secilenSurumler[p.id] ?? p.latestVersion}
                     onChange={(e) => setSecilenSurumler((onceki) => ({ ...onceki, [p.id]: e.target.value }))}
-                    className="rounded border border-panel-border bg-panel px-1.5 py-0.5 text-[11px] text-gray-300 outline-none"
+                    className={SECICI_SINIFI}
                   >
                     {p.availableVersions.map((v) => (
                       <option key={v} value={v}>
-                        v{v} {v === p.latestVersion ? '(En Son)' : ''}
+                        v{v} {v === p.latestVersion ? '(en son)' : ''}
                       </option>
                     ))}
                   </select>
-                  <button
-                    onClick={() => void kur(p.id)}
-                    disabled={kuruluyorId !== null}
-                    className="rounded border border-accent bg-accent/20 px-2 py-0.5 text-accent-hover hover:enabled:bg-accent/30 disabled:opacity-50"
-                  >
-                    {p.installed ? 'Güncelle/Kur' : 'Kur'}
-                  </button>
+                  <Tus tur="birincil" onClick={() => void kur(p.id)} disabled={kuruluyorId !== null}>
+                    {p.installed ? 'Güncelle' : 'Kur'}
+                  </Tus>
                   {p.installed && (
-                    <button
-                      onClick={() => void kaldir(p.id)}
-                      disabled={kuruluyorId !== null}
-                      className="rounded border border-panel-border bg-panel px-2 py-0.5 text-red-300 hover:enabled:bg-red-950/40 hover:enabled:border-red-900 disabled:opacity-50"
-                    >
+                    <Tus tur="tehlike" onClick={() => void kaldir(p.id)} disabled={kuruluyorId !== null}>
                       Kaldır
-                    </button>
+                    </Tus>
                   )}
-                </div>
-
-                {kuruluyorId === p.id && (
-                  <div className="mt-2 rounded border border-panel-border bg-panel p-2">
-                    <div className="mb-1 flex items-center gap-1.5 text-accent-hover font-medium">
-                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
-                      Kuruluyor...
-                    </div>
-                    <pre className="max-h-24 overflow-y-auto whitespace-pre-wrap font-mono text-[10px] text-gray-500">
-                      {kurulumLogu || 'arduino-cli işlemi tamamlanana kadar bekleniyor...'}
-                    </pre>
-                  </div>
-                )}
+                </EylemSatiri>
+                {kuruluyorId === p.id && <KurulumGunlugu baslik="Kuruluyor…" gunluk={kurulumLogu} />}
               </div>
             ))}
           </>
@@ -383,54 +331,46 @@ function BoardManager(): ReactElement {
               const goruntulenecekKartlar = genisletilmis ? kartlar : kartlar.slice(0, 4)
 
               return (
-                <div
-                  key={platform.id}
-                  className="border-b border-panel-border/70 p-2.5 hover:bg-panel/20 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-2">
+                <div key={platform.id} className="border-b border-panel-border/70 px-3 py-3 transition-colors hover:bg-white/[0.03]">
+                  <div className="flex items-start gap-3">
+                    <BoardThumb
+                      src={platformGorseli(platform.id, kartlar)}
+                      renk={kartRengi({ name: platform.name, fqbn: platform.id })}
+                      genislik={56}
+                      alt={platform.name}
+                      className="mt-0.5"
+                    />
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <CpuIcon className="h-3.5 w-3.5 shrink-0 text-[#93a5fb]" />
-                        <span className="truncate text-xs font-semibold text-gray-100">{platform.name}</span>
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="min-w-0 truncate text-[13px] font-medium text-gray-100" title={platform.name}>
+                          {platform.name}
+                        </span>
+                        <Led metin={`v${platform.installedVersion}`} />
                       </div>
-                      <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-gray-400">
-                        <span className="font-mono text-gray-500">{platform.id}</span>
-                        {platform.maintainer && (
-                          <>
-                            <span>·</span>
-                            <span className="text-[#93a5fb] font-medium">{platform.maintainer}</span>
-                          </>
-                        )}
+                      <div className="mt-0.5 truncate font-mono text-[10.5px] text-gray-500" title={platform.id}>
+                        {platform.id}
                       </div>
+                      {platform.maintainer && (
+                        <div className="mt-0.5 truncate text-[11px] text-gray-500" title={platform.maintainer}>
+                          {platform.maintainer}
+                        </div>
+                      )}
                     </div>
-
-                    <span className="shrink-0 flex items-center gap-1 rounded bg-emerald-950/80 border border-emerald-800 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                      v{platform.installedVersion}
-                    </span>
                   </div>
 
-                  {/* Desteklenen Kart Modelleri */}
                   {kartlar.length > 0 && (
-                    <div className="mt-2 rounded bg-panel/60 border border-panel-border/50 p-1.5">
-                      <div className="mb-1 flex items-center justify-between text-[10px] text-gray-400">
-                        <span>İçerdiği Kartlar ({kartlar.length}):</span>
+                    <div className="mt-2.5">
+                      <div className="flex items-center justify-between text-[11px] text-gray-500">
+                        <span>{kartlar.length} kart</span>
                         {kartlar.length > 4 && (
-                          <button
-                            onClick={() => toggleKartlar(platform.id)}
-                            className="text-[#93a5fb] hover:underline"
-                          >
-                            {genisletilmis ? 'Daha az göster ▲' : `+${kartlar.length - 4} diğer kart ▼`}
+                          <button onClick={() => toggleKartlar(platform.id)} className="text-gray-400 hover:text-gray-100 hover:underline">
+                            {genisletilmis ? 'Daha az göster' : `+${kartlar.length - 4} kart daha`}
                           </button>
                         )}
                       </div>
-                      <div className="flex flex-wrap gap-1">
+                      <div className="mt-1.5 flex flex-wrap gap-1">
                         {goruntulenecekKartlar.map((b) => (
-                          <span
-                            key={b.fqbn || b.name}
-                            title={b.fqbn}
-                            className="rounded bg-panel-border/60 px-1.5 py-0.2 text-[9.5px] text-gray-300 font-mono"
-                          >
+                          <span key={b.fqbn || b.name} title={b.fqbn} className="rounded-[4px] bg-white/[0.06] px-1.5 py-0.5 text-[10.5px] text-gray-300">
                             {b.name}
                           </span>
                         ))}
@@ -438,55 +378,33 @@ function BoardManager(): ReactElement {
                     </div>
                   )}
 
-                  {/* Sürüm İşlemleri & Kaldırma */}
-                  <div className="mt-2.5 flex items-center justify-between gap-1.5">
+                  <EylemSatiri>
                     {katalogEslesmesi && katalogEslesmesi.availableVersions.length > 0 ? (
-                      <div className="flex items-center gap-1">
+                      <>
                         <select
                           value={secilenSurum}
-                          onChange={(e) =>
-                            setSecilenSurumler((onceki) => ({ ...onceki, [platform.id]: e.target.value }))
-                          }
-                          className="rounded border border-panel-border bg-panel px-1.5 py-0.5 text-[10.5px] text-gray-300 outline-none"
+                          onChange={(e) => setSecilenSurumler((onceki) => ({ ...onceki, [platform.id]: e.target.value }))}
+                          className={SECICI_SINIFI}
                         >
                           {katalogEslesmesi.availableVersions.map((v) => (
                             <option key={v} value={v}>
-                              v{v} {v === katalogEslesmesi.latestVersion ? '(En Son)' : ''}
+                              v{v} {v === katalogEslesmesi.latestVersion ? '(en son)' : ''}
                             </option>
                           ))}
                         </select>
-                        <button
-                          onClick={() => void kur(platform.id)}
-                          disabled={kuruluyorId !== null}
-                          className="rounded border border-accent bg-accent/20 px-2 py-0.5 text-[10.5px] text-accent-hover hover:enabled:bg-accent/30 disabled:opacity-50"
-                        >
-                          Sürüm Değiştir
-                        </button>
-                      </div>
+                        <Tus tur="ikincil" title="Seçili sürüme geç" onClick={() => void kur(platform.id)} disabled={kuruluyorId !== null}>
+                          Değiştir
+                        </Tus>
+                      </>
                     ) : (
-                      <span className="text-[10px] text-gray-500">Yerel Platform</span>
+                      <span className="min-w-0 flex-1 truncate text-[11px] text-gray-500">Yerel platform</span>
                     )}
-
-                    <button
-                      onClick={() => void kaldir(platform.id)}
-                      disabled={kuruluyorId !== null}
-                      className="ml-auto rounded border border-panel-border bg-panel px-2 py-0.5 text-[10.5px] text-red-300 hover:enabled:bg-red-950/40 hover:enabled:border-red-900 disabled:opacity-50"
-                    >
+                    <Tus tur="tehlike" onClick={() => void kaldir(platform.id)} disabled={kuruluyorId !== null}>
                       Kaldır
-                    </button>
-                  </div>
+                    </Tus>
+                  </EylemSatiri>
 
-                  {kuruluyorId === platform.id && (
-                    <div className="mt-2 rounded border border-panel-border bg-panel p-2">
-                      <div className="mb-1 flex items-center gap-1.5 text-accent-hover font-medium">
-                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
-                        İşlem yapılıyor...
-                      </div>
-                      <pre className="max-h-24 overflow-y-auto whitespace-pre-wrap font-mono text-[10px] text-gray-500">
-                        {kurulumLogu || 'arduino-cli işlemi tamamlanana kadar bekleniyor...'}
-                      </pre>
-                    </div>
-                  )}
+                  {kuruluyorId === platform.id && <KurulumGunlugu baslik="İşlem yapılıyor…" gunluk={kurulumLogu} />}
                 </div>
               )
             })}
@@ -494,16 +412,6 @@ function BoardManager(): ReactElement {
         )}
       </div>
     </div>
-  )
-}
-
-function CpuIcon({ className }: { className?: string }): ReactElement {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="4" y="4" width="16" height="16" rx="2" />
-      <rect x="9" y="9" width="6" height="6" />
-      <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3" />
-    </svg>
   )
 }
 

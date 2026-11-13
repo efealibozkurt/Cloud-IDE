@@ -48,7 +48,9 @@ export function skillsIpcKaydet(
   })
 
   ipcMain.handle(C.reindexRag, async (): Promise<{ newChunks: number; totalChunks: number }> => {
-    const newChunks = await ragService.indexInstalledExamples(40)
+    const ornekler = await ragService.indexInstalledExamples(60)
+    const kutuphaneler = await ragService.indexLibraryApis(80)
+    const newChunks = ornekler + kutuphaneler
     return {
       newChunks,
       totalChunks: ragService.getChunkCount()

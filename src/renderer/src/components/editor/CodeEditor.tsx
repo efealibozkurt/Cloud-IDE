@@ -6,6 +6,7 @@ import * as monaco from 'monaco-editor/esm/vs/editor/editor.api'
 import { DEFAULT_EDITOR_FONT_SIZE, DEFAULT_EDITOR_THEME, type DerlemeHatasi } from '@shared/types'
 import { useAppState } from '../../state/AppStateContext'
 import cloudIcon from '../../assets/icon.png'
+import { normalizeYol } from '../../utils/paths'
 
 interface CodeEditorProps {
   filePath: string
@@ -22,11 +23,6 @@ interface CodeEditorProps {
 /** Windows ters eğik çizgili mutlak yolu, Monaco'nun model kayıt defterinde anahtar olarak kullanılabilecek geçerli bir file:// URI'sine çevirir */
 function monacoYolunaCevir(osYolu: string): string {
   return `file:///${osYolu.replace(/\\/g, '/')}`
-}
-
-/** Karşılaştırma için yol biçimini sadeleştirir (ayraç yönü ve büyük/küçük harf farkını yok sayar) */
-function normalizeYol(yol: string): string {
-  return yol.replace(/^\//, '').replace(/\\/g, '/').toLowerCase()
 }
 
 function siddetToMonaco(tur: DerlemeHatasi['tur']): monaco.MarkerSeverity {
@@ -145,6 +141,23 @@ function CodeEditor({
       startColumn: secim.startColumn,
       endColumn: secim.endColumn
     })
+    setSecim(null)
+  }
+
+  /** Seçili kodu satır satır, başlangıç seviyesine uygun anlatması için asistana gönderir */
+  const kodAciklat = (): void => {
+    if (!secim) return
+    askDretAi(
+      secim.metin,
+      'Bu kodu satır satır, programlamaya yeni başlayan biri anlayacak şekilde Türkçe açıkla. Önce tek cümleyle ne yaptığını söyle, sonra her önemli satırı (pin, fonksiyon, değişken) anlat. Kodu değiştirme.',
+      {
+        filePath,
+        startLine: secim.startLine,
+        endLine: secim.endLine,
+        startColumn: secim.startColumn,
+        endColumn: secim.endColumn
+      }
+    )
     setSecim(null)
   }
 
@@ -357,6 +370,24 @@ function CodeEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revealLine])
 
+  // Dışarıdan (örneğin AI kodu uyguladığında veya dosya değiştiğinde) value prop'u
+  // güncellendiğinde Monaco modelinin içeriğini senkronize et
+  useEffect(() => {
+    const editor = editorRef.current
+    const model = editor?.getModel()
+    if (!editor || !model) return
+    if (model.getValue() !== value) {
+      editor.executeEdits('external-sync', [
+        {
+          range: model.getFullModelRange(),
+          text: value,
+          forceMoveMarkers: true
+        }
+      ])
+      editor.pushUndoStop()
+    }
+  }, [value])
+
   return (
     <div className="relative h-full w-full">
       <Editor
@@ -380,7 +411,7 @@ function CodeEditor({
       {buDosyaAktifReview && (
         <div className="ai-diff-floating-bar absolute right-6 top-3 z-30 flex items-center gap-3 rounded-xl px-3 py-2 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-300 select-none">
           <div className="flex items-center gap-2.5 border-r border-white/10 pr-3">
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-500/15 p-1">
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-sky-500/15 p-1">
               <img src={cloudIcon} alt="Cloud AI" className="h-full w-full object-contain" />
             </span>
             <div className="flex flex-col">
@@ -421,26 +452,39 @@ function CodeEditor({
 
       {secim && (
         <div
-          className="absolute z-20 flex items-center gap-1 rounded-lg border border-panel-border bg-panel-light p-1 shadow-xl"
-          style={{ top: Math.max(4, secim.top - 42), left: Math.min(secim.left, window.innerWidth - 260) }}
+          role="toolbar"
+          aria-label="Seçili kod işlemleri"
+          className="absolute z-20 animate-in fade-in slide-in-from-bottom-1 duration-150"
+          style={{ top: Math.max(6, secim.top - 52), left: Math.min(Math.max(8, secim.left - 8), window.innerWidth - 300) }}
         >
-          <button
-            onClick={aiIleDuzelt}
-            title="Seçili kodu Cloud AI ile düzeltmeyi iste"
-            className="flex items-center gap-1.5 rounded px-2 py-1 text-[11px] font-medium text-[#93a5fb] hover:bg-panel-border"
-          >
-            <FixIcon />
-            AI ile Düzelt
-          </button>
-          <div className="h-4 w-px bg-panel-border" />
-          <button
-            onClick={promptGir}
-            title="Seçili kodu Cloud AI'a gönder, kendi isteğini yaz"
-            className="flex items-center gap-1.5 rounded px-2 py-1 text-[11px] font-medium text-gray-300 hover:bg-panel-border"
-          >
-            <PromptIcon />
-            Prompt Gir
-          </button>
+          <div className="relative flex items-center gap-1 rounded-full border border-white/10 bg-[#161923]/95 p-1 shadow-[0_10px_30px_rgba(0,0,0,0.55),0_0_0_1px_rgba(14,127,196,0.25)] backdrop-blur-md">
+            <button
+              onClick={aiIleDuzelt}
+              title="Seçili kodu Cloud AI ile düzeltmeyi iste"
+              className="group flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#0e7fc4] to-[#2aa8f2] py-1.5 pl-2.5 pr-3.5 text-[12px] font-semibold text-white shadow-[0_2px_12px_rgba(14,127,196,0.55)] transition-all hover:brightness-110 hover:shadow-[0_2px_18px_rgba(14,127,196,0.7)] active:scale-[0.97]"
+            >
+              <FixIcon />
+              AI ile Düzelt
+            </button>
+            <button
+              onClick={kodAciklat}
+              title="Seçili kodun ne yaptığını Cloud AI'a açıklat"
+              className="flex items-center gap-1.5 rounded-full py-1.5 pl-2.5 pr-3 text-[12px] font-medium text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <ExplainIcon />
+              Açıkla
+            </button>
+            <button
+              onClick={promptGir}
+              title="Seçili kodu Cloud AI'a gönder, kendi isteğini yaz"
+              className="flex items-center gap-1.5 rounded-full py-1.5 pl-2.5 pr-3 text-[12px] font-medium text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <PromptIcon />
+              Prompt Gir
+            </button>
+            {/* Seçime bakan küçük ok */}
+            <span className="pointer-events-none absolute -bottom-1 left-6 h-2 w-2 rotate-45 border-b border-r border-white/10 bg-[#161923]" />
+          </div>
         </div>
       )}
     </div>
@@ -467,8 +511,17 @@ function CancelIcon(): ReactElement {
 
 function FixIcon(): ReactElement {
   return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none" className="drop-shadow-[0_0_4px_rgba(124,196,240,0.8)]">
       <path d="M12 2.5c.35 3.32 1.1 5.63 2.25 6.9 1.15 1.28 3.3 2.1 6.25 2.6-2.95.5-5.1 1.32-6.25 2.6-1.15 1.27-1.9 3.58-2.25 6.9-.35-3.32-1.1-5.63-2.25-6.9-1.15-1.28-3.3-2.1-6.25-2.6 2.95-.5 5.1-1.32 6.25-2.6 1.15-1.27 1.9-3.58 2.25-6.9Z" />
+    </svg>
+  )
+}
+
+function ExplainIcon(): ReactElement {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5M12 8h.01" />
     </svg>
   )
 }

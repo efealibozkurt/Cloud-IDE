@@ -1,156 +1,116 @@
 import { useEffect, useState, type ReactElement } from 'react'
-import '@fontsource/bricolage-grotesque/600.css'
+import { surumAdiBul } from '@shared/surumAdlari'
 import beyazCloudIde from '../../assets/beyaz_cloud_ide.png'
 
-/** Fade-in/fade-out geçiş süresi (ms) — aşağıdaki `duration-[700ms]` sınıfıyla birebir eşleşmeli */
-const GECIS_SURESI_MS = 700
+/** Kapanış geçişi (ms) — aşağıdaki `duration-500` sınıfıyla eşleşmeli */
+const KAPANIS_SURESI_MS = 500
+/** Son adım işaretlendikten sonra, kapanış başlamadan önceki kısa bekleme */
+const SON_BEKLEME_MS = 280
+const ADIM_ARALIGI_MS = 380
+const TIK_SAYISI = 28
 
 interface SplashScreenProps {
-  /** true olunca fade-out başlar; geçiş bitince onTamamlandi çağrılır */
+  /** true olunca kalan adımlar tamamlanır ve ekran kapanmaya başlar */
   hazir: boolean
   onTamamlandi: () => void
+  surum?: string
 }
 
-/** Dekoratif, sabit konumlu küçük "yıldız" noktaları (bkz. içe aktarılan tasarım) */
-const YILDIZLAR = [
-  { top: '14%', left: '18%', size: 3, opacity: 0.7, glow: true },
-  { top: '22%', left: '78%', size: 2, opacity: 0.5, glow: false },
-  { top: '32%', left: '8%', size: 2, opacity: 0.6, glow: false },
-  { top: '12%', left: '52%', size: 2, opacity: 0.4, glow: false },
-  { top: '68%', left: '15%', size: 3, opacity: 0.6, glow: true },
-  { top: '76%', left: '85%', size: 2, opacity: 0.5, glow: false },
-  { top: '60%', left: '92%', size: 2, opacity: 0.4, glow: false },
-  { top: '85%', left: '40%', size: 2, opacity: 0.35, glow: false },
-  { top: '8%', left: '32%', size: 2, opacity: 0.45, glow: false },
-  { top: '45%', left: '5%', size: 2, opacity: 0.4, glow: false },
-  { top: '38%', left: '95%', size: 3, opacity: 0.55, glow: true },
-  { top: '90%', left: '70%', size: 2, opacity: 0.4, glow: false }
-] as const
+const ADIMLAR = [
+  'Derleyici hazırlanıyor',
+  'Kartlar ve portlar taranıyor',
+  'Ayarlar ve proje geçmişi yükleniyor',
+  'Arayüz başlatılıyor'
+]
 
 /**
- * Açılış (splash) ekranı — uygulama ilk açıldığında `AppShell` üzerinde
- * kaplar, arka planda gerçek arayüz zaten yükleniyor/hazırlanıyor olur.
- * `hazir` prop'u (AppStateContext'teki `state.ready` + asgari görünme
- * süresinin ikisi birden sağlanınca) true olunca fade-out başlar; geçiş
- * bitince `onTamamlandi` ile üst bileşen bu bileşeni DOM'dan kaldırır.
- * Görsel tasarım claude.ai/design'dan içe aktarılan mockup'a sadık kalır
- * (Satürn halkası benzeri çift-yarım elips efekti, yıldızlar, nokta ızgara).
+ * Açılış ekranı. Uygulama penceresi açıldığı anda tam opak olarak görünür (arkadaki arayüz
+ * hiçbir zaman görünmez); başlatma adımlarını bir kart önyükleme günlüğü gibi sırayla
+ * işaretler, ince bir pin dizisiyle ilerlemeyi gösterir ve yükleme bitince kısa bir
+ * geçişle kapanır.
  */
-function SplashScreen({ hazir, onTamamlandi }: SplashScreenProps): ReactElement {
-  const [gorunur, setGorunur] = useState(false)
+function SplashScreen({ hazir, onTamamlandi, surum }: SplashScreenProps): ReactElement {
+  const [adim, setAdim] = useState(0)
+  const [kapaniyor, setKapaniyor] = useState(false)
 
-  // Mount olduğunda: önce gizli (opacity-0) boyanır, ardından görünür hâle
-  // geçilir ki tarayıcı fade-in'i gerçekten animasyonlasın (bkz. AIModeScreen'deki
-  // aynı çift-rAF deseni).
+  // Adımlar sırayla ilerler; gerçek yükleme erken bitse bile hepsi görünür
   useEffect(() => {
-    const ilkKare = requestAnimationFrame(() => {
-      const ikinciKare = requestAnimationFrame(() => setGorunur(true))
-      return () => cancelAnimationFrame(ikinciKare)
-    })
-    return () => cancelAnimationFrame(ilkKare)
-  }, [])
-
-  useEffect(() => {
-    if (!hazir) return
-    setGorunur(false)
-    const zamanlayici = setTimeout(onTamamlandi, GECIS_SURESI_MS)
+    if (adim >= ADIMLAR.length) return
+    const zamanlayici = setTimeout(() => setAdim((a) => a + 1), ADIM_ARALIGI_MS)
     return () => clearTimeout(zamanlayici)
-  }, [hazir, onTamamlandi])
+  }, [adim])
+
+  // Yükleme bitmişse kalan adımları hızlandır
+  useEffect(() => {
+    if (!hazir || adim >= ADIMLAR.length) return
+    const zamanlayici = setTimeout(() => setAdim((a) => a + 1), 90)
+    return () => clearTimeout(zamanlayici)
+  }, [hazir, adim])
+
+  useEffect(() => {
+    if (!hazir || adim < ADIMLAR.length) return
+    const baslat = setTimeout(() => setKapaniyor(true), SON_BEKLEME_MS)
+    return () => clearTimeout(baslat)
+  }, [hazir, adim])
+
+  useEffect(() => {
+    if (!kapaniyor) return
+    const bitir = setTimeout(onTamamlandi, KAPANIS_SURESI_MS)
+    return () => clearTimeout(bitir)
+  }, [kapaniyor, onTamamlandi])
+
+  const yanan = Math.round((Math.min(adim, ADIMLAR.length) / ADIMLAR.length) * TIK_SAYISI)
 
   return (
     <div
-      className={`fixed inset-0 z-[60] flex flex-col items-center justify-center overflow-hidden bg-[#05050a] transition-opacity duration-[700ms] ease-in-out ${
-        gorunur ? 'opacity-100' : 'opacity-0'
+      role="status"
+      aria-label="Cloud IDE başlatılıyor"
+      className={`fixed inset-0 z-[60] flex items-center justify-center overflow-hidden bg-panel transition-opacity duration-500 ease-out ${
+        kapaniyor ? 'opacity-0' : 'opacity-100'
       }`}
     >
-      {/* Nokta ızgara arka plan */}
+      {/* Merkezde çok hafif bir aydınlık; tema mavisinden */}
       <div
         className="pointer-events-none absolute inset-0"
-        style={{
-          backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px)',
-          backgroundSize: '30px 30px',
-          maskImage: 'radial-gradient(ellipse 55% 45% at 50% 45%, black 0%, transparent 75%)',
-          WebkitMaskImage: 'radial-gradient(ellipse 55% 45% at 50% 45%, black 0%, transparent 75%)'
-        }}
+        style={{ background: 'radial-gradient(ellipse 50% 45% at 50% 48%, rgba(14,127,196,0.13), transparent 70%)' }}
       />
 
-      {/* Dekoratif yıldızlar */}
-      {YILDIZLAR.map((y, i) => (
-        <div
-          key={i}
-          className="pointer-events-none absolute rounded-full bg-white"
-          style={{
-            top: y.top,
-            left: y.left,
-            width: y.size,
-            height: y.size,
-            opacity: y.opacity,
-            boxShadow: y.glow ? '0 0 4px rgba(255,255,255,0.6)' : undefined
-          }}
-        />
-      ))}
+      <div className="relative w-[340px]">
+        <img src={beyazCloudIde} alt="Cloud IDE" className="h-[60px] w-auto select-none object-contain" draggable={false} />
 
-      <div className="relative flex flex-col items-center justify-center">
-        {/* Arkadaki yarım halka (üst yarı, metnin ARKASINDAN geçiyor) */}
-        <svg
-          width="640"
-          height="220"
-          viewBox="0 0 640 220"
-          style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-52%) rotate(-8deg)', overflow: 'visible' }}
-          className="pointer-events-none z-0"
-        >
-          <defs>
-            <linearGradient id="ringGradBack" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="rgba(180,150,255,0.05)" />
-              <stop offset="50%" stopColor="rgba(210,190,255,0.4)" />
-              <stop offset="100%" stopColor="rgba(180,150,255,0.05)" />
-            </linearGradient>
-            <clipPath id="ringClipBack">
-              <rect x="0" y="0" width="640" height="112" />
-            </clipPath>
-          </defs>
-          <ellipse cx="320" cy="110" rx="300" ry="92" fill="none" stroke="url(#ringGradBack)" strokeWidth="4" clipPath="url(#ringClipBack)" />
-        </svg>
+        <ul className="mt-9 space-y-2 font-mono text-[12px]" aria-live="polite">
+          {ADIMLAR.map((metin, i) => {
+            if (i > adim) return null
+            const bitti = i < adim
+            return (
+              <li key={metin} className="flex items-center gap-2.5">
+                <span
+                  className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                    bitti ? 'bg-[#3ddc84] shadow-[0_0_5px_#3ddc84]' : 'animate-pulse bg-accent motion-reduce:animate-none'
+                  }`}
+                  aria-hidden="true"
+                />
+                <span className={bitti ? 'text-gray-500' : 'text-gray-200'}>{metin}</span>
+                {bitti && <span className="ml-auto text-[10.5px] text-gray-600">tamam</span>}
+              </li>
+            )
+          })}
+        </ul>
 
-        <div className="relative z-[1] flex items-center justify-center py-2">
-          <img
-            src={beyazCloudIde}
-            alt="Cloud IDE"
-            className="h-[clamp(56px,8vw,88px)] w-auto object-contain drop-shadow-[0_4px_24px_rgba(147,165,251,0.4)] select-none"
-          />
+        {/* Pin dizisi biçiminde ilerleme çubuğu */}
+        <div className="mt-6 flex gap-[3px]" aria-hidden="true">
+          {Array.from({ length: TIK_SAYISI }).map((_, i) => (
+            <span
+              key={i}
+              className={`h-3 flex-1 rounded-[1px] transition-colors duration-300 ${i < yanan ? 'bg-accent' : 'bg-white/[0.08]'}`}
+            />
+          ))}
         </div>
-
-        {/* Öndeki yarım halka (alt yarı, metnin ÖNÜNDEN geçiyor) */}
-        <svg
-          width="640"
-          height="220"
-          viewBox="0 0 640 220"
-          style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-52%) rotate(-8deg)', overflow: 'visible' }}
-          className="pointer-events-none z-[2]"
-        >
-          <defs>
-            <linearGradient id="ringGradFront" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="rgba(180,150,255,0.15)" />
-              <stop offset="50%" stopColor="rgba(240,230,255,0.9)" />
-              <stop offset="100%" stopColor="rgba(180,150,255,0.15)" />
-            </linearGradient>
-            <clipPath id="ringClipFront">
-              <rect x="0" y="108" width="640" height="112" />
-            </clipPath>
-          </defs>
-          <ellipse cx="320" cy="110" rx="300" ry="92" fill="none" stroke="url(#ringGradFront)" strokeWidth="4" clipPath="url(#ringClipFront)" />
-        </svg>
-
-        <div className="relative z-[1] mt-5 h-px w-10 bg-gradient-to-r from-transparent via-white/30 to-transparent" />
       </div>
 
-      <div className="absolute bottom-8 z-[1] flex items-center gap-2 font-sans text-[12px] tracking-wide text-white/40">
-        <span>Geliştirici Efe Ali Bozkurt</span>
-        <span className="h-1 w-1 rounded-full bg-white/20" />
-        <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-300/80 uppercase">
-          BETA v0.1.0
-        </span>
-      </div>
+      <p className="absolute bottom-7 text-[11.5px] text-gray-600">
+        Efe Ali Bozkurt tarafından geliştirildi{surum ? `, v${surum} ${surumAdiBul(surum).ad} (beta)` : ''}
+      </p>
     </div>
   )
 }

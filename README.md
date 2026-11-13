@@ -3,7 +3,7 @@
 </p>
 
 <h1 align="center">Cloud IDE</h1>
-<p align="center"><b>Gömülü sistemler için yapay zekâ destekli, bağımsız masaüstü geliştirme ortamı</b></p>
+<p align="center"><b>Arduino ve ESP için yapay zekâ destekli, Türkçe masaüstü geliştirme ortamı</b></p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Platform" />
@@ -13,23 +13,23 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/github/stars/efealibozkurt/Cloud-IDE?style=flat-square&color=8b5cf6" alt="Stars" />
+  <img src="https://img.shields.io/github/stars/efealibozkurt/Cloud-IDE?style=flat-square&color=0e7fc4" alt="Stars" />
   <img src="https://img.shields.io/github/last-commit/efealibozkurt/Cloud-IDE?style=flat-square&color=06b6d4" alt="Last commit" />
   <img src="https://img.shields.io/github/repo-size/efealibozkurt/Cloud-IDE?style=flat-square&color=f97316" alt="Repo size" />
   <img src="https://img.shields.io/badge/lisans-GPL--3.0-3b82f6?style=flat-square" alt="Lisans" />
-  <img src="https://img.shields.io/badge/versiyon-v0.1.0--BETA-ec4899?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/versiyon-v0.1.5%20Stratus--BETA-0e7fc4?style=flat-square" alt="Version" />
   <img src="https://img.shields.io/badge/durum-Açık_Beta-eab308?style=flat-square" alt="Status" />
 </p>
 
 <p align="center">
-  <b>⚡ Gömülü CLI</b> · Sıfır kurulum gerektirir&nbsp;&nbsp;|&nbsp;&nbsp;
-  <b>✨ Cloud AI & RAG</b> · Donanıma özel kod zekâsı&nbsp;&nbsp;|&nbsp;&nbsp;
-  <b>🤝 Açık İletişim</b> · Geri bildirimlerinize açık
+  <b>⚡ Gömülü CLI</b> · Sıfır kurulum&nbsp;&nbsp;|&nbsp;&nbsp;
+  <b>🤖 Cloud AI</b> · Yazar, derler, düzeltir&nbsp;&nbsp;|&nbsp;&nbsp;
+  <b>🕘 Sürüm geçmişi</b> · Eski hallere dönün
 </p>
 
 ---
 
-**Cloud IDE**, Arduino IDE'nin temel işlevlerini (kod düzenleme, derleme, karta yükleme, kütüphane/kart yönetimi, seri monitör) modern bir arayüzde birleştirirken; **Cloud AI** ile gömülü sistem geliştirmeye uçtan uca yapay zekâ desteği getirir. Gömülü `arduino-cli` sayesinde harici bir Arduino IDE kurulumuna ihtiyaç duymadan, tek dosyayla her Windows bilgisayarda çalışır.
+**Cloud IDE**, Arduino IDE'nin temel işlevlerini (kod düzenleme, derleme, karta yükleme, kart ve kütüphane yönetimi, seri monitör) modern bir arayüzde birleştirir; üstüne **Cloud AI** asistanını, pin denetimini, sürüm geçmişini ve hazır proje şablonlarını ekler. Gömülü `arduino-cli` sayesinde harici bir Arduino IDE kurulumuna gerek kalmadan her Windows bilgisayarda çalışır.
 
 ## 📋 İçindekiler
 - [Geliştiriciden](#-geliştiriciden)
@@ -37,9 +37,12 @@
 - [Teknoloji Yığını](#-teknoloji-yığını)
 - [Ekran Görüntüleri](#-ekran-görüntüleri)
 - [Kurulum](#-kurulum)
+- [Geliştirme](#-geliştirme)
 - [Proje Yapısı](#-proje-yapısı)
+- [Gizlilik ve Güvenlik](#-gizlilik-ve-güvenlik)
 - [Yol Haritası](#-yol-haritası)
 - [Katkıda Bulunma](#-katkıda-bulunma)
+- [Görsel Kaynakları](#-görsel-kaynakları)
 - [Lisans](#-lisans)
 - [Geliştirici](#-geliştirici)
 
@@ -49,35 +52,47 @@
 >
 > — Efe Ali Bozkurt, Cloud IDE Yaratıcısı
 
-Kodlama ve gömülü sistemler bilmeyen insanların dahi aklındaki fiziksel projeleri üretebilmesi, donanım ve yazılım geliştirme önündeki teknik sınırların tamamen kalkması gerektiği düşüncesiyle yola çıkılan bu proje, Cloud IDE'nin vizyonunu oluşturuyor.
+Kodlama ve gömülü sistemler bilmeyen insanların dahi aklındaki fiziksel projeleri üretebilmesi, donanım ve yazılım geliştirme önündeki teknik sınırların kalkması gerektiği düşüncesiyle yola çıkılan bu proje, Cloud IDE'nin vizyonunu oluşturuyor.
 
 ## ✨ Özellikler
 
-### 🖊️ Editör
-- Monaco Editor tabanlı, sekmeli sketch yönetimi
-- AI'nin ürettiği kodu canlı yazım animasyonu ve diff önizlemesiyle gösteren editör deneyimi
-- Değişiklikleri tek tıkla **Onayla ✓ / Reddet ✕**
+### 🤖 Cloud AI asistanı
+- Projenizi okuyabilen, dosya yazıp düzenleyebilen, derleyip hataları düzeltmeyi deneyen bir **agent**
+- **Değişiklik izni sizde:** Onaylı (dosya yazmadan önce farkı gösterir), Yarı otomatik, Tam otomatik. Her yanıttaki değişiklikler tek tıkla geri alınabilir
+- Sağlayıcılar: DeepSeek, OpenAI, Anthropic (Claude), Google Gemini, Kimi, NVIDIA NIM ve yerel **Ollama / LM Studio** (internetsiz çalışır)
+- Seçili kod için **AI ile Düzelt**, **Açıkla** ve **Prompt Gir**; derleme hatası için tek tıkla "bu ne demek?"
+- Uzun sohbetlerde otomatik özetleme, sohbet başlıklarını yapay zekâyla üretme, bağlam göstergesi
+- Yerel **bilgi tabanı (RAG)**: kart bilgileri, kütüphane API'leri ve kendi özel notlarınızla anlamsal + sözcük aramasını birleştirir
 
-### ⚙️ Derleme & Yükleme
-- Sıfır kurulumlu, gömülü `arduino-cli` çekirdeği — harici Arduino IDE gerekmez
-- Derleme ve yüklemeyi güvenli şekilde yöneten port yönetimi
-- Dahili seri port izleyici
+### 🔌 Pin denetimi ve kart bilgisi
+- Seçili karta göre pin hatalarını kod çalışmadan yakalar: olmayan pin, PWM/kesme desteklemeyen pin, ESP32 flash ve yalnızca-giriş pinleri, Wi-Fi varken ADC2, Servo çakışmaları
+- Seçili kartın **pin haritası** (PWM, analog, kesme, I2C, SPI…); kodda kullandığınız pinler işaretli
+- Arduino Uno/Nano/Mega, ESP32 ve ESP8266 için hazır; kart fotoğraflı kart seçici
 
-### 🤖 Cloud AI
-- Kimi K3 (Moonshot), Gemini, DeepSeek, Claude, GPT-4o ve NVIDIA NIM dâhil çoklu model desteği, canlı akışla
-- Sürüklenebilir 3 kademeli muhakeme anahtarı: Düşük ⚡ · Orta 🧠 · Yüksek ⚛️
-- Editör ile sohbeti ayıran Agent Eylem Kartları
+### ⚙️ Derleme ve yükleme
+- Sıfır kurulumlu, gömülü `arduino-cli` çekirdeği
+- Derleme sonrası **Flash/RAM** göstergesi; hata satırları ve tek tıkla **eksik kütüphane kurulumu**
+- **Kart ayarları** (işlemci, bölüm şeması, yükleme hızı…) ve USB'ye takılan kartı **otomatik tanıma**
+- Derleme ve yüklemeyi güvenli yöneten port koordinasyonu
 
-### 🧠 Yerel RAG Motoru
-- Tamamen çevrimdışı çalışan, yerel kod arama ve semantik indeksleme motoru
-- AVR, ESP32, Deneyap, RP2040 ve STM32 mimarilerine özel donanım kuralları ve voltaj güvenlik uyarıları
+### 📟 Seri monitör
+- **Çoklu port**: birden çok kartı sekmelerle aynı anda izleme
+- **Canlı grafik** (`değer`, `1,2,3` ya da `etiket:değer` biçimleri), zaman damgası, bootloader gizleme
 
-### 🛠️ Özel Beceriler
-- Kendi C++ kod parçacıklarını ve mimari kurallarını `.md` dosyaları olarak tanımlama
-- Hazır başlangıç şablonları (Deneyap IMU, ESP32 AsyncWebServer, AVR Timer1 CTC, RP2040 çift çekirdek…)
+### 🕘 Sürüm geçmişi
+- Projeye özel kayıt, karşılaştırma (yan yana fark), geri yükleme, etiket ve dal
+- Derleme bilgisi (kart, kütüphane sürümleri, bellek kullanımı) sürümle birlikte saklanır
+- Otomatik anlık görüntüler; projeyi geçmişiyle birlikte `.zip` olarak dışa/içe aktarma
 
-### 📦 Kart & Kütüphane Yönetimi
-- Katalog / Kurulu sekmeleriyle kart ve kütüphane yönetimi
+### 🧩 Şablonlar ve notlar
+- LED'den DHT, HC-SR04, servo, NeoPixel, OLED ve Wi-Fi web sayfasına **hazır proje şablonları**; pinleri doldurun, bağlantı şeması ve kütüphaneler hazır gelsin
+- Projeye özel **notlar** (onay kutulu yapılacaklar, "koddan doldur"), kodla birlikte sürümlenir
+
+### 📦 Yönetim ve kullanım
+- Kart ve kütüphane yöneticisi; **kütüphane güncelleme** bildirimi
+- Uygulama içi **yardım ve rehber** (F1), ilk açılış turu, GitHub üzerinden **güncelleme denetimi**
+- **Sorun bildir:** sistem, kart, derleme çıktısı ve günlükten tek tıkla rapor hazırlar; kişisel bilgileri (yol, kullanıcı adı, anahtar, e-posta, IP, Wi-Fi bilgisi) otomatik gizler. Paylaşmadan önce tamamını görür, panoya kopyalar, dosyaya kaydeder ya da GitHub'da sorun olarak açarsınız
+- Kendi C++ parçacıklarınızı ve mimari kurallarınızı `.md` olarak tanımlayan **özel beceriler**
 
 ## 🧰 Teknoloji Yığını
 
@@ -86,9 +101,10 @@ Kodlama ve gömülü sistemler bilmeyen insanların dahi aklındaki fiziksel pro
 | Masaüstü Çatısı | Electron |
 | Arayüz | React 18 · TypeScript · Tailwind CSS · Vite |
 | Kod Editörü | Monaco Editor |
-| AI / RAG | `@xenova/transformers` |
+| AI / RAG | Sağlayıcı API'leri · `@xenova/transformers` (yerel gömme modeli) |
 | Donanım İletişimi | `serialport` |
 | Kalıcı Depolama | `electron-store` |
+| Güncelleme | `electron-updater` (GitHub Releases) |
 | Paketleme | electron-builder (NSIS Setup + Portable) |
 | Gömülü Derleyici | `arduino-cli` v1.5.1 |
 
@@ -104,23 +120,33 @@ Kodlama ve gömülü sistemler bilmeyen insanların dahi aklındaki fiziksel pro
 
 ## 🚀 Kurulum
 
-### Son Kullanıcı
 1. [Releases](https://github.com/efealibozkurt/Cloud-IDE/releases) sayfasından güncel `Setup.exe` (kurulum) veya portable `.exe` dosyasını indirin.
 2. Kurulum sihirbazını takip edin ya da portable sürümü doğrudan çalıştırın.
-3. Harici bir Arduino IDE kurulumuna gerek yoktur — derleyici pakete gömülüdür.
+3. Harici bir Arduino IDE kurulumuna gerek yoktur; derleyici pakete gömülüdür.
+4. Cloud AI için **Ayarlar › Yapay zekâ** bölümünden bir sağlayıcı ve API anahtarı girin ya da yerel bir model (Ollama / LM Studio) kullanın.
 
-### Geliştirici
+> Beta sürüm henüz kod imzalı değildir; ilk kurulumda Windows SmartScreen uyarısı çıkabilir (**Ek bilgi › Yine de çalıştır**).
+
+> İlk açılışta kısa bir tur başlar; takıldığınız yerde **F1** ile yardımı açabilirsiniz.
+
+## 🛠️ Geliştirme
+
 ```bash
 git clone https://github.com/efealibozkurt/Cloud-IDE.git
 cd Cloud-IDE
 npm install
 
-# Geliştirme modunda çalıştır
-npm run dev
-
-# Windows için paketle (NSIS Setup + Portable)
-npm run build:win
+npm run dev          # geliştirme modunda çalıştır
+npm run typecheck    # tip denetimi
+npm run lint         # ESLint
+npm test             # birim testleri (Vitest)
+npm run build:setup  # Windows kurulum dosyası (NSIS): release/Cloud-IDE-Setup-<sürüm>.exe
+npm run build:win    # Setup + Portable
 ```
+
+Otomatik güncelleme için bir GitHub sürümüne `Cloud-IDE-Setup-<sürüm>.exe`, `.blockmap` ve `latest.yml` dosyaları birlikte yüklenmelidir.
+
+Gömülü `arduino-cli.exe` dosyası depoda bulunmaz; `resources/arduino-cli/` klasörüne yerleştirilmelidir.
 
 ## 🗂️ Proje Yapısı
 
@@ -129,42 +155,52 @@ npm run build:win
 
 ```
 Cloud-IDE/
-├─ resources/
-│  ├─ icon.ico / icon.png
-│  └─ arduino-cli/arduino-cli.exe
-├─ scripts/
-│  ├─ generate-icons.js
-│  └─ generate-hd-logos.js
+├─ resources/            # ikonlar, gömülü arduino-cli
+├─ scripts/              # ikon ve logo üretim betikleri
 ├─ src/
-│  ├─ main/
-│  │  ├─ services/
-│  │  └─ ipc/
-│  ├─ preload/
-│  ├─ renderer/
-│  │  └─ src/
-│  │     ├─ assets/
-│  │     ├─ components/    # editor, ai, layout, libraries, boards, settings, common
-│  │     └─ state/
-│  └─ shared/types.ts
+│  ├─ main/              # Electron ana süreç
+│  │  ├─ ipc/            # IPC uçları (doğrulamalı)
+│  │  └─ services/       # arduino-cli, agent, RAG, geçmiş, güncelleme…
+│  ├─ preload/           # güvenli köprü (contextBridge)
+│  ├─ renderer/src/      # React arayüzü
+│  │  ├─ components/     # editor, ai, layout, boards, libraries, history, notes, settings…
+│  │  ├─ state/          # uygulama, agent, yardım bağlamları
+│  │  ├─ hooks/ utils/
+│  └─ shared/            # ortak tipler ve saf mantık (pin denetimi, şablonlar, FQBN…)
 └─ electron-builder.yml
 ```
 </details>
 
+## 🔒 Gizlilik ve Güvenlik
+- API anahtarları yalnızca bilgisayarınızda, işletim sistemi düzeyinde şifrelenerek saklanır; arayüze geri döndürülmez.
+- Cloud AI yalnızca çalışma alanınızdaki projelere erişir; dosya yazma ve silme işlemleri varsayılan olarak onayınıza sunulur.
+- Güncelleme denetimi yalnızca GitHub'daki sürüm bilgisine bakar; hiçbir kullanım verisi gönderilmez ve güncelleme onayınız olmadan indirilmez.
+- Yerel modellerle hiçbir şey internete çıkmaz.
+- Arayüz ile ana süreç arasındaki tüm işlemler doğrulanır: dosya yolları ve uzantıları, arduino-cli parametreleri ve seri port değerleri denetlenir; dış bağlantılar yalnızca `https`/`http`/`mailto` olarak açılır; uygulama penceresi başka bir sayfaya yönlendirilemez.
+- Sorun raporları kendiliğinden gönderilmez; kişisel bilgiler temizlenir ve kodunuz varsayılan olarak rapora girmez.
+
 ## 🗺️ Yol Haritası
 
-**1. Aşama — Şu Anki Durum (v0.1.0 Beta)**
-- Sıfır kurulumlu, bağımsız gömülü Arduino CLI çekirdeği
-- Cloud AI çoklu model entegrasyonu
-- Çift uç nokta esnekliği, akıllı kod düzeltme
-- Yerel RAG motoru
+**Şu anki durum: v0.1.5 "Stratus" (Beta)**
+Editör, derleme/yükleme, Cloud AI agent'ı, pin denetimi, sürüm geçmişi, şablonlar, notlar ve tek tıkla sorun bildirme bu sürümde.
 
-**2. Aşama — Gelecek Vizyonu**
+**Sırada**
+- Komut paleti ve kod denetimi (sık yapılan hataları yakalama)
+- Seri portun otomatik yeniden bağlanması
+- Daha fazla kart için pin haritası ve kural desteği
+
+**Uzun vadeli vizyon**
 - Devre şeması üretiminden pin bağlantılarına
 - Simülasyondan donanımın fiziksel testine kadar
 - Baştan sona **Full AI destekli** otonom geliştirme modu
 
+Her sürüm bir bulut adı taşır (Stratus → Cumulus → Altostratus → Nimbostratus → Cumulonimbus); proje geliştikçe bulut yükselir.
+
 ## 🤝 Katkıda Bulunma
-Katkılar memnuniyetle karşılanır! Bir [issue](https://github.com/efealibozkurt/Cloud-IDE/issues) açabilir veya doğrudan pull request gönderebilirsiniz.
+Katkılar memnuniyetle karşılanır! Bir [issue](https://github.com/efealibozkurt/Cloud-IDE/issues) açabilir veya doğrudan pull request gönderebilirsiniz. Beta sürüm olduğu için her türlü geri bildirim çok değerlidir.
+
+## 🖼️ Görsel Kaynakları
+Kart seçicideki kart fotoğrafları Wikimedia Commons (Creative Commons) ve resmi Deneyap kart belgelerinden alınmıştır. Her görselin yazarı ve lisansı [`CREDITS.md`](src/renderer/src/assets/boards/CREDITS.md) dosyasında listelenir.
 
 ## 📄 Lisans
 

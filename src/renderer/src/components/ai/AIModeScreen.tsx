@@ -132,7 +132,7 @@ function AIModeScreen({ origin, onClose }: AIModeScreenProps): ReactElement {
 
       <div className="relative z-[1] flex w-full flex-col items-center gap-6 px-6">
         <div className="flex items-center gap-2">
-          <span className="rounded-full border border-indigo-500/30 bg-indigo-500/15 px-3 py-1 text-xs font-semibold text-indigo-300 backdrop-blur-md">
+          <span className="rounded-full border border-sky-500/30 bg-sky-500/15 px-3 py-1 text-xs font-semibold text-sky-300 backdrop-blur-md">
             Full AI Modu · Gelecek Vizyonu
           </span>
           <span className="rounded-full border border-amber-500/40 bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-300 uppercase">
@@ -194,7 +194,7 @@ function AIModeScreen({ origin, onClose }: AIModeScreenProps): ReactElement {
                 className="group flex w-[228px] shrink-0 flex-col gap-3.5 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-white/[0.16] hover:bg-white/[0.065] hover:shadow-[0_12px_32px_rgba(0,0,0,0.35)]"
               >
                 <div className="flex items-center justify-between">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-[#3b82f6]/25 to-[#8b5cf6]/25 text-[#b4c2fb]">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-[#0e7fc4]/25 to-[#2aa8f2]/25 text-[#b4c2fb]">
                     {icon}
                   </span>
                   <span className="opacity-0 transition-opacity duration-200 group-hover:opacity-100">

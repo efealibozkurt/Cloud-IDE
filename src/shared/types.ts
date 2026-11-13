@@ -1,3 +1,4 @@
+import type { SistemBilgisi, TemizlemeBaglami } from './tanilama'
 /**
  * Main, preload ve renderer arasında paylaşılan ortak tip tanımları.
  * Preload katmanının contextBridge ile expose ettiği API'nin tek doğruluk
@@ -47,6 +48,9 @@ export const IPC_CHANNELS = {
     listLibraries: 'arduinoCli:listLibraries',
     searchLibraries: 'arduinoCli:searchLibraries',
     installLibrary: 'arduinoCli:installLibrary',
+    suggestLibrary: 'arduinoCli:suggestLibrary',
+    listUpdatableLibraries: 'arduinoCli:listUpdatableLibraries',
+    getBoardOptions: 'arduinoCli:getBoardOptions',
     uninstallLibrary: 'arduinoCli:uninstallLibrary',
     listExamples: 'arduinoCli:listExamples',
     compile: 'arduinoCli:compile',
@@ -57,6 +61,9 @@ export const IPC_CHANNELS = {
   },
   sketch: {
     createNew: 'sketch:createNew',
+    createFromTemplate: 'sketch:createFromTemplate',
+    createSiblingSketch: 'sketch:createSiblingSketch',
+    getInitialSketchPath: 'sketch:getInitialSketchPath',
     openDialog: 'sketch:openDialog',
     saveAsDialog: 'sketch:saveAsDialog',
     openPath: 'sketch:openPath',
@@ -82,6 +89,33 @@ export const IPC_CHANNELS = {
     get: 'settings:get',
     set: 'settings:set'
   },
+  diagnostics: {
+    collect: 'diagnostics:collect',
+    saveReport: 'diagnostics:saveReport',
+    openIssue: 'diagnostics:openIssue'
+  },
+  updater: {
+    getStatus: 'updater:getStatus',
+    check: 'updater:check',
+    download: 'updater:download',
+    install: 'updater:install',
+    openReleases: 'updater:openReleases',
+    onStatus: 'updater:onStatus'
+  },
+  history: {
+    status: 'history:status',
+    list: 'history:list',
+    diff: 'history:diff',
+    commit: 'history:commit',
+    restore: 'history:restore',
+    tag: 'history:tag',
+    untag: 'history:untag',
+    createBranch: 'history:createBranch',
+    checkout: 'history:checkout',
+    deleteBranch: 'history:deleteBranch',
+    exportPackage: 'history:exportPackage',
+    importPackage: 'history:importPackage'
+  },
   secrets: {
     setApiKey: 'secrets:setApiKey',
     clearApiKey: 'secrets:clearApiKey',
@@ -96,11 +130,17 @@ export const IPC_CHANNELS = {
     renameSession: 'chat:renameSession',
     clearSessions: 'chat:clearSessions',
     migrateSessions: 'chat:migrateSessions',
-    sendAiMessage: 'chat:sendAiMessage',
-    sendAiMessageStream: 'chat:sendAiMessageStream',
-    onStreamChunk: 'chat:onStreamChunk',
     getProviderModels: 'chat:getProviderModels',
-    compactSession: 'chat:compactSession'
+    compactSession: 'chat:compactSession',
+    generateTitle: 'chat:generateTitle'
+  },
+  agent: {
+    run: 'agent:run',
+    abort: 'agent:abort',
+    reply: 'agent:reply',
+    undo: 'agent:undo',
+    onEvent: 'agent:onEvent',
+    testProvider: 'agent:testProvider'
   },
   skills: {
     getSkillsInfo: 'skills:getSkillsInfo',
@@ -117,7 +157,8 @@ export const IPC_CHANNELS = {
   },
   window: {
     onCloseRequested: 'window:onCloseRequested',
-    replyCloseRequest: 'window:replyCloseRequest'
+    replyCloseRequest: 'window:replyCloseRequest',
+    openNewWindow: 'window:openNewWindow'
   }
 } as const
 
@@ -279,6 +320,32 @@ export interface CompileResult {
   log: string
   /** Diagnostics'e düşmeyen üst seviye hata (ör. kart platformu kurulu değil) */
   topLevelError?: string
+  /** Başarılı derlemede flash/RAM kullanımı */
+  boyut?: BuildSize
+}
+
+/** Kartın bir ayar seçeneği (arduino-cli "config_options"): ör. Processor, Partition Scheme */
+export interface BoardConfigOption {
+  option: string
+  label: string
+  values: Array<{ value: string; label: string }>
+  /** Kart paketinin varsayılan değeri */
+  varsayilan: string
+}
+
+/** Güncellenebilir bir kütüphane: kurulu sürüm ve en son sürüm */
+export interface LibraryUpdateInfo {
+  name: string
+  installed: string
+  latest: string
+}
+
+/** Eksik başlık için öneri sonucu: kütüphane adayları ya da başlığın kart paketiyle geldiği bilgisi */
+export interface LibrarySuggestionResult {
+  header: string
+  adaylar: LibrarySearchResult[]
+  /** Başlık kart paketinin parçasıysa true: kütüphane değil, kart paketi/seçili kart kontrol edilmeli */
+  kartPaketiBasligi: boolean
 }
 
 export interface UploadResult {
@@ -328,12 +395,18 @@ export interface SerialPortInfo {
 export interface SerialDataChunk {
   data: string
   timestamp: number
+  /** Satırın geldiği port */
+  port: string
 }
 
 export interface SerialStatus {
+  /** En az bir port açık mı */
   open: boolean
+  /** Birincil (en son açılan) port */
   port: string | null
   baud: number | null
+  /** Şu an açık olan tüm portlar (açılış sırasıyla) */
+  portlar: Array<{ port: string; baud: number }>
   /** true ise upload sırasında DeviceLock tarafından geçici olarak kapatıldı demektir */
   temporarilyClosedForUpload: boolean
 }
@@ -342,7 +415,7 @@ export interface SerialStatus {
 // Yapay zekâ sağlayıcıları (v0.2 AI agent altyapısı için API anahtarı yönetimi)
 // ────────────────────────────────────────────────────────────────────────
 
-/** İlk aşamada desteklenen AI sağlayıcıları; yenisi eklendiğinde yalnızca bu listeye eklenir */
+/** Desteklenen AI sağlayıcıları; yenisi eklendiğinde yalnızca bu listeye eklenir */
 export const AI_PROVIDERS = [
   { id: 'deepseek', name: 'DeepSeek' },
   { id: 'openai', name: 'OpenAI' },
@@ -350,10 +423,18 @@ export const AI_PROVIDERS = [
   { id: 'gemini', name: 'Google Gemini' },
   { id: 'kimi', name: 'Kimi AI (Moonshot)' },
   { id: 'nvidia', name: 'NVIDIA Build (NIM)' },
-  { id: 'lmstudio', name: 'LM Studio (Yerel / Local)' }
+  { id: 'lmstudio', name: 'LM Studio (Yerel / Local)' },
+  { id: 'ollama', name: 'Ollama (Yerel / Local)' }
 ] as const
 
 export type AIProviderId = (typeof AI_PROVIDERS)[number]['id']
+
+/** Yerel çalışan (internete çıkmayan) sağlayıcılar */
+export const LOCAL_AI_PROVIDERS: readonly AIProviderId[] = ['lmstudio', 'ollama']
+
+export function isLocalProvider(provider: AIProviderId): boolean {
+  return LOCAL_AI_PROVIDERS.includes(provider)
+}
 
 /** Her yapay zekâ sağlayıcısı için varsayılan yaklaşık bağlam (context window) token sınırları */
 export const PROVIDER_DEFAULT_CONTEXT_LIMITS: Record<AIProviderId, number> = {
@@ -363,7 +444,8 @@ export const PROVIDER_DEFAULT_CONTEXT_LIMITS: Record<AIProviderId, number> = {
   deepseek: 1_000_000,
   kimi: 1_000_000,
   nvidia: 128_000,
-  lmstudio: 16_000
+  lmstudio: 16_000,
+  ollama: 16_000
 }
 
 /** Kullanıcının NVIDIA ve LM Studio için seçebileceği hazır bağlam seçenekleri */
@@ -395,8 +477,8 @@ export function getModelContextLimit(
     return customLimits[provider]!
   }
 
-  // 2. NVIDIA ve LM Studio haricindeki tüm sağlayıcılar doğrudan 1 Milyon (1M) token
-  if (provider !== 'nvidia' && provider !== 'lmstudio') {
+  // 2. NVIDIA ve yerel sağlayıcılar haricindeki tüm sağlayıcılar doğrudan 1 Milyon (1M) token
+  if (provider !== 'nvidia' && !isLocalProvider(provider)) {
     return 1_000_000
   }
 
@@ -457,6 +539,12 @@ export const DEFAULT_BOARD_MANAGER_URLS = [
 
 export type ReasoningEffort = 'low' | 'medium' | 'high'
 
+/** Agent'ın dosya değiştirme yetki modu */
+export type AgentPermissionMode = 'ask' | 'auto-edit' | 'full-auto'
+
+/** Yerel modellerde araç çağırma biçimi: otomatik algıla, yerel (native) tool-calling ya da metin protokolü */
+export type LocalToolMode = 'auto' | 'native' | 'text'
+
 export interface AppSettings {
   arduinoCliPath: string | null
   boardManagerUrls: string[]
@@ -473,8 +561,24 @@ export interface AppSettings {
   selectedModelPerProvider?: Partial<Record<AIProviderId, string>>
   /** Model muhakeme derecesi: Düşük (hızlı), Orta (dengeli), Yüksek (derinlemesine) */
   selectedReasoningEffort?: ReasoningEffort
-  /** Kullanıcı tanımlı özel bağlam sınırları (özellikle LM Studio ve NVIDIA için) */
+  /** Kullanıcı tanımlı özel bağlam sınırları (özellikle yerel sağlayıcılar ve NVIDIA için) */
   customContextLimits?: Partial<Record<AIProviderId, number>>
+  /** Yerel sağlayıcılar (LM Studio / Ollama) için sunucu adresi; API anahtarı alanından ayrıdır */
+  aiBaseUrls?: Partial<Record<AIProviderId, string>>
+  /** Agent izin modu (varsayılan: auto-edit) */
+  agentPermissionMode?: AgentPermissionMode
+  /** Agent dosya değiştirdikten sonra derleyip hataları otomatik düzeltsin mi (varsayılan: açık) */
+  agentAutoCompile?: boolean
+  /** Yerel modeller için araç çağırma modu (varsayılan: auto) */
+  localToolMode?: LocalToolMode
+  /** Kaydederken ve yapay zekâ çalışmasından önce otomatik anlık görüntü al (varsayılan: açık) */
+  historyAutoSnapshot?: boolean
+  /** Saklanacak en fazla otomatik anlık görüntü sayısı (varsayılan: 50) */
+  historyMaxAuto?: number
+  /** Yeni sürüm olup olmadığını arka planda denetle (varsayılan: açık) */
+  autoUpdateCheck?: boolean
+  /** Kart başına seçili seçenekler: temel FQBN → { seçenek: değer } */
+  boardOptions?: Record<string, Record<string, string>>
 }
 
 // ────────────────────────────────────────────────────────────────────────
@@ -498,6 +602,12 @@ export interface ArduinoCliAPI {
   listLibraries: (force?: boolean) => Promise<LibraryInfo[]>
   searchLibraries: (query: string) => Promise<LibrarySearchResult[]>
   installLibrary: (name: string, version: string | undefined, operationId: string) => Promise<void>
+  /** Kartın ayarlanabilir seçenekleri (işlemci, bölüm şeması, yükleme hızı…); kart paketi kuruluysa dolu döner */
+  getBoardOptions: (fqbn: string) => Promise<BoardConfigOption[]>
+  /** Kurulu olup daha yeni sürümü çıkmış kütüphaneler (ağ yoksa boş liste) */
+  listUpdatableLibraries: (force?: boolean) => Promise<LibraryUpdateInfo[]>
+  /** Eksik bir başlık dosyası (ör. Servo.h) için kurulabilecek kütüphane önerileri */
+  suggestLibrary: (header: string) => Promise<LibrarySuggestionResult>
   uninstallLibrary: (name: string) => Promise<void>
   listExamples: () => Promise<ExampleGroup[]>
   compile: (sketchPath: string, fqbn: string, operationId: string) => Promise<CompileResult>
@@ -510,6 +620,12 @@ export interface ArduinoCliAPI {
 export interface SketchAPI {
   /** İsim verilmezse Arduino IDE geleneğine uygun otomatik bir isim üretilir (sketch_20260802a gibi) */
   createNew: (name?: string) => Promise<SketchInfo>
+  /** Verilen kodla yeni proje oluşturur; ad çakışırsa _2, _3… eklenir */
+  createFromTemplate: (name: string, code: string) => Promise<SketchInfo>
+  /** Mevcut sketch'in yanında bağımsız bir kardeş sketch (ayrı klasör + .ino) oluşturur */
+  createSiblingSketch: (baseFolderPath: string, sketchName: string, initialCode?: string) => Promise<SketchInfo>
+  /** Pencere açılırken aktarılan başlangıç sketch yolunu döner (yoksa null) */
+  getInitialSketchPath: () => Promise<string | null>
   openDialog: () => Promise<SketchInfo | null>
   /** Diyalog açmadan, bilinen bir klasör yolunu sketch olarak açar (ör. Örnekler menüsünden) */
   openPath: (folderPath: string) => Promise<SketchInfo>
@@ -527,8 +643,10 @@ export interface SketchAPI {
 export interface SerialAPI {
   listPorts: () => Promise<SerialPortInfo[]>
   open: (port: string, baud: number) => Promise<void>
-  close: () => Promise<void>
-  write: (data: string, lineEnding: LineEnding) => Promise<void>
+  /** Port verilmezse birincil (en son açılan) port kapatılır */
+  close: (port?: string) => Promise<void>
+  /** Port verilmezse birincil porta yazılır */
+  write: (data: string, lineEnding: LineEnding, port?: string) => Promise<void>
   isOpen: () => Promise<boolean>
   onData: (listener: (chunk: SerialDataChunk) => void) => () => void
   onStatusChanged: (listener: (status: SerialStatus) => void) => () => void
@@ -557,12 +675,15 @@ export interface SecretsAPI {
 // ────────────────────────────────────────────────────────────────────────
 
 export interface AgentActionItem {
-  type: 'replace_selection' | 'replace_file' | 'create_file'
+  type: 'replace_selection' | 'replace_file' | 'create_file' | 'create_sketch'
   filename?: string
+  sketchName?: string
+  folderPath?: string
   rename?: string
   summary: string
   linesCount: number
   applied: boolean
+  code?: string
   targetRange?: { startLine: number; endLine: number }
 }
 
@@ -579,6 +700,12 @@ export interface ChatMessage {
   agentAction?: AgentActionItem
   /** Opsiyonel: Çoklu dosya eylemleri (örn. Alıcı ve Verici için hem ana dosya hem ek dosya oluşturma) */
   agentActions?: AgentActionItem[]
+  /** Opsiyonel: Agent'ın bu yanıt için attığı araç adımları (okuma, yazma, derleme vb.) */
+  toolSteps?: AgentToolStep[]
+  /** Opsiyonel: Bu yanıttaki dosya değişikliklerini geri almak için checkpoint kimliği */
+  checkpointId?: string
+  /** Opsiyonel: Checkpoint geri alındı mı */
+  undone?: boolean
 }
 
 export interface ChatSession {
@@ -670,52 +797,137 @@ export interface SkillsInfoResult {
   chunks: RagChunkSummary[]
 }
 
-export interface StreamChunkEvent {
-  streamId: string
-  chunk: string
-  reasoningChunk?: string
-  done: boolean
-  error?: string
+// ────────────────────────────────────────────────────────────────────────
+// Cloud AI Agent (araç döngülü, main process'te çalışır)
+// ────────────────────────────────────────────────────────────────────────
+
+/** Agent'ın attığı tek bir araç adımının kalıcı özeti (sohbet geçmişinde saklanır) */
+export interface AgentToolStep {
+  callId: string
+  name: string
+  label: string
+  ok: boolean
+  detail?: string
 }
 
-export interface SendAiMessageParams {
-  streamId?: string
+export interface AgentPlanItem {
+  text: string
+  done: boolean
+}
+
+/** Agent'ın disk üzerinde yaptığı bir değişiklik; renderer editor/sekmeleri bununla senkronlar */
+export interface AgentChangeItem {
+  kind:
+    | 'create_file'
+    | 'write_file'
+    | 'delete_file'
+    | 'rename_file'
+    | 'create_sketch'
+    | 'delete_sketch'
+    | 'rename_sketch'
+  /** Dosya mutlak yolu (sketch işlemlerinde sketch klasörü yolu) */
+  path: string
+  oldPath?: string
+  sketchPath: string
+  sketchName: string
+  fileName?: string
+  linesCount?: number
+  summary?: string
+  /** Dosya yazıldıysa yeni içerik (sekmeyi anlık güncellemek için) */
+  content?: string
+}
+
+export interface AgentRunParams {
+  runId: string
   provider: AIProviderId
   model?: string
   reasoningEffort?: ReasoningEffort
-  forceCompaction?: boolean
-  messages: Array<{ rol: 'kullanici' | 'asistan' | 'sistem'; metin: string }>
-  activeCodeContext?: {
-    filePath: string
-    fileName: string
-    content: string
-    selectedCode?: string
-    selectionRange?: {
-      startLine: number
-      endLine: number
-      startColumn?: number
-      endColumn?: number
-    }
-    boardContext?: {
-      name?: string
-      fqbn?: string
-      platformName?: string
-      platformId?: string
-    }
-    sketchName?: string
-    projectFiles?: Array<{
-      name: string
-      path: string
-      isMainFile: boolean
-      content?: string
-    }>
+  /** Sohbet geçmişi; son eleman kullanıcının yeni isteğidir */
+  messages: Array<{ rol: 'kullanici' | 'asistan'; metin: string }>
+  workspace: {
+    activeSketchPath: string | null
+    sketchPaths: string[]
+    activeFilePath?: string
+    selection?: { filePath: string; startLine: number; endLine: number; text: string }
   }
+  board?: { name?: string; fqbn?: string; platformName?: string; platformId?: string }
+  port?: string | null
+  /** Kullanıcının seçtiği bağlam penceresi (yerel modellerde num_ctx için) */
+  contextWindow?: number
+  autoCompile?: boolean
 }
 
-export interface SendAiMessageResult {
-  success: boolean
-  replyText?: string
+export type AgentEvent =
+  | { runId: string; type: 'text'; delta: string }
+  | { runId: string; type: 'reasoning'; delta: string }
+  | { runId: string; type: 'status'; message: string; warning?: boolean }
+  | { runId: string; type: 'tool_start'; callId: string; name: string; label: string }
+  | { runId: string; type: 'tool_end'; callId: string; name: string; ok: boolean; label: string; detail?: string }
+  | { runId: string; type: 'plan'; todos: AgentPlanItem[] }
+  | {
+      runId: string
+      type: 'approval'
+      callId: string
+      kind: 'permission' | 'question'
+      name: string
+      message: string
+      options?: string[]
+      /** Dosya yazma onaylarında editörde diff önizlemesi için önce/sonra içeriği */
+      diff?: AgentDiffPreview
+    }
+  | { runId: string; type: 'changes'; changes: AgentChangeItem[] }
+  | { runId: string; type: 'compile_result'; result: CompileResult }
+  | {
+      runId: string
+      type: 'done'
+      ok: boolean
+      text: string
+      error?: string
+      aborted?: boolean
+      changes: AgentChangeItem[]
+      steps: AgentToolStep[]
+      checkpointId?: string
+    }
+
+/** Onay bekleyen bir dosya değişikliğinin önizlemesi */
+export interface AgentDiffPreview {
+  filePath: string
+  /** Yeni dosyada boş string */
+  before: string
+  after: string
+  isNew: boolean
+}
+
+export interface AgentReply {
+  approved: boolean
+  /** 'question' türündeki isteklerde kullanıcının yanıtı */
+  answer?: string
+}
+
+export interface AgentUndoResult {
+  ok: boolean
   error?: string
+  /** Geri alma sonrası diskten yeniden okunması gereken sketch klasörleri */
+  affectedFolders: string[]
+}
+
+export interface ProviderTestResult {
+  ok: boolean
+  message: string
+  details: string[]
+  /** Algılanan model yetenekleri / bağlam bilgisi */
+  contextLength?: number
+  supportsTools?: boolean
+  tokensPerSecond?: number
+}
+
+export interface AgentAPI {
+  run: (params: AgentRunParams) => Promise<void>
+  abort: (runId: string) => Promise<void>
+  reply: (runId: string, callId: string, reply: AgentReply) => Promise<void>
+  undo: (checkpointId: string) => Promise<AgentUndoResult>
+  onEvent: (listener: (event: AgentEvent) => void) => () => void
+  testProvider: (provider: AIProviderId, model?: string) => Promise<ProviderTestResult>
 }
 
 export interface ChatAPI {
@@ -727,10 +939,9 @@ export interface ChatAPI {
   renameSession: (sessionId: string, yeniBaslik: string) => Promise<void>
   clearSessions: (sketchPath: string) => Promise<void>
   migrateSessions: (oldSketchPath: string, newSketchPath: string, newSketchName: string) => Promise<void>
-  sendAiMessage: (params: SendAiMessageParams) => Promise<SendAiMessageResult>
-  sendAiMessageStream: (params: SendAiMessageParams) => Promise<string>
-  onStreamChunk: (listener: (event: StreamChunkEvent) => void) => () => void
   getProviderModels: (provider: AIProviderId) => Promise<string[]>
+  /** İlk yanıttan sonra sohbet için yapay zekâ ile başlık üretir, kaydeder ve döndürür (üretilemezse null) */
+  generateTitle: (params: { sessionId: string; provider: AIProviderId; model?: string }) => Promise<string | null>
   compactSession: (params: {
     sessionId: string
     provider: AIProviderId
@@ -757,10 +968,140 @@ export interface WindowAPI {
   onCloseRequested: (listener: () => void) => () => void
   /** Renderer'ın kapatma isteğine verdiği cevap: true ise kapatmaya devam et */
   replyCloseRequest: (proceed: boolean) => void
+  /** Yeni bir bağımsız Cloud IDE uygulama penceresi açar; opsiyonel sketch yolu ile başlatabilir */
+  openNewWindow: (sketchPath?: string) => Promise<boolean>
+}
+
+// ───────── Sorun bildirme (tanılama) ─────────
+
+export interface TanilamaVerisi {
+  sistem: SistemBilgisi
+  /** Raporu paylaşmadan önce kişisel bilgileri temizlemek için kullanılır */
+  temizleme: TemizlemeBaglami
+}
+
+export interface DiagnosticsAPI {
+  /** Sistem, kart paketi ve kütüphane bilgisini toplar (kimlik bilgisi ya da proje içeriği içermez) */
+  collect: () => Promise<TanilamaVerisi>
+  /** Kayıt penceresi açar; iptalde null, aksi halde dosya yolu */
+  saveReport: (metin: string) => Promise<string | null>
+  /** GitHub'da önceden doldurulmuş yeni sorun sayfasını tarayıcıda açar */
+  openIssue: (baslik: string, govde: string) => Promise<void>
+}
+
+// ───────── Uygulama güncellemesi ─────────
+
+export type UpdateDurum = 'bosta' | 'denetleniyor' | 'guncel' | 'var' | 'indiriliyor' | 'hazir' | 'hata' | 'desteklenmiyor'
+
+export interface UpdateStatus {
+  durum: UpdateDurum
+  /** Yeni sürüm numarası (var / indiriliyor / hazir) */
+  surum?: string
+  /** Sürüm notları (düz metin) */
+  notlar?: string
+  /** İndirme yüzdesi 0-100 */
+  yuzde?: number
+  /** Hata ya da "desteklenmiyor" açıklaması */
+  mesaj?: string
+  /** Taşınabilir sürüm: uygulama kendini güncelleyemez, Sürümler sayfasından indirilir */
+  elleIndir?: boolean
+}
+
+export interface UpdaterAPI {
+  getStatus: () => Promise<UpdateStatus>
+  check: () => Promise<UpdateStatus>
+  download: () => Promise<void>
+  /** İndirilen güncellemeyi kurmak için uygulamayı yeniden başlatır */
+  install: () => Promise<void>
+  openReleases: () => Promise<void>
+  onStatus: (listener: (s: UpdateStatus) => void) => () => void
+}
+
+// ───────── Sürüm geçmişi ─────────
+
+export type HistoryCommitKind = 'elle' | 'otomatik' | 'agent-oncesi' | 'geri-yukleme-oncesi' | 'derleme'
+
+export interface BuildSizeItem {
+  kullanilan: number
+  azami: number
+}
+
+/** Derleme sonrası bellek kullanımı (arduino-cli çıktısından) */
+export interface BuildSize {
+  flash?: BuildSizeItem
+  ram?: BuildSizeItem
+}
+
+/** Bir sürümün başarıyla derlendiğini ve hangi ortamla derlendiğini anlatan kayıt */
+export interface BuildMeta {
+  fqbn: string
+  zaman: number
+  boyut?: BuildSize
+  /** Kullanılan kütüphaneler: ad → sürüm */
+  kutuphaneler: Record<string, string>
+  cekirdek?: { ad: string; surum: string }
+  /** Bu sürüm karta da yüklendi mi */
+  yuklendi?: boolean
+}
+
+export interface HistoryCommit {
+  id: string
+  parent: string | null
+  dal: string
+  mesaj: string
+  zaman: number
+  tur: HistoryCommitKind
+  dosyaSayisi: number
+  etiketler: string[]
+  derleme?: BuildMeta
+}
+
+export interface HistoryListResult {
+  aktifDal: string
+  dallar: string[]
+  etiketler: Array<{ ad: string; id: string }>
+  /** Aktif dalın ucundan geriye doğru, en yeni başta */
+  surumler: HistoryCommit[]
+}
+
+export interface HistoryStatus {
+  aktifDal: string
+  basId: string | null
+  degisenler: Array<{ ad: string; durum: 'eklendi' | 'degisti' | 'silindi' }>
+}
+
+export interface HistoryDiffFile {
+  ad: string
+  durum: 'eklendi' | 'degisti' | 'silindi'
+  eski: string
+  yeni: string
+}
+
+export interface HistoryAPI {
+  status: (projePath: string) => Promise<HistoryStatus>
+  list: (projePath: string, dal?: string) => Promise<HistoryListResult>
+  /** `a` ve `b`: sürüm kimliği ya da 'calisma' (çalışma kopyası) */
+  diff: (projePath: string, a: string, b: string) => Promise<HistoryDiffFile[]>
+  /** Değişiklik yoksa null döner. `otomatik` true ise ayara bağlıdır ve eski otomatik kayıtlar budanır. */
+  commit: (projePath: string, mesaj: string, otomatik?: boolean) => Promise<HistoryCommit | null>
+  /** Değişen dosya adlarını döndürür */
+  restore: (projePath: string, id: string, dosyalar?: string[]) => Promise<string[]>
+  tag: (projePath: string, id: string, ad: string) => Promise<void>
+  untag: (projePath: string, ad: string) => Promise<void>
+  createBranch: (projePath: string, ad: string, id?: string) => Promise<void>
+  checkout: (projePath: string, ad: string) => Promise<string[]>
+  deleteBranch: (projePath: string, ad: string) => Promise<void>
+  /** Kayıt penceresi açar; projeyi geçmişiyle .zip yapar. İptalde null, aksi halde dosya yolu. */
+  exportPackage: (projePath: string) => Promise<string | null>
+  /** Açma penceresi açar; paketi sketchbook'ta yeni klasöre açar. İptalde null, aksi halde proje klasörü. */
+  importPackage: () => Promise<string | null>
 }
 
 /** Renderer'a preload üzerinden expose edilen tüm API'lerin birleşimi */
 export interface DretAPI {
+  diagnostics: DiagnosticsAPI
+  updater: UpdaterAPI
+  history: HistoryAPI
   app: AppInfoAPI
   arduinoCli: ArduinoCliAPI
   sketch: SketchAPI
@@ -768,6 +1109,7 @@ export interface DretAPI {
   settings: SettingsAPI
   secrets: SecretsAPI
   chat: ChatAPI
+  agent: AgentAPI
   skills: SkillsAPI
   window: WindowAPI
 }

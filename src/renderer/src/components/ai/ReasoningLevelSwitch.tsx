@@ -29,16 +29,16 @@ const LEVELS: LevelConfig[] = [
     id: 'medium',
     label: 'Orta',
     desc: 'Orta Muhakeme: Dengeli mimari ve donanım açıklaması.',
-    color: 'text-[#93a5fb]',
-    activeBg: 'from-[#3b82f6]/25 to-[#8b5cf6]/20 border-[#3b82f6]/40 text-[#c4b5fd] shadow-[0_0_10px_rgba(59,130,246,0.25)]',
+    color: 'text-[#7cc4f0]',
+    activeBg: 'from-[#0e7fc4]/25 to-[#2aa8f2]/20 border-[#0e7fc4]/40 text-[#8fd0f7] shadow-[0_0_10px_rgba(59,130,246,0.25)]',
     renderIcon: (className) => <BrainIcon className={className} />
   },
   {
     id: 'high',
     label: 'Yüksek',
     desc: 'Yüksek Muhakeme: Derin donanım, register ve bellek analizi.',
-    color: 'text-purple-300',
-    activeBg: 'from-purple-500/30 to-fuchsia-500/25 border-purple-500/45 text-purple-200 shadow-[0_0_12px_rgba(168,85,247,0.3)]',
+    color: 'text-cyan-300',
+    activeBg: 'from-cyan-500/30 to-cyan-500/25 border-cyan-500/45 text-cyan-200 shadow-[0_0_12px_rgba(14,127,196,0.3)]',
     renderIcon: (className) => <AtomCoreIcon className={className} />
   }
 ]

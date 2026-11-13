@@ -15,6 +15,7 @@ import type {
   ArduinoCliStatus,
   BaudRate,
   BoardOption,
+  BuildSize,
   CompileResult,
   DerlemeHatasi,
   DetectedPort,
@@ -24,10 +25,13 @@ import type {
   SerialStatus,
   SketchFile,
   SketchInfo,
-  UploadResult
+  UploadResult,
+  AgentChangeItem
 } from '@shared/types'
 import { DEFAULT_BAUD_RATE } from '@shared/types'
+import { fqbnSecenekleriyle, temelFqbn } from '@shared/boardFqbn'
 import { useToast } from './ToastContext'
+import { ayniDosyaMi } from '../utils/paths'
 
 // ────────────────────────────────────────────────────────────────────────
 // Durum (state) şekli
@@ -42,12 +46,16 @@ export interface AcikSekme {
   isMainFile: boolean
   /** Sketch klasörünün dışında bir dosya (ör. kütüphane/çekirdek başlığı); düzenlenemez */
   readOnly: boolean
+  /** Hangi sketch/proje klasörüne ait olduğu (çoklu proje çalışma alanı için) */
+  sketchFolderPath?: string
 }
 
 export interface SeriSatir {
   id: number
   text: string
   timestamp: number
+  /** Satırın geldiği seri port */
+  port: string
 }
 
 interface AppState {
@@ -69,6 +77,10 @@ interface AppState {
     info: SketchInfo | null
     tabs: AcikSekme[]
     activeTabPath: string | null
+    /** Aynı pencerede açık olan tüm bağımsız sketch projeleri (Çoklu Proje Çalışma Alanı) */
+    workspaceSketches: SketchInfo[]
+    /** Derleme ve yükleme için şu anda hedef seçili olan aktif sketch klasörü yolu */
+    activeSketchPath: string | null
   }
   build: {
     currentOperation: 'compile' | 'upload' | null
@@ -76,6 +88,8 @@ interface AppState {
     errors: DerlemeHatasi[]
     /** Problems panelinden bir hataya tıklanınca editörün gitmesi istenen konum */
     revealTarget: { path: string; line: number } | null
+    /** Son başarılı derlemenin flash/RAM kullanımı */
+    boyut: BuildSize | null
   }
   serial: {
     status: SerialStatus
@@ -86,7 +100,7 @@ interface AppState {
    * ("AI ile Düzelt"/"Prompt Gir") panele aktarılacak bekleyen metin.
    * CodeEditor derin bir alt bileşen olduğu ve panel durumu birden çok
    * yerden (TopBar, CodeEditor) tetiklendiği için burada, global durumda
-   * tutulur (mesaj geçmişi ise DretAIPanel'in kendi yerel durumunda kalır).
+   * tutulur (mesaj geçmişi ise AgentContext'te tutulur).
    */
   dretAi: {
     open: boolean
@@ -134,10 +148,10 @@ const baslangicDurumu: AppState = {
     selectedPort: null,
     selectedBaud: DEFAULT_BAUD_RATE
   },
-  sketch: { info: null, tabs: [], activeTabPath: null },
-  build: { currentOperation: null, log: '', errors: [], revealTarget: null },
+  sketch: { info: null, tabs: [], activeTabPath: null, workspaceSketches: [], activeSketchPath: null },
+  build: { currentOperation: null, log: '', errors: [], revealTarget: null, boyut: null },
   serial: {
-    status: { open: false, port: null, baud: null, temporarilyClosedForUpload: false },
+    status: { open: false, port: null, baud: null, portlar: [], temporarilyClosedForUpload: false },
     lines: []
   },
   dretAi: { open: false, seed: null },
@@ -165,8 +179,11 @@ type Action =
   | { type: 'sketch/opened'; info: SketchInfo }
   | { type: 'sketch/projectRenamed'; info: SketchInfo; tabs: AcikSekme[]; activeTabPath: string | null }
   | { type: 'sketch/closed' }
-  | { type: 'sketch/filesRefreshed'; files: SketchFile[] }
-  | { type: 'sketch/tabOpened'; path: string; name: string; content: string; isMainFile: boolean; readOnly?: boolean }
+  | { type: 'sketch/workspaceSketchAdded'; info: SketchInfo }
+  | { type: 'sketch/workspaceSketchRemoved'; folderPath: string }
+  | { type: 'sketch/activeSketchChanged'; folderPath: string }
+  | { type: 'sketch/filesRefreshed'; files: SketchFile[]; folderPath?: string }
+  | { type: 'sketch/tabOpened'; path: string; name: string; content: string; isMainFile: boolean; readOnly?: boolean; sketchFolderPath?: string }
   | { type: 'sketch/tabContentChanged'; path: string; content: string }
   | { type: 'sketch/tabSaved'; path: string; content: string }
   | { type: 'sketch/tabClosed'; path: string }
@@ -177,8 +194,8 @@ type Action =
   | { type: 'build/revealRequested'; path: string; line: number }
   | { type: 'build/revealHandled' }
   | { type: 'serial/status'; status: SerialStatus }
-  | { type: 'serial/lineAdded'; line: SeriSatir }
-  | { type: 'serial/cleared' }
+  | { type: 'serial/linesAdded'; lines: SeriSatir[] }
+  | { type: 'serial/cleared'; port?: string }
   | { type: 'dretAi/toggled' }
   | {
       type: 'dretAi/openedWithPrompt'
@@ -208,6 +225,8 @@ type Action =
   | { type: 'aiDiff/rejected' }
 
 const SERI_TAMPON_LIMIT = 5000
+const OTOMATIK_ANLIK_ARALIK_MS = 2 * 60 * 1000
+const SON_OTOMATIK_ANLIK = new Map<string, number>()
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -248,22 +267,95 @@ function reducer(state: AppState, action: Action): AppState {
         : state
 
     case 'sketch/opened':
-      return { ...state, sketch: { info: action.info, tabs: [], activeTabPath: null } }
-    case 'sketch/projectRenamed':
+      return {
+        ...state,
+        sketch: {
+          info: action.info,
+          tabs: [],
+          activeTabPath: null,
+          workspaceSketches: [action.info],
+          activeSketchPath: action.info.folderPath
+        }
+      }
+    case 'sketch/projectRenamed': {
+      const guncelSketches = state.sketch.workspaceSketches.map((s) =>
+        ayniDosyaMi(s.folderPath, action.info.folderPath) ? action.info : s
+      )
       return {
         ...state,
         sketch: {
           info: action.info,
           tabs: action.tabs,
-          activeTabPath: action.activeTabPath
+          activeTabPath: action.activeTabPath,
+          workspaceSketches: guncelSketches.length > 0 ? guncelSketches : [action.info],
+          activeSketchPath: action.info.folderPath
         }
       }
+    }
     case 'sketch/closed':
-      return { ...state, sketch: { info: null, tabs: [], activeTabPath: null } }
-    case 'sketch/filesRefreshed':
-      return state.sketch.info
-        ? { ...state, sketch: { ...state.sketch, info: { ...state.sketch.info, files: action.files } } }
-        : state
+      return { ...state, sketch: { info: null, tabs: [], activeTabPath: null, workspaceSketches: [], activeSketchPath: null } }
+    case 'sketch/workspaceSketchAdded': {
+      const zatenVar = state.sketch.workspaceSketches.some((s) => ayniDosyaMi(s.folderPath, action.info.folderPath))
+      const yeniWorkspace = zatenVar
+        ? state.sketch.workspaceSketches.map((s) => (ayniDosyaMi(s.folderPath, action.info.folderPath) ? action.info : s))
+        : [...state.sketch.workspaceSketches, action.info]
+      return {
+        ...state,
+        sketch: {
+          ...state.sketch,
+          info: state.sketch.info || action.info,
+          workspaceSketches: yeniWorkspace,
+          activeSketchPath: state.sketch.activeSketchPath || action.info.folderPath
+        }
+      }
+    }
+    case 'sketch/workspaceSketchRemoved': {
+      const kalanWorkspace = state.sketch.workspaceSketches.filter((s) => !ayniDosyaMi(s.folderPath, action.folderPath))
+      const kalanSekmeler = state.sketch.tabs.filter((t) => {
+        if (t.sketchFolderPath && ayniDosyaMi(t.sketchFolderPath, action.folderPath)) return false
+        if (t.path.toLowerCase().startsWith(action.folderPath.toLowerCase())) return false
+        return true
+      })
+      const yeniAktifInfo = kalanWorkspace.length > 0 ? kalanWorkspace[0] : null
+      return {
+        ...state,
+        sketch: {
+          ...state.sketch,
+          info: ayniDosyaMi(state.sketch.info?.folderPath || '', action.folderPath) ? yeniAktifInfo : state.sketch.info,
+          workspaceSketches: kalanWorkspace,
+          activeSketchPath: yeniAktifInfo ? yeniAktifInfo.folderPath : null,
+          tabs: kalanSekmeler,
+          activeTabPath: kalanSekmeler.length > 0 ? kalanSekmeler[kalanSekmeler.length - 1].path : null
+        }
+      }
+    }
+    case 'sketch/activeSketchChanged': {
+      const secilen = state.sketch.workspaceSketches.find((s) => ayniDosyaMi(s.folderPath, action.folderPath))
+      return {
+        ...state,
+        sketch: {
+          ...state.sketch,
+          info: secilen || state.sketch.info,
+          activeSketchPath: action.folderPath
+        }
+      }
+    }
+    case 'sketch/filesRefreshed': {
+      const folder = action.folderPath || (action.files.length > 0 ? action.files[0].path : '')
+      const guncellenmisWorkspace = state.sketch.workspaceSketches.map((s) => {
+        const ayni = folder && (ayniDosyaMi(s.folderPath, folder) || folder.toLowerCase().startsWith(s.folderPath.toLowerCase()))
+        return ayni ? { ...s, files: action.files } : s
+      })
+      const infoAyni = state.sketch.info && folder && (ayniDosyaMi(state.sketch.info.folderPath, folder) || folder.toLowerCase().startsWith(state.sketch.info.folderPath.toLowerCase()))
+      return {
+        ...state,
+        sketch: {
+          ...state.sketch,
+          info: infoAyni && state.sketch.info ? { ...state.sketch.info, files: action.files } : state.sketch.info,
+          workspaceSketches: guncellenmisWorkspace
+        }
+      }
+    }
     case 'sketch/tabOpened': {
       if (state.sketch.tabs.some((t) => ayniDosyaMi(t.path, action.path))) return state
       const yeniSekme: AcikSekme = {
@@ -272,7 +364,8 @@ function reducer(state: AppState, action: Action): AppState {
         content: action.content,
         savedContent: action.content,
         isMainFile: action.isMainFile,
-        readOnly: action.readOnly ?? false
+        readOnly: action.readOnly ?? false,
+        sketchFolderPath: action.sketchFolderPath
       }
       return { ...state, sketch: { ...state.sketch, tabs: [...state.sketch.tabs, yeniSekme] } }
     }
@@ -310,12 +403,30 @@ function reducer(state: AppState, action: Action): AppState {
         }
       }
     }
-    case 'sketch/activeTabChanged':
-      return { ...state, sketch: { ...state.sketch, activeTabPath: action.path } }
+    case 'sketch/activeTabChanged': {
+      const tiklananSekme = state.sketch.tabs.find((t) => ayniDosyaMi(t.path, action.path))
+      const hedefSketch = state.sketch.workspaceSketches.find((s) => {
+        if (tiklananSekme?.sketchFolderPath && ayniDosyaMi(s.folderPath, tiklananSekme.sketchFolderPath)) return true
+        return action.path.toLowerCase().startsWith(s.folderPath.toLowerCase())
+      })
+      return {
+        ...state,
+        sketch: {
+          ...state.sketch,
+          activeTabPath: action.path,
+          info: hedefSketch || state.sketch.info,
+          activeSketchPath: hedefSketch ? hedefSketch.folderPath : state.sketch.activeSketchPath
+        }
+      }
+    }
 
     case 'build/operationEvent': {
       if (action.phase === 'basladi') {
-        return { ...state, build: { currentOperation: action.kind, log: '', errors: [], revealTarget: null } }
+        // Yükleme öncesi derlemeden gelen boyut bilgisi yükleme sırasında kaybolmasın
+        return {
+          ...state,
+          build: { currentOperation: action.kind, log: '', errors: [], revealTarget: null, boyut: action.kind === 'upload' ? state.build.boyut : null }
+        }
       }
       if (action.phase === 'log' && action.message) {
         return { ...state, build: { ...state.build, log: state.build.log + action.message + '\n' } }
@@ -335,7 +446,12 @@ function reducer(state: AppState, action: Action): AppState {
         ...state,
         build: {
           ...state.build,
-          errors: action.result.errors,
+          // Derleme başarısız ama satır bazlı hata ayrıştırılamadıysa (ör. kart paketi eksik), Problems boş kalmasın
+          errors:
+            !action.result.success && action.result.errors.length === 0 && action.result.topLevelError
+              ? [{ dosya: '', satir: 0, sutun: 0, tur: 'error', mesaj: action.result.topLevelError, hamMetin: action.result.topLevelError }]
+              : action.result.errors,
+          boyut: action.result.success ? (action.result.boyut ?? null) : null,
           log: action.result.topLevelError ? state.build.log + action.result.topLevelError + '\n' : state.build.log
         }
       }
@@ -354,15 +470,18 @@ function reducer(state: AppState, action: Action): AppState {
 
     case 'serial/status':
       return { ...state, serial: { ...state.serial, status: action.status } }
-    case 'serial/lineAdded': {
-      const guncelSatirlar = [...state.serial.lines, action.line]
+    case 'serial/linesAdded': {
+      const guncelSatirlar = [...state.serial.lines, ...action.lines]
       if (guncelSatirlar.length > SERI_TAMPON_LIMIT) {
         guncelSatirlar.splice(0, guncelSatirlar.length - SERI_TAMPON_LIMIT)
       }
       return { ...state, serial: { ...state.serial, lines: guncelSatirlar } }
     }
     case 'serial/cleared':
-      return { ...state, serial: { ...state.serial, lines: [] } }
+      return {
+        ...state,
+        serial: { ...state.serial, lines: action.port ? state.serial.lines.filter((s) => s.port !== action.port) : [] }
+      }
 
     case 'dretAi/toggled':
       return { ...state, dretAi: { ...state.dretAi, open: !state.dretAi.open } }
@@ -435,6 +554,10 @@ interface AppStateBaglami {
   refreshPlatforms: () => Promise<void>
   refreshPorts: () => Promise<void>
   selectFqbn: (fqbn: string | null) => void
+  /** Seçili kartın derleme/yükleme için kullanılan tam adı: temel FQBN + kart seçenekleri (işlemci, bölüm şeması…) */
+  efektifFqbnAl: () => string | null
+  /** Bir kart seçeneğini kaydeder; değer null ise seçenek kart paketinin varsayılanına döner */
+  setBoardOption: (temelFqbn: string, option: string, value: string | null) => Promise<void>
   selectPort: (port: string | null) => void
   selectBaud: (baud: BaudRate) => void
   addBoardManagerUrl: (url: string) => Promise<void>
@@ -462,10 +585,13 @@ interface AppStateBaglami {
       endColumn: number
     }
   ) => void
-  /** DretAIPanel, bekleyen seed'i kendi durumuna aktardıktan sonra çağırır */
+  /** AgentPanel, bekleyen seed'i kendi durumuna aktardıktan sonra çağırır */
   clearDretAiSeed: () => void
   /** AI tarafından üretilen kodu editöre uygular ve renkli gradient animasyonu tetikler */
-  applyAiCodeToEditor: (kod: string, hedefAralik?: { filePath: string; startLine: number; endLine: number }) => void
+  applyAiCodeToEditor: (
+    kod: string,
+    hedefAralik?: { filePath?: string; startLine?: number; endLine?: number }
+  ) => void | Promise<void>
   clearEditorHighlight: () => void
   /** AI kodu editöre yazma ve Onayla/Reddet akışını başlatır */
   startAiDiffReview: (filePath: string, newCode: string, targetRange?: { startLine: number; endLine: number }) => void | Promise<void>
@@ -480,7 +606,7 @@ interface AppStateBaglami {
   /** Açık sketch'i kapatır (kaydedilmemişse onay ister), karşılama ekranına döner */
   closeSketch: () => void
   saveAsActiveSketch: () => Promise<void>
-  openFileInTab: (path: string, name: string, isMainFile: boolean) => Promise<void>
+  openFileInTab: (path: string, name: string, isMainFile: boolean, sketchFolderPath?: string) => Promise<void>
   setActiveTab: (path: string) => void
   updateTabContent: (path: string, content: string) => void
   saveTab: (path: string) => Promise<void>
@@ -488,11 +614,27 @@ interface AppStateBaglami {
   closeTab: (path: string) => void
   /** Açık sketch'te kaydedilmemiş değişiklik olup olmadığını anlık okur (pencere kapatma onayı için) */
   hasUnsavedChanges: () => boolean
-  addFile: (fileName: string) => Promise<SketchFile | null>
+  addFile: (fileName: string, targetFolderPath?: string) => Promise<SketchFile | null>
   createFileWithContent: (fileName: string, content: string) => Promise<SketchFile | null>
-  deleteFile: (path: string) => Promise<void>
+  /** Bağımsız kardeş bir sketch klasörü açar, ana .ino dosyasını oluşturur ve çalışma alanına ekler */
+  createSiblingSketchWithContent: (sketchName: string, content: string) => Promise<SketchInfo | null>
+  /** Mevcut çalışma alanına başka bir sketch projesi ekler */
+  addSketchToWorkspace: (info: SketchInfo) => Promise<void>
+  /** Dosya seçici ile çalışma alanına yeni bir sketch projesi ekler */
+  addSketchToWorkspaceDialog: () => Promise<SketchInfo | null>
+  /** Bir projeyi çalışma alanından kaldırır (diskten silmez) */
+  removeSketchFromWorkspace: (folderPath: string) => void
+  /** Derleme ve yükleme için aktif olan hedef sketch'i belirler */
+  setActiveSketch: (folderPath: string) => void
+  /** Yeni bir bağımsız uygulama penceresi açar */
+  openInNewWindow: (sketchPath?: string) => Promise<void>
+  deleteFile: (path: string, folderPath?: string) => Promise<void>
   renameFile: (path: string, newName: string) => Promise<SketchFile | null>
   updateFileContent: (path: string, content: string) => Promise<void>
+  /** Agent'ın diskte yaptığı değişiklikleri açık sekmelere ve dosya ağacına yansıtır */
+  syncAgentChanges: (changes: AgentChangeItem[]) => Promise<void>
+  /** Verilen sketch klasörlerini diskten yeniden okur (geri alma sonrası) */
+  reloadSketchFolders: (folders: string[]) => Promise<void>
   // build
   compileActive: () => Promise<void>
   uploadActive: () => Promise<void>
@@ -501,10 +643,11 @@ interface AppStateBaglami {
   requestReveal: (path: string, line: number) => Promise<void>
   clearReveal: () => void
   // serial
+  /** Üst çubukta seçili portu açar; diğer açık portlara dokunmaz */
   connectSerial: () => Promise<void>
-  disconnectSerial: () => Promise<void>
-  writeSerial: (data: string, lineEnding: LineEnding) => Promise<void>
-  clearSerial: () => void
+  disconnectSerial: (port?: string) => Promise<void>
+  writeSerial: (data: string, lineEnding: LineEnding, port?: string) => Promise<void>
+  clearSerial: (port?: string) => void
 }
 
 const AppStateContext = createContext<AppStateBaglami | null>(null)
@@ -521,10 +664,6 @@ export function tumKartlariDuzlestir(platforms: PlatformSummary[]): BoardOption[
  * etse bile farklı büyük/küçük harfle gelebilir; bu yüzden Problems
  * panelinden bir hataya tıklarken doğrudan '===' kullanılmaz.
  */
-function ayniDosyaMi(a: string, b: string): boolean {
-  return a.trim().replace(/\\/g, '/').toLowerCase() === b.trim().replace(/\\/g, '/').toLowerCase()
-}
-
 function klasorYoluAl(dosyaYolu: string): string {
   const norm = dosyaYolu.replace(/\\/g, '/')
   const sonSlash = norm.lastIndexOf('/')
@@ -565,7 +704,26 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
         dispatch({ type: 'arduinoCli/platforms', platforms })
       }
 
-      let sonSketch = await window.api.sketch.getLastOpened()
+      let baslangicYolu: string | null = null
+      try {
+        baslangicYolu = await window.api.sketch.getInitialSketchPath()
+      } catch {
+        // Başlangıç yolu sorgusu başarısızsa yok say
+      }
+
+      let sonSketch: SketchInfo | null = null
+      if (baslangicYolu) {
+        try {
+          sonSketch = await window.api.sketch.openPath(baslangicYolu)
+        } catch {
+          // Belirtilen yol açılamadıysa devam et
+        }
+      }
+
+      if (!sonSketch) {
+        sonSketch = await window.api.sketch.getLastOpened()
+      }
+
       if (iptalEdildi) return
       if (!sonSketch) {
         try {
@@ -581,7 +739,14 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
         if (anaDosya) {
           const icerik = await window.api.sketch.readFile(anaDosya.path)
           if (iptalEdildi) return
-          dispatch({ type: 'sketch/tabOpened', path: anaDosya.path, name: anaDosya.name, content: icerik, isMainFile: true })
+          dispatch({
+            type: 'sketch/tabOpened',
+            path: anaDosya.path,
+            name: anaDosya.name,
+            content: icerik,
+            isMainFile: true,
+            sketchFolderPath: sonSketch.folderPath
+          })
           dispatch({ type: 'sketch/activeTabChanged', path: anaDosya.path })
         }
       }
@@ -598,12 +763,20 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
         dispatch({ type: 'build/operationEvent', kind: olay.kind, phase: olay.phase, message: olay.message })
       }
     })
+    // Seri veri sık gelir; her satırda tüm arayüzü yeniden çizmemek için satırlar ~80 ms'de bir toplu eklenir
+    let seriTampon: SeriSatir[] = []
+    let seriZamanlayici: ReturnType<typeof setTimeout> | null = null
+    const seriBosalt = (): void => {
+      seriZamanlayici = null
+      if (seriTampon.length === 0) return
+      const toplu = seriTampon
+      seriTampon = []
+      dispatch({ type: 'serial/linesAdded', lines: toplu })
+    }
     const seriVeriKaldir = window.api.serial.onData((parca) => {
       seriSatirSayaci.current += 1
-      dispatch({
-        type: 'serial/lineAdded',
-        line: { id: seriSatirSayaci.current, text: parca.data, timestamp: parca.timestamp }
-      })
+      seriTampon.push({ id: seriSatirSayaci.current, text: parca.data, timestamp: parca.timestamp, port: parca.port })
+      if (!seriZamanlayici) seriZamanlayici = setTimeout(seriBosalt, 80)
     })
     const seriDurumKaldir = window.api.serial.onStatusChanged((durum) => dispatch({ type: 'serial/status', status: durum }))
 
@@ -613,6 +786,7 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
       olayKaldir()
       seriVeriKaldir()
       seriDurumKaldir()
+      if (seriZamanlayici) clearTimeout(seriZamanlayici)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -681,6 +855,27 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
     dispatch({ type: 'arduinoCli/selectFqbn', fqbn })
     void window.api.settings.set('selectedFqbn', fqbn)
   }, [])
+  const efektifFqbnAl = useCallback((): string | null => {
+    const fqbn = stateRef.current.arduinoCli.selectedFqbn
+    if (!fqbn) return null
+    return fqbnSecenekleriyle(fqbn, stateRef.current.settings?.boardOptions?.[temelFqbn(fqbn)])
+  }, [])
+
+  const setBoardOption = useCallback(async (temel: string, option: string, value: string | null): Promise<void> => {
+    const tumu = { ...(stateRef.current.settings?.boardOptions ?? {}) }
+    const kart = { ...(tumu[temel] ?? {}) }
+    if (value === null) delete kart[option]
+    else kart[option] = value
+    if (Object.keys(kart).length === 0) delete tumu[temel]
+    else tumu[temel] = kart
+    dispatch({ type: 'settings/patched', patch: { boardOptions: tumu } })
+    try {
+      await window.api.settings.set('boardOptions', tumu)
+    } catch (hata) {
+      console.error('Kart seçeneği kaydedilemedi:', hata)
+    }
+  }, [])
+
   const selectPort = useCallback((port: string | null) => {
     dispatch({ type: 'arduinoCli/selectPort', port })
     void window.api.settings.set('selectedPort', port)
@@ -786,52 +981,163 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
   )
   const clearDretAiSeed = useCallback(() => dispatch({ type: 'dretAi/seedConsumed' }), [])
 
-  /** AI tarafından önerilen kodu aktif sekmede belirtilen konuma uygular ve gradient animasyonunu tetikler */
+  const updateFileContent = useCallback(
+    async (path: string, content: string): Promise<void> => {
+      const { info, activeSketchPath } = stateRef.current.sketch
+      const targetFolder = klasorYoluAl(path) || activeSketchPath || info?.folderPath
+      try {
+        await window.api.sketch.writeFile(path, content)
+        const acikSekme = stateRef.current.sketch.tabs.find((t) => ayniDosyaMi(t.path, path))
+        if (acikSekme) {
+          dispatch({ type: 'sketch/tabContentChanged', path, content })
+          dispatch({ type: 'sketch/tabSaved', path, content })
+        } else {
+          dispatch({
+            type: 'sketch/tabOpened',
+            path,
+            name: dosyaAdiAl(path),
+            content,
+            isMainFile: path.endsWith('.ino'),
+            sketchFolderPath: targetFolder
+          })
+          dispatch({ type: 'sketch/tabSaved', path, content })
+          dispatch({ type: 'sketch/activeTabChanged', path })
+        }
+        if (targetFolder) {
+          const guncelDosyalar = await window.api.sketch.listFiles(targetFolder)
+          dispatch({ type: 'sketch/filesRefreshed', files: guncelDosyalar, folderPath: targetFolder })
+        }
+      } catch (hata) {
+        toastGoster(hata instanceof Error ? hata.message : 'Dosya güncellenemedi', 'hata')
+      }
+    },
+    [toastGoster]
+  )
+
+  const reloadSketchFolders = useCallback(async (folders: string[]): Promise<void> => {
+    for (const klasor of [...new Set(folders)]) {
+      let bilgi: SketchInfo | null = null
+      try {
+        bilgi = await window.api.sketch.openPath(klasor)
+      } catch {
+        bilgi = null
+      }
+      if (!bilgi) {
+        // Klasör artık yok (ör. oluşturulan sketch geri alındı)
+        dispatch({ type: 'sketch/workspaceSketchRemoved', folderPath: klasor })
+        continue
+      }
+      dispatch({ type: 'sketch/workspaceSketchAdded', info: bilgi })
+      const sekmeler = stateRef.current.sketch.tabs.filter(
+        (t) => t.sketchFolderPath && ayniDosyaMi(t.sketchFolderPath, klasor) && !t.readOnly
+      )
+      for (const sekme of sekmeler) {
+        try {
+          const icerik = await window.api.sketch.readFile(sekme.path)
+          dispatch({ type: 'sketch/tabContentChanged', path: sekme.path, content: icerik })
+          dispatch({ type: 'sketch/tabSaved', path: sekme.path, content: icerik })
+        } catch {
+          dispatch({ type: 'sketch/tabClosed', path: sekme.path })
+        }
+      }
+    }
+  }, [])
+
+  const syncAgentChanges = useCallback(
+    async (changes: AgentChangeItem[]): Promise<void> => {
+      const yenilenecek = new Set<string>()
+      for (const c of changes) {
+        switch (c.kind) {
+          case 'write_file':
+          case 'create_file': {
+            yenilenecek.add(c.sketchPath)
+            if (c.content !== undefined) {
+              const acik = stateRef.current.sketch.tabs.some((t) => ayniDosyaMi(t.path, c.path))
+              if (acik) {
+                dispatch({ type: 'sketch/tabContentChanged', path: c.path, content: c.content })
+                dispatch({ type: 'sketch/tabSaved', path: c.path, content: c.content })
+              }
+            }
+            break
+          }
+          case 'delete_file':
+            dispatch({ type: 'sketch/tabClosed', path: c.path })
+            yenilenecek.add(c.sketchPath)
+            break
+          case 'rename_file':
+            if (c.oldPath) dispatch({ type: 'sketch/tabClosed', path: c.oldPath })
+            yenilenecek.add(c.sketchPath)
+            break
+          case 'create_sketch':
+            yenilenecek.add(c.path)
+            break
+          case 'delete_sketch':
+            dispatch({ type: 'sketch/workspaceSketchRemoved', folderPath: c.path })
+            break
+          case 'rename_sketch':
+            if (c.oldPath) dispatch({ type: 'sketch/workspaceSketchRemoved', folderPath: c.oldPath })
+            yenilenecek.add(c.path)
+            break
+        }
+      }
+      if (yenilenecek.size > 0) await reloadSketchFolders([...yenilenecek])
+    },
+    [reloadSketchFolders]
+  )
+
+  /** AI tarafından önerilen kodu aktif sekmede belirtilen konuma uygular, diske kaydeder ve gradient animasyonunu tetikler */
   const applyAiCodeToEditor = useCallback(
-    (kod: string, hedefAralik?: { filePath: string; startLine: number; endLine: number }) => {
-      const { activeTabPath, tabs } = stateRef.current.sketch
-      const hedefYol = hedefAralik?.filePath || activeTabPath
+    async (kod: string, hedefAralik?: { filePath?: string; startLine?: number; endLine?: number }) => {
+      const { activeTabPath, tabs, info } = stateRef.current.sketch
+      const hedefYol =
+        hedefAralik?.filePath ||
+        activeTabPath ||
+        info?.files.find((f) => f.isMainFile)?.path ||
+        info?.files[0]?.path
+
       if (!hedefYol) {
         toastGoster('Kodu uygulamak için açık bir dosya bulunamadı', 'hata')
         return
       }
 
       const sekme = tabs.find((t) => ayniDosyaMi(t.path, hedefYol))
-      if (!sekme) {
-        toastGoster('Hedef sekme açık değil', 'hata')
-        return
-      }
-
       const temizKod = kod.trim()
       const eklenenSatirSayisi = temizKod.split('\n').length
 
-      if (hedefAralik && hedefAralik.startLine > 0 && hedefAralik.endLine >= hedefAralik.startLine) {
-        const satirlar = sekme.content.split('\n')
-        const bas = satirlar.slice(0, hedefAralik.startLine - 1)
-        const son = satirlar.slice(hedefAralik.endLine)
-        const yeniIcerik = [...bas, temizKod, ...son].join('\n')
+      const isSelection = Boolean(
+        hedefAralik &&
+          typeof hedefAralik.startLine === 'number' &&
+          hedefAralik.startLine > 0 &&
+          typeof hedefAralik.endLine === 'number' &&
+          hedefAralik.endLine >= hedefAralik.startLine
+      )
 
-        dispatch({ type: 'sketch/tabContentChanged', path: hedefYol, content: yeniIcerik })
-        dispatch({
-          type: 'editor/highlightRequested',
-          filePath: hedefYol,
-          startLine: hedefAralik.startLine,
-          endLine: hedefAralik.startLine + eklenenSatirSayisi - 1
-        })
-        toastGoster(`Kod ${hedefAralik.startLine}. satıra uygulandı`, 'basari')
-      } else {
-        // Hedef aralık yoksa tüm içeriği güncelle
-        dispatch({ type: 'sketch/tabContentChanged', path: hedefYol, content: temizKod })
-        dispatch({
-          type: 'editor/highlightRequested',
-          filePath: hedefYol,
-          startLine: 1,
-          endLine: Math.max(1, eklenenSatirSayisi)
-        })
-        toastGoster('Kod tüm dosyaya uygulandı', 'basari')
+      let yeniIcerik = temizKod
+      let highlightStart = 1
+      let highlightEnd = eklenenSatirSayisi
+
+      if (isSelection && sekme) {
+        const satirlar = sekme.content.split('\n')
+        const bas = satirlar.slice(0, hedefAralik!.startLine! - 1)
+        const son = satirlar.slice(hedefAralik!.endLine!)
+        yeniIcerik = [...bas, temizKod, ...son].join('\n')
+        highlightStart = hedefAralik!.startLine!
+        highlightEnd = hedefAralik!.startLine! + eklenenSatirSayisi - 1
       }
+
+      // Kodu hem diske hem sekmelere doğrudan ve güvenle yaz
+      await updateFileContent(hedefYol, yeniIcerik)
+
+      dispatch({
+        type: 'editor/highlightRequested',
+        filePath: hedefYol,
+        startLine: highlightStart,
+        endLine: highlightEnd
+      })
+
+      toastGoster(isSelection ? `Kod ${highlightStart}. satıra uygulandı` : 'Kod tüm dosyaya uygulandı', 'basari')
     },
-    [toastGoster]
+    [updateFileContent, toastGoster]
   )
 
   const clearEditorHighlight = useCallback(() => {
@@ -922,7 +1228,14 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
       const anaDosya = info.files.find((f) => f.isMainFile)
       if (anaDosya) {
         const icerik = await window.api.sketch.readFile(anaDosya.path)
-        dispatch({ type: 'sketch/tabOpened', path: anaDosya.path, name: anaDosya.name, content: icerik, isMainFile: true })
+        dispatch({
+          type: 'sketch/tabOpened',
+          path: anaDosya.path,
+          name: anaDosya.name,
+          content: icerik,
+          isMainFile: true,
+          sketchFolderPath: info.folderPath
+        })
         dispatch({ type: 'sketch/activeTabChanged', path: anaDosya.path })
       }
     },
@@ -974,20 +1287,38 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
     [acFonksiyonu, toastGoster]
   )
 
+  /**
+   * Kaydetmeden önce diskteki mevcut hali sürüm geçmişine yazar (en çok 2 dakikada bir, proje başına).
+   * Böylece düzenlemeden önceki her durum geri getirilebilir. Hata kaydetmeyi engellemez.
+   */
+  const kaydetmedenOnceAnlikGoruntu = useCallback(async (klasor: string | undefined): Promise<void> => {
+    if (!klasor) return
+    const son = SON_OTOMATIK_ANLIK.get(klasor) ?? 0
+    if (Date.now() - son < OTOMATIK_ANLIK_ARALIK_MS) return
+    SON_OTOMATIK_ANLIK.set(klasor, Date.now())
+    try {
+      await window.api.history.commit(klasor, '', true)
+    } catch {
+      // geçmiş alınamadıysa kaydetme yine de devam eder
+    }
+  }, [])
+
   const saveTab = useCallback(async (path: string) => {
     const sekme = stateRef.current.sketch.tabs.find((t) => ayniDosyaMi(t.path, path))
     if (!sekme) return
+    await kaydetmedenOnceAnlikGoruntu(sekme.sketchFolderPath)
     await window.api.sketch.writeFile(path, sekme.content)
     dispatch({ type: 'sketch/tabSaved', path, content: sekme.content })
-  }, [])
+  }, [kaydetmedenOnceAnlikGoruntu])
 
   const saveAllTabs = useCallback(async () => {
     const kirliSekmeler = stateRef.current.sketch.tabs.filter((t) => t.content !== t.savedContent)
+    for (const klasor of new Set(kirliSekmeler.map((t) => t.sketchFolderPath))) await kaydetmedenOnceAnlikGoruntu(klasor)
     for (const sekme of kirliSekmeler) {
       await window.api.sketch.writeFile(sekme.path, sekme.content)
       dispatch({ type: 'sketch/tabSaved', path: sekme.path, content: sekme.content })
     }
-  }, [])
+  }, [kaydetmedenOnceAnlikGoruntu])
 
   const saveAsActiveSketch = useCallback(async () => {
     if (!stateRef.current.sketch.info) return
@@ -1003,11 +1334,11 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
     }
   }, [acFonksiyonu, saveAllTabs, toastGoster])
 
-  const openFileInTab = useCallback(async (path: string, name: string, isMainFile: boolean) => {
+  const openFileInTab = useCallback(async (path: string, name: string, isMainFile: boolean, sketchFolderPath?: string) => {
     const zatenAcik = stateRef.current.sketch.tabs.some((t) => ayniDosyaMi(t.path, path))
     if (!zatenAcik) {
       const icerik = await window.api.sketch.readFile(path)
-      dispatch({ type: 'sketch/tabOpened', path, name, content: icerik, isMainFile })
+      dispatch({ type: 'sketch/tabOpened', path, name, content: icerik, isMainFile, sketchFolderPath })
     }
     dispatch({ type: 'sketch/activeTabChanged', path })
   }, [])
@@ -1034,14 +1365,18 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
   }, [])
 
   const addFile = useCallback(
-    async (fileName: string): Promise<SketchFile | null> => {
-      const info = stateRef.current.sketch.info
-      if (!info) return null
+    async (fileName: string, targetFolderPath?: string): Promise<SketchFile | null> => {
+      const { info, workspaceSketches, activeSketchPath } = stateRef.current.sketch
+      const folderToUse = targetFolderPath || activeSketchPath
+      const hedefSketch =
+        (folderToUse ? workspaceSketches.find((s) => ayniDosyaMi(s.folderPath, folderToUse)) : null) ||
+        info
+      if (!hedefSketch) return null
       try {
-        const dosya = await window.api.sketch.addFile(info.folderPath, fileName)
-        const guncelDosyalar = await window.api.sketch.listFiles(info.folderPath)
-        dispatch({ type: 'sketch/filesRefreshed', files: guncelDosyalar })
-        await openFileInTab(dosya.path, dosya.name, dosya.isMainFile)
+        const dosya = await window.api.sketch.addFile(hedefSketch.folderPath, fileName)
+        const guncelDosyalar = await window.api.sketch.listFiles(hedefSketch.folderPath)
+        dispatch({ type: 'sketch/filesRefreshed', files: guncelDosyalar, folderPath: hedefSketch.folderPath })
+        await openFileInTab(dosya.path, dosya.name, dosya.isMainFile, hedefSketch.folderPath)
         return dosya
       } catch (hata) {
         toastGoster(hata instanceof Error ? hata.message : 'Dosya eklenemedi', 'hata')
@@ -1053,27 +1388,30 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
 
   const createFileWithContent = useCallback(
     async (fileName: string, content: string): Promise<SketchFile | null> => {
-      const info = stateRef.current.sketch.info
-      if (!info) {
+      const { info, workspaceSketches, activeSketchPath } = stateRef.current.sketch
+      const hedefSketch =
+        (activeSketchPath ? workspaceSketches.find((s) => ayniDosyaMi(s.folderPath, activeSketchPath)) : null) ||
+        info
+      if (!hedefSketch) {
         toastGoster('Dosya oluşturmak için açık bir sketch olmalı', 'hata')
         return null
       }
       try {
         const temizAd = fileName.trim()
-        const mevcutDosya = info.files.find((f) => f.name.toLowerCase() === temizAd.toLowerCase())
+        const mevcutDosya = hedefSketch.files.find((f) => f.name.toLowerCase() === temizAd.toLowerCase())
         let dosyaYolu = mevcutDosya?.path
         let isMain = mevcutDosya?.isMainFile ?? false
 
         if (!mevcutDosya) {
-          const yeniDosya = await window.api.sketch.addFile(info.folderPath, temizAd)
+          const yeniDosya = await window.api.sketch.addFile(hedefSketch.folderPath, temizAd)
           dosyaYolu = yeniDosya.path
           isMain = yeniDosya.isMainFile
         }
 
         if (dosyaYolu) {
           await window.api.sketch.writeFile(dosyaYolu, content)
-          const guncelDosyalar = await window.api.sketch.listFiles(info.folderPath)
-          dispatch({ type: 'sketch/filesRefreshed', files: guncelDosyalar })
+          const guncelDosyalar = await window.api.sketch.listFiles(hedefSketch.folderPath)
+          dispatch({ type: 'sketch/filesRefreshed', files: guncelDosyalar, folderPath: hedefSketch.folderPath })
 
           const acikSekme = stateRef.current.sketch.tabs.find((t) => ayniDosyaMi(t.path, dosyaYolu!))
           if (acikSekme) {
@@ -1086,7 +1424,8 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
               path: dosyaYolu,
               name: temizAd,
               content,
-              isMainFile: isMain
+              isMainFile: isMain,
+              sketchFolderPath: hedefSketch.folderPath
             })
             dispatch({ type: 'sketch/activeTabChanged', path: dosyaYolu })
           }
@@ -1108,22 +1447,111 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
     [toastGoster]
   )
 
+  /** Bağımsız kardeş bir sketch klasörü açar, ana .ino dosyasını oluşturur ve çalışma alanına ekler */
+  const createSiblingSketchWithContent = useCallback(
+    async (sketchName: string, content: string): Promise<SketchInfo | null> => {
+      const { info, activeSketchPath, workspaceSketches } = stateRef.current.sketch
+      const bazSketch =
+        (activeSketchPath ? workspaceSketches.find((s) => ayniDosyaMi(s.folderPath, activeSketchPath)) : null) ||
+        info
+      if (!bazSketch) {
+        toastGoster('Kardeş sketch oluşturmak için açık bir proje olmalı', 'hata')
+        return null
+      }
+      try {
+        const temizAd = sketchName.trim().replace(/\.ino$/i, '')
+        const yeniSketch = await window.api.sketch.createSiblingSketch(bazSketch.folderPath, temizAd, content)
+        dispatch({ type: 'sketch/workspaceSketchAdded', info: yeniSketch })
+        dispatch({ type: 'sketch/activeSketchChanged', folderPath: yeniSketch.folderPath })
+
+        // Yeni sketch'in ana dosyasını sekmede aç
+        const anaDosya = yeniSketch.files.find((f) => f.isMainFile) || yeniSketch.files[0]
+        if (anaDosya) {
+          await openFileInTab(anaDosya.path, anaDosya.name, true, yeniSketch.folderPath)
+        }
+
+        toastGoster(`"${yeniSketch.name}" ayrı bir sketch klasörü olarak oluşturuldu ve çalışma alanına eklendi`, 'basari')
+        return yeniSketch
+      } catch (hata) {
+        toastGoster(hata instanceof Error ? hata.message : 'Kardeş sketch oluşturulamadı', 'hata')
+        return null
+      }
+    },
+    [openFileInTab, toastGoster]
+  )
+
+  /** Mevcut çalışma alanına başka bir sketch projesi ekler */
+  const addSketchToWorkspace = useCallback(
+    async (info: SketchInfo) => {
+      dispatch({ type: 'sketch/workspaceSketchAdded', info })
+      dispatch({ type: 'sketch/activeSketchChanged', folderPath: info.folderPath })
+      const anaDosya = info.files.find((f) => f.isMainFile) || info.files[0]
+      if (anaDosya) {
+        await openFileInTab(anaDosya.path, anaDosya.name, true, info.folderPath)
+      }
+      toastGoster(`"${info.name}" projeler arasına eklendi`, 'basari')
+    },
+    [openFileInTab, toastGoster]
+  )
+
+  /** Dosya seçici ile çalışma alanına yeni bir sketch projesi ekler */
+  const addSketchToWorkspaceDialog = useCallback(async (): Promise<SketchInfo | null> => {
+    try {
+      const info = await window.api.sketch.openDialog()
+      if (info) {
+        await addSketchToWorkspace(info)
+        return info
+      }
+      return null
+    } catch (hata) {
+      toastGoster(hata instanceof Error ? hata.message : 'Proje eklenemedi', 'hata')
+      return null
+    }
+  }, [addSketchToWorkspace, toastGoster])
+
+  /** Bir projeyi çalışma alanından kaldırır (diskten silmez) */
+  const removeSketchFromWorkspace = useCallback(
+    (folderPath: string) => {
+      dispatch({ type: 'sketch/workspaceSketchRemoved', folderPath })
+      toastGoster('Proje çalışma alanından kaldırıldı', 'bilgi')
+    },
+    [toastGoster]
+  )
+
+  /** Derleme ve yükleme için aktif olan hedef sketch'i belirler */
+  const setActiveSketch = useCallback((folderPath: string) => {
+    dispatch({ type: 'sketch/activeSketchChanged', folderPath })
+  }, [])
+
+  /** Yeni bir bağımsız uygulama penceresi açar */
+  const openInNewWindow = useCallback(
+    async (sketchPath?: string) => {
+      try {
+        await window.api.window.openNewWindow(sketchPath)
+      } catch (hata) {
+        toastGoster(hata instanceof Error ? hata.message : 'Yeni pencere açılamadı', 'hata')
+      }
+    },
+    [toastGoster]
+  )
+
   const deleteFile = useCallback(
-    async (path: string) => {
-      const info = stateRef.current.sketch.info
-      if (!info) return
+    async (path: string, folderPath?: string) => {
+      const { info, activeSketchPath } = stateRef.current.sketch
+      const targetFolder = folderPath || klasorYoluAl(path) || activeSketchPath || info?.folderPath
+      if (!targetFolder) return
       try {
         await window.api.sketch.deleteFile(path)
         dispatch({ type: 'sketch/tabClosed', path })
-        const guncelDosyalar = await window.api.sketch.listFiles(info.folderPath)
-        dispatch({ type: 'sketch/filesRefreshed', files: guncelDosyalar })
+        const guncelDosyalar = await window.api.sketch.listFiles(targetFolder)
+        dispatch({ type: 'sketch/filesRefreshed', files: guncelDosyalar, folderPath: targetFolder })
 
         // Silinen dosyadan sonra açık sekme kalmadıysa ana dosyayı otomatik aç
         const kalanTabs = stateRef.current.sketch.tabs.filter((t) => !ayniDosyaMi(t.path, path))
         if (kalanTabs.length === 0 && guncelDosyalar.length > 0) {
           const ana = guncelDosyalar.find((f) => f.isMainFile) || guncelDosyalar[0]
           if (ana) {
-            await openFileInTab(ana.path, ana.name, ana.isMainFile)
+            await openFileInTab(ana.path, ana.name, ana.isMainFile, targetFolder)
           }
         } else if (kalanTabs.length > 0) {
           if (stateRef.current.sketch.activeTabPath && ayniDosyaMi(stateRef.current.sketch.activeTabPath, path)) {
@@ -1140,22 +1568,6 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
     [openFileInTab, toastGoster]
   )
 
-  const updateFileContent = useCallback(
-    async (path: string, content: string): Promise<void> => {
-      const info = stateRef.current.sketch.info
-      if (!info) return
-      try {
-        await window.api.sketch.writeFile(path, content)
-        dispatch({ type: 'sketch/tabContentChanged', path, content })
-        dispatch({ type: 'sketch/tabSaved', path, content })
-        const guncelDosyalar = await window.api.sketch.listFiles(info.folderPath)
-        dispatch({ type: 'sketch/filesRefreshed', files: guncelDosyalar })
-      } catch (hata) {
-        toastGoster(hata instanceof Error ? hata.message : 'Dosya güncellenemedi', 'hata')
-      }
-    },
-    [toastGoster]
-  )
 
   const renameFile = useCallback(
     async (path: string, newName: string): Promise<SketchFile | null> => {
@@ -1245,28 +1657,35 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
 
   // ── build (derleme/yükleme) aksiyonları ──
   const compileActive = useCallback(async () => {
-    const { info } = stateRef.current.sketch
-    const { selectedFqbn } = stateRef.current.arduinoCli
-    if (!info) return toastGoster('Önce bir sketch açın', 'hata')
+    const { info, workspaceSketches, activeSketchPath } = stateRef.current.sketch
+    const aktifSketch =
+      (activeSketchPath ? workspaceSketches.find((s) => ayniDosyaMi(s.folderPath, activeSketchPath)) : null) ||
+      info
+    const selectedFqbn = efektifFqbnAl()
+    if (!aktifSketch) return toastGoster('Önce bir sketch açın', 'hata')
     if (!selectedFqbn) return toastGoster('Önce bir kart seçin', 'hata')
     await saveAllTabs()
     const operationId = crypto.randomUUID()
     try {
-      const sonuc = await window.api.arduinoCli.compile(info.folderPath, selectedFqbn, operationId)
+      const sonuc = await window.api.arduinoCli.compile(aktifSketch.folderPath, selectedFqbn, operationId)
       dispatch({ type: 'build/compileResult', result: sonuc })
       toastGoster(
-        sonuc.success ? 'Derleme başarılı' : `Derleme başarısız (${sonuc.errors.length} hata)`,
+        sonuc.success ? `Derleme başarılı (${aktifSketch.name})` : `Derleme başarısız (${sonuc.errors.length} hata)`,
         sonuc.success ? 'basari' : 'hata'
       )
     } catch (hata) {
       toastGoster(hata instanceof Error ? hata.message : 'Derleme başarısız oldu', 'hata')
     }
-  }, [saveAllTabs, toastGoster])
+  }, [saveAllTabs, toastGoster, efektifFqbnAl])
 
   const uploadActive = useCallback(async () => {
-    const { info } = stateRef.current.sketch
-    const { selectedFqbn, selectedPort } = stateRef.current.arduinoCli
-    if (!info) return toastGoster('Önce bir sketch açın', 'hata')
+    const { info, workspaceSketches, activeSketchPath } = stateRef.current.sketch
+    const aktifSketch =
+      (activeSketchPath ? workspaceSketches.find((s) => ayniDosyaMi(s.folderPath, activeSketchPath)) : null) ||
+      info
+    const selectedFqbn = efektifFqbnAl()
+    const { selectedPort } = stateRef.current.arduinoCli
+    if (!aktifSketch) return toastGoster('Önce bir sketch açın', 'hata')
     if (!selectedFqbn) return toastGoster('Önce bir kart seçin', 'hata')
     if (!selectedPort) return toastGoster('Önce bir port seçin', 'hata')
     await saveAllTabs()
@@ -1277,22 +1696,22 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
       // önce taze bir derlemeyle başlar. Derleme başarısızsa yüklemeye hiç
       // geçilmez ve hatalar tıpkı "Derle"de olduğu gibi Problems panelinde/
       // editör marker'larında gösterilir.
-      const derlemeSonucu = await window.api.arduinoCli.compile(info.folderPath, selectedFqbn, operationId)
+      const derlemeSonucu = await window.api.arduinoCli.compile(aktifSketch.folderPath, selectedFqbn, operationId)
       dispatch({ type: 'build/compileResult', result: derlemeSonucu })
       if (!derlemeSonucu.success) {
         toastGoster(`Derleme başarısız (${derlemeSonucu.errors.length} hata); yükleme yapılmadı`, 'hata')
         return
       }
-      const sonuc = await window.api.arduinoCli.upload(info.folderPath, selectedFqbn, selectedPort, operationId)
+      const sonuc = await window.api.arduinoCli.upload(aktifSketch.folderPath, selectedFqbn, selectedPort, operationId)
       dispatch({ type: 'build/uploadResult', result: sonuc })
       toastGoster(
-        sonuc.success ? 'Yükleme başarılı' : `Yükleme başarısız: ${sonuc.topLevelError ?? ''}`,
+        sonuc.success ? `Yükleme başarılı (${aktifSketch.name})` : `Yükleme başarısız: ${sonuc.topLevelError ?? ''}`,
         sonuc.success ? 'basari' : 'hata'
       )
     } catch (hata) {
       toastGoster(hata instanceof Error ? hata.message : 'Yükleme başarısız oldu', 'hata')
     }
-  }, [saveAllTabs, toastGoster])
+  }, [saveAllTabs, toastGoster, efektifFqbnAl])
 
   const cancelBuild = useCallback(async () => {
     // Şu an tek bir global işlem kimliği takip etmiyoruz; en son başlayan
@@ -1349,18 +1768,18 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
     }
   }, [toastGoster])
 
-  const disconnectSerial = useCallback(async () => {
+  const disconnectSerial = useCallback(async (port?: string) => {
     try {
-      await window.api.serial.close()
+      await window.api.serial.close(port)
     } catch (hata) {
       toastGoster(hata instanceof Error ? hata.message : 'Port kapatılamadı', 'hata')
     }
   }, [toastGoster])
 
   const writeSerial = useCallback(
-    async (data: string, lineEnding: LineEnding) => {
+    async (data: string, lineEnding: LineEnding, port?: string) => {
       try {
-        await window.api.serial.write(data, lineEnding)
+        await window.api.serial.write(data, lineEnding, port)
       } catch (hata) {
         toastGoster(hata instanceof Error ? hata.message : 'Veri gönderilemedi', 'hata')
       }
@@ -1368,7 +1787,7 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
     [toastGoster]
   )
 
-  const clearSerial = useCallback(() => dispatch({ type: 'serial/cleared' }), [])
+  const clearSerial = useCallback((port?: string) => dispatch({ type: 'serial/cleared', port }), [])
 
   const value = useMemo<AppStateBaglami>(
     () => ({
@@ -1379,6 +1798,8 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
       refreshPlatforms,
       refreshPorts,
       selectFqbn,
+      efektifFqbnAl,
+      setBoardOption,
       selectPort,
       selectBaud,
       addBoardManagerUrl,
@@ -1414,9 +1835,17 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
       hasUnsavedChanges,
       addFile,
       createFileWithContent,
+      createSiblingSketchWithContent,
+      addSketchToWorkspace,
+      addSketchToWorkspaceDialog,
+      removeSketchFromWorkspace,
+      setActiveSketch,
+      openInNewWindow,
       deleteFile,
       renameFile,
       updateFileContent,
+      syncAgentChanges,
+      reloadSketchFolders,
       compileActive,
       uploadActive,
       cancelBuild,
@@ -1435,6 +1864,8 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
       refreshPlatforms,
       refreshPorts,
       selectFqbn,
+      efektifFqbnAl,
+      setBoardOption,
       selectPort,
       selectBaud,
       addBoardManagerUrl,
@@ -1470,9 +1901,17 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
       hasUnsavedChanges,
       addFile,
       createFileWithContent,
+      createSiblingSketchWithContent,
+      addSketchToWorkspace,
+      addSketchToWorkspaceDialog,
+      removeSketchFromWorkspace,
+      setActiveSketch,
+      openInNewWindow,
       deleteFile,
       renameFile,
       updateFileContent,
+      syncAgentChanges,
+      reloadSketchFolders,
       compileActive,
       uploadActive,
       cancelBuild,

@@ -1,4 +1,5 @@
 import React from 'react'
+import { arayuzGunluguKur } from './utils/arayuzGunlugu'
 import ReactDOM from 'react-dom/client'
 // Tüm monaco-editor paketi yerine yalnızca çekirdek editör + C++ dil
 // desteği içe aktarılır. Aksi hâlde @monaco-editor/react'in varsayılan
@@ -24,6 +25,8 @@ self.MonacoEnvironment = {
   }
 }
 loader.config({ monaco })
+
+arayuzGunluguKur()
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>

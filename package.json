@@ -1,7 +1,7 @@
 {
   "name": "cloud-ide",
   "productName": "Cloud IDE",
-  "version": "0.1.0",
+  "version": "0.1.5",
   "description": "Gömülü sistemler için modern AI destekli Cloud IDE (Arduino uyumlu)",
   "main": "./out/main/index.js",
   "author": "Efe Ali Bozkurt <iletisim@efealibozkurt.com.tr>",
@@ -17,7 +17,6 @@
   },
   "keywords": [
     "cloud-ide",
-    "dret-ide",
     "arduino",
     "electron",
     "embedded-systems",
@@ -39,14 +38,18 @@
     "build:portable": "npm run build && electron-builder --win portable",
     "build:dir": "npm run build && electron-builder --dir",
     "generate:icons": "node scripts/generate-icons.js",
-    "generate:logos": "node scripts/generate-hd-logos.js"
+    "generate:logos": "node scripts/generate-hd-logos.js",
+    "lint": "eslint src",
+    "test": "vitest run"
   },
   "dependencies": {
     "@xenova/transformers": "^2.17.2",
     "electron-store": "^8.2.0",
+    "electron-updater": "^6.8.11",
     "serialport": "^12.0.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@fontsource/bricolage-grotesque": "^5.3.0",
     "@monaco-editor/react": "^4.6.0",
     "@types/node": "^20.14.8",
@@ -57,6 +60,9 @@
     "electron": "^31.1.0",
     "electron-builder": "^24.13.3",
     "electron-vite": "^2.3.0",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^17.14.0",
     "monaco-editor": "^0.52.0",
     "postcss": "^8.4.39",
     "react": "^18.3.1",
@@ -66,6 +72,8 @@
     "sharp": "^0.32.6",
     "tailwindcss": "^3.4.4",
     "typescript": "^5.5.2",
-    "vite": "^5.3.1"
+    "typescript-eslint": "^8.72.2",
+    "vite": "^5.3.1",
+    "vitest": "^2.1.9"
   }
 }

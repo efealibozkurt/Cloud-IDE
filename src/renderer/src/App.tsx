@@ -1,16 +1,19 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react'
+import KartTanimaBandi from './components/common/KartTanimaBandi'
 import TopBar from './components/layout/TopBar'
 import Sidebar, { type SidebarTab } from './components/layout/Sidebar'
 import EditorArea from './components/layout/EditorArea'
 import BottomPanel, { type BottomPanelTab } from './components/layout/BottomPanel'
 import CliStatusBanner from './components/common/CliStatusBanner'
 import AIModeScreen, { type AIModeOrigin } from './components/ai/AIModeScreen'
-import DretAIPanel from './components/ai/DretAIPanel'
+import AgentPanel from './components/ai/AgentPanel'
 import SettingsModal from './components/settings/SettingsModal'
 import SplashScreen from './components/splash/SplashScreen'
+import { TurOtomatikBaslat, YardimProvider } from './state/HelpContext'
 import DeveloperMessageModal, { DEVELOPER_MESSAGE_STORAGE_KEY } from './components/common/DeveloperMessageModal'
 import { ToastProvider } from './state/ToastContext'
 import { AppStateProvider, useAppState } from './state/AppStateContext'
+import { AgentProvider } from './state/AgentContext'
 
 /**
  * Uygulamanın kök bileşeni. Global sağlayıcıları (Toast, AppState) kurar;
@@ -21,7 +24,9 @@ function App(): ReactElement {
   return (
     <ToastProvider>
       <AppStateProvider>
-        <AppShell />
+        <AgentProvider>
+          <AppShell />
+        </AgentProvider>
       </AppStateProvider>
     </ToastProvider>
   )
@@ -40,6 +45,7 @@ function AppShell(): ReactElement {
     uploadActive,
     newSketch,
     openSketchDialog,
+    openInNewWindow,
     closeTab,
     hasUnsavedChanges,
     toggleDretAi,
@@ -63,7 +69,7 @@ function AppShell(): ReactElement {
   // Açılış ekranı, gerçek başlangıç verisi yüklenmiş olsa BİLE en az bu kadar
   // görünsün ki hızlı sistemlerde bir anlık yanıp sönme gibi görünmesin.
   useEffect(() => {
-    const zamanlayici = setTimeout(() => setAsgariSureTamam(true), 1200)
+    const zamanlayici = setTimeout(() => setAsgariSureTamam(true), 1000)
     return () => clearTimeout(zamanlayici)
   }, [])
 
@@ -119,7 +125,11 @@ function AppShell(): ReactElement {
         void uploadActive()
       } else if (tus === 'n') {
         e.preventDefault()
-        void newSketch()
+        if (e.shiftKey) {
+          void openInNewWindow()
+        } else {
+          void newSketch()
+        }
       } else if (tus === 'o') {
         e.preventDefault()
         void openSketchDialog()
@@ -150,6 +160,8 @@ function AppShell(): ReactElement {
   }, [hasUnsavedChanges])
 
   return (
+    <YardimProvider surum={appVersion}>
+    <TurOtomatikBaslat hazir={!splashGorunur && !developerMessageOpen && state.ready} />
     <div className="flex h-screen w-screen flex-col overflow-hidden">
       <TopBar
         appVersion={appVersion}
@@ -162,11 +174,12 @@ function AppShell(): ReactElement {
         dretAiActive={state.dretAi.open}
       />
       <CliStatusBanner />
+      <KartTanimaBandi />
 
       <div className="flex min-h-0 flex-1">
         <Sidebar activeTab={sidebarTab} onTabChange={setSidebarTab} />
         <EditorArea />
-        {state.dretAi.open && <DretAIPanel onClose={closeDretAi} />}
+        {state.dretAi.open && <AgentPanel onClose={closeDretAi} />}
       </div>
 
       {bottomPanelOpen && (
@@ -181,9 +194,10 @@ function AppShell(): ReactElement {
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
       {developerMessageOpen && <DeveloperMessageModal onClose={() => setDeveloperMessageOpen(false)} />}
       {splashGorunur && (
-        <SplashScreen hazir={state.ready && asgariSureTamam} onTamamlandi={handleSplashTamamlandi} />
+        <SplashScreen hazir={state.ready && asgariSureTamam} onTamamlandi={handleSplashTamamlandi} surum={appVersion === '0.0.0' ? undefined : appVersion} />
       )}
     </div>
+    </YardimProvider>
   )
 }
 

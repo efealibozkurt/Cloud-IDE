@@ -13,3 +13,5 @@ resources/arduino-cli/*.tar.gz
 .vscode
 release
 CONTEXT.md
+
+*.tsbuildinfo

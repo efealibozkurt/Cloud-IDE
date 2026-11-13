@@ -2,10 +2,7 @@ import type { ReactElement } from 'react'
 import { useAppState } from '../../state/AppStateContext'
 import CodeEditor from '../editor/CodeEditor'
 import cloudIcon from '../../assets/icon.png'
-
-function ayniDosyaMi(a: string, b: string): boolean {
-  return a.trim().replace(/\\/g, '/').toLowerCase() === b.trim().replace(/\\/g, '/').toLowerCase()
-}
+import { ayniDosyaMi } from '../../utils/paths'
 
 /**
  * Orta bölge: sketch açıksa Monaco tabanlı sekmeli editörü, açık değilse
@@ -26,11 +23,11 @@ function EditorArea(): ReactElement {
             <img
               src={cloudIcon}
               alt="Cloud IDE"
-              className="h-11 w-11 object-contain drop-shadow-[0_0_20px_rgba(147,165,251,0.35)]"
+              className="h-11 w-11 object-contain drop-shadow-[0_0_20px_rgba(124,196,240,0.35)]"
             />
             <div className="flex items-center ml-1">
               <span className="text-2xl font-bold tracking-tight text-white">Cloud</span>
-              <span className="text-2xl font-light tracking-wider text-[#93a5fb] ml-1.5">IDE</span>
+              <span className="text-2xl font-light tracking-wider text-[#7cc4f0] ml-1.5">IDE</span>
             </div>
           </div>
           <p className="text-xs text-gray-400 font-sans">
@@ -39,13 +36,13 @@ function EditorArea(): ReactElement {
           <div className="flex gap-2.5">
             <button
               onClick={() => void newSketch()}
-              className="rounded-lg border border-panel-border bg-panel-light px-4 py-2 text-xs font-medium text-gray-200 shadow-sm transition-all hover:border-[#93a5fb]/40 hover:bg-panel-border hover:text-white"
+              className="rounded-lg border border-panel-border bg-panel-light px-4 py-2 text-xs font-medium text-gray-200 shadow-sm transition-all hover:border-[#7cc4f0]/40 hover:bg-panel-border hover:text-white"
             >
               Yeni Sketch (Ctrl+N)
             </button>
             <button
               onClick={() => void openSketchDialog()}
-              className="rounded-lg border border-panel-border bg-panel-light px-4 py-2 text-xs font-medium text-gray-200 shadow-sm transition-all hover:border-[#93a5fb]/40 hover:bg-panel-border hover:text-white"
+              className="rounded-lg border border-panel-border bg-panel-light px-4 py-2 text-xs font-medium text-gray-200 shadow-sm transition-all hover:border-[#7cc4f0]/40 hover:bg-panel-border hover:text-white"
             >
               Sketch Aç (Ctrl+O)
             </button>
@@ -70,8 +67,8 @@ function EditorArea(): ReactElement {
               }`}
             >
               <span
-                className={sekme.readOnly ? 'italic text-gray-500' : ''}
-                title={sekme.readOnly ? 'Salt okunur (sketch dışı dosya)' : undefined}
+                className={`max-w-[180px] truncate ${sekme.readOnly ? 'italic text-gray-500' : ''}`}
+                title={sekme.readOnly ? `${sekme.name} · salt okunur (sketch dışı dosya)` : sekme.name}
               >
                 {sekme.name}
               </span>
@@ -83,7 +80,7 @@ function EditorArea(): ReactElement {
                   closeTab(sekme.path)
                 }}
                 title="Kapat (Ctrl+W)"
-                className="ml-1 hidden text-gray-500 hover:text-gray-200 group-hover:inline"
+                className="ml-1 text-gray-500 opacity-0 hover:text-gray-200 focus:opacity-100 group-hover:opacity-100"
               >
                 ×
               </button>

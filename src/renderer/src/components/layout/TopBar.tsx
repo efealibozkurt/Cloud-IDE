@@ -1,10 +1,16 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react'
 import { BAUD_RATES, type BaudRate } from '@shared/types'
 import { tumKartlariDuzlestir, useAppState } from '../../state/AppStateContext'
+import { useYardim } from '../../state/HelpContext'
+import CloudAiDugmesi from './CloudAiDugmesi'
+import KartAyarlari from '../boards/KartAyarlari'
+import GuncellemeDugmesi from './GuncellemeDugmesi'
+import SurumYumurtasi from '../common/SurumYumurtasi'
+import { surumAdiBul } from '@shared/surumAdlari'
 import ExamplesMenu from './ExamplesMenu'
+import BoardPicker from '../boards/BoardPicker'
 import type { AIModeOrigin } from '../ai/AIModeScreen'
 import beyazCloudIde from '../../assets/beyaz_cloud_ide.png'
-import cloudIcon from '../../assets/icon.png'
 
 interface TopBarProps {
   /** Sürüm bilgisini gösterir (main process'ten preload API'si ile alınır) */
@@ -18,7 +24,7 @@ interface TopBarProps {
   onOpenSettings: () => void
   /** "Geliştiriciden Mesaj" modalını açan geri çağırım (bkz. DeveloperMessageModal) */
   onOpenDeveloperMessage?: () => void
-  /** Sağdaki kalıcı "Dret AI" sohbet panelini açıp/kapatan geri çağırım (bkz. DretAIPanel) */
+  /** Sağdaki kalıcı "Cloud AI" sohbet panelini açıp/kapatan geri çağırım (bkz. AgentPanel) */
   onToggleDretAi: () => void
   dretAiActive: boolean
 }
@@ -39,9 +45,31 @@ function TopBar({
   onToggleDretAi,
   dretAiActive
 }: TopBarProps): ReactElement {
-  const { state, selectFqbn, selectPort, selectBaud, refreshPorts, compileActive, uploadActive } = useAppState()
+  const {
+    state,
+    selectFqbn,
+    selectPort,
+    selectBaud,
+    refreshPorts,
+    compileActive,
+    uploadActive,
+    openInNewWindow,
+    setActiveSketch
+  } = useAppState()
   const { platforms, ports, busy, selectedFqbn, selectedPort, selectedBaud, status } = state.arduinoCli
 
+  const { yardimAc } = useYardim()
+  const [yumurtaAcik, setYumurtaAcik] = useState(false)
+  const rozetTiklari = useRef<number[]>([])
+  /** Sürüm rozetine 2 saniye içinde 5 kez tıklayınca sürüm yumurtası açılır */
+  const rozeteTiklandi = (): void => {
+    const simdi = Date.now()
+    rozetTiklari.current = [...rozetTiklari.current.filter((t) => simdi - t < 2000), simdi]
+    if (rozetTiklari.current.length >= 5) {
+      rozetTiklari.current = []
+      setYumurtaAcik(true)
+    }
+  }
   const kartlar = tumKartlariDuzlestir(platforms)
   const hataSayisi = state.build.errors.filter((h) => h.tur === 'error').length
   const uyariSayisi = state.build.errors.filter((h) => h.tur === 'warning').length
@@ -77,14 +105,20 @@ function TopBar({
         <img
           src={beyazCloudIde}
           alt="Cloud IDE"
-          className="h-7 w-auto object-contain cursor-default select-none drop-shadow-[0_0_12px_rgba(147,165,251,0.25)]"
+          className="h-7 w-auto object-contain cursor-default select-none drop-shadow-[0_0_12px_rgba(124,196,240,0.25)]"
         />
         <div className="flex items-center gap-1.5">
-          <span className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] font-medium text-gray-400 border border-white/10">v{appVersion}</span>
+          <span
+            onClick={rozeteTiklandi}
+            className="cursor-default rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-medium text-gray-400"
+          >
+            v{appVersion} <span className="text-[#7cc4f0]">{surumAdiBul(appVersion).ad}</span>
+          </span>
           <span className="rounded bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-amber-300 uppercase shadow-sm">BETA</span>
         </div>
       </div>
 
+      <div data-tur="derle" className="flex items-center gap-2">
       <ToolbarButton
         label="Derle"
         title={meşgulNedeni ?? "Sketch'i derle (Ctrl+R)"}
@@ -99,8 +133,9 @@ function TopBar({
         onClick={() => void uploadActive()}
         icon={<UploadIcon />}
       />
+      </div>
 
-      <div ref={ornekMenuRef} className="relative">
+      <div ref={ornekMenuRef} data-tur="ornekler" className="relative">
         <ToolbarButton
           label="Örnekler"
           title="Kurulu kütüphane/kart örneklerini aç"
@@ -117,30 +152,36 @@ function TopBar({
         </div>
       )}
 
+      {state.sketch.workspaceSketches.length > 1 && (
+        <select
+          value={state.sketch.activeSketchPath || state.sketch.info?.folderPath || ''}
+          onChange={(e) => setActiveSketch(e.target.value)}
+          aria-label="Derlenecek proje"
+          title="Derle ve Yükle düğmeleri bu projeye uygulanır"
+          className="h-7 min-w-0 max-w-[120px] rounded border border-panel-border bg-panel px-2 text-xs text-gray-300 outline-none focus:border-accent lg:max-w-[180px]"
+        >
+          {state.sketch.workspaceSketches.map((sk) => (
+            <option key={sk.folderPath} value={sk.folderPath}>
+              {sk.name}
+            </option>
+          ))}
+        </select>
+      )}
+
       <div className="mx-2 h-6 w-px bg-panel-border" />
 
-      <select
-        disabled={busy || !status?.found}
-        value={selectedFqbn ?? ''}
-        onChange={(e) => selectFqbn(e.target.value || null)}
-        title="Kart seçici"
-        className="h-7 max-w-[220px] rounded border border-panel-border bg-panel px-2 text-xs text-gray-300 disabled:cursor-not-allowed disabled:text-gray-500"
-      >
-        <option value="">Kart seçilmedi</option>
-        {kartlar.map((k) => (
-          <option key={k.fqbn} value={k.fqbn}>
-            {k.name}
-          </option>
-        ))}
-      </select>
+      <div data-tur="kart" className="flex items-center gap-1">
+        <BoardPicker boards={kartlar} value={selectedFqbn} disabled={busy || !status?.found} onChange={selectFqbn} />
+        <KartAyarlari />
+      </div>
 
-      <div className="flex items-center gap-1">
+      <div data-tur="port" className="flex items-center gap-1">
         <select
           disabled={busy || !status?.found}
           value={selectedPort ?? ''}
           onChange={(e) => selectPort(e.target.value || null)}
           title="Port seçici (3 saniyede bir otomatik yenilenir)"
-          className="h-7 max-w-[200px] rounded border border-panel-border bg-panel px-2 text-xs text-gray-300 disabled:cursor-not-allowed disabled:text-gray-500"
+          className="h-7 min-w-0 max-w-[130px] rounded border border-panel-border bg-panel px-2 text-xs text-gray-300 disabled:cursor-not-allowed disabled:text-gray-500 lg:max-w-[200px]"
         >
           <option value="">Port bulunamadı</option>
           {ports.map((p) => (
@@ -186,10 +227,11 @@ function TopBar({
         }`}
       >
         <SerialIcon />
-        Seri Monitör
+        <span className="hidden lg:inline">Seri Monitör</span>
       </button>
 
-      <div className="relative ml-1 opacity-70 hover:opacity-100 transition-opacity">
+      {/* Dar pencerede (<1280px) yer açmak için gizlenir; "yakında" yer tutucusudur */}
+      <div className="relative ml-1 hidden opacity-70 transition-opacity hover:opacity-100 xl:block">
         <button
           ref={aiButtonRef}
           onClick={aiModunuAc}
@@ -202,39 +244,43 @@ function TopBar({
         </button>
       </div>
 
-      <div className="group relative ml-1">
-        <div
-          className={`pointer-events-none absolute -inset-1 rounded-lg bg-gradient-to-r from-[#3b82f6] to-[#8b5cf6] opacity-40 blur-sm transition-opacity duration-300 ${
-            dretAiActive ? 'opacity-90' : 'group-hover:opacity-60'
-          }`}
-        />
-        <button
-          onClick={onToggleDretAi}
-          title="Cloud AI asistanını aç/kapat (Kod yazma & düzenleme)"
-          className={`relative flex h-7 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-all ${
-            dretAiActive
-              ? 'border-[#93a5fb] bg-panel-light text-[#93a5fb] shadow-md'
-              : 'border-panel-border bg-panel text-gray-200 hover:border-[#93a5fb]/60 hover:text-white'
-          }`}
-        >
-          <img src={cloudIcon} alt="Cloud AI" className="h-4 w-4 object-contain shrink-0 drop-shadow-[0_0_5px_rgba(147,165,251,0.5)]" />
-          <span className="bg-gradient-to-r from-[#93a5fb] via-[#c4b5fd] to-[#93a5fb] bg-clip-text font-semibold text-transparent">
-            Cloud AI
-          </span>
-        </button>
-      </div>
+      <CloudAiDugmesi aktif={dretAiActive} onClick={onToggleDretAi} />
 
       {onOpenDeveloperMessage && (
         <button
           onClick={onOpenDeveloperMessage}
           title="Geliştiriciden Mesaj & Beta Sürüm Notu"
-          className="flex h-7 items-center gap-1.5 rounded border border-panel-border bg-panel px-2 text-xs text-gray-300 transition-colors hover:border-indigo-500/40 hover:bg-panel-border hover:text-white"
+          className="flex h-7 items-center gap-1.5 rounded border border-panel-border bg-panel px-2 text-xs text-gray-300 transition-colors hover:border-sky-500/40 hover:bg-panel-border hover:text-white"
         >
           <DeveloperIcon />
           <span className="hidden xl:inline text-[11px]">Geliştirici & Sürüm Notu</span>
-          <span className="rounded bg-indigo-500/20 px-1 py-0.2 text-[8.5px] font-bold text-indigo-300 border border-indigo-500/30 uppercase">BETA</span>
+          <span className="hidden rounded border border-amber-500/30 bg-amber-500/15 px-1 py-px text-[8.5px] font-bold text-amber-300 uppercase xl:inline">BETA</span>
         </button>
       )}
+
+      <button
+        onClick={() => void openInNewWindow()}
+        title="Yeni IDE Penceresi Aç (Ctrl+Shift+N)"
+        className="flex h-7 items-center gap-1.5 rounded border border-panel-border bg-panel px-2 text-xs text-gray-300 transition-colors hover:border-cyan-500/40 hover:bg-panel-border hover:text-cyan-200"
+      >
+        <WindowTopBarIcon />
+        <span className="hidden xl:inline text-[11px]">Yeni Pencere</span>
+      </button>
+
+      <GuncellemeDugmesi />
+
+      <button
+        onClick={() => yardimAc()}
+        data-tur="yardim"
+        title="Yardım ve rehber (F1)"
+        aria-label="Yardım ve rehber"
+        className="flex h-7 w-7 items-center justify-center rounded border border-panel-border bg-panel text-gray-400 hover:bg-panel-border hover:text-gray-200"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M9.5 9.5a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1.9-1.1 1.6M12 17h.01" />
+        </svg>
+      </button>
 
       <button
         onClick={onOpenSettings}
@@ -243,6 +289,7 @@ function TopBar({
       >
         <SettingsIcon />
       </button>
+      {yumurtaAcik && <SurumYumurtasi surum={appVersion} onKapat={() => setYumurtaAcik(false)} />}
     </header>
   )
 }
@@ -322,7 +369,7 @@ function SettingsIcon(): ReactElement {
 
 function DeveloperIcon(): ReactElement {
   return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-400">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-sky-400">
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
       <path d="M12 7v2" />
       <path d="M12 13h.01" />
@@ -335,6 +382,16 @@ function SerialIcon(): ReactElement {
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <rect x="3" y="5" width="18" height="14" rx="1.5" />
       <path d="M7 9h.01M7 12h.01M11 9h4M11 12h6M8 16h8" />
+    </svg>
+  )
+}
+
+function WindowTopBarIcon(): ReactElement {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+      <line x1="3" y1="9" x2="21" y2="9" />
+      <line x1="9" y1="21" x2="9" y2="9" />
     </svg>
   )
 }

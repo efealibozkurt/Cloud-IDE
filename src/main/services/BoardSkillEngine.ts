@@ -1,9 +1,16 @@
 import { promises as fs } from 'fs'
 import { join } from 'path'
 import type { ArduinoCliService } from './ArduinoCliService'
-import type { RagService } from './RagService'
+import type { RagKind, RagService } from './RagService'
 import type { CustomSkillService } from './CustomSkillService'
 import type { BoardProfileInfo, BoardModelVariant } from '@shared/types'
+
+const KAYNAK_ETIKETI: Record<RagKind, string> = {
+  snippet: 'Kart Referansı',
+  example: 'Örnek Kod',
+  library: 'Kütüphane API',
+  skill: 'Kullanıcı Becerisi'
+}
 
 export interface BoardContext {
   name?: string
@@ -780,27 +787,33 @@ ${(matchedModel.rules || profile.rules || []).map((r) => '  * ' + r).join('\n')}
    * Kullanıcının sorusuna veya promptuna göre, önce yerel RAG (multilingual-e5-small) üzerinden
    * semantik kod arar; bulunamazsa kurulu kütüphanelerin örneklerini kural tabanlı tarar.
    */
-  async getRelevantExamplesContext(query: string, boardContext?: BoardContext): Promise<string> {
+  async getRelevantExamplesContext(
+    query: string,
+    boardContext?: BoardContext,
+    secenekler?: { topK?: number; kinds?: RagKind[] }
+  ): Promise<string> {
     if (!query || query.trim().length < 2) return ''
 
-    // 1. ÖNCELİK: Yerel Çok Dilli RAG Motoru (multilingual-e5-small)
+    // 1. ÖNCELİK: Yerel bilgi tabanı (hibrit: anlamsal + sözcük araması)
     if (this.ragService) {
       try {
-        const ragSonuclari = await this.ragService.search(query, boardContext, 2)
+        const ragSonuclari = await this.ragService.search(query, boardContext, secenekler?.topK ?? 4, {
+          kinds: secenekler?.kinds
+        })
         if (ragSonuclari.length > 0) {
           let ragMetni = ''
           for (const s of ragSonuclari) {
-            ragMetni += `\n--- [RAG Referansı: ${s.chunk.title} (${s.chunk.sourceOwner})] ---\n\`\`\`cpp\n${s.chunk.content}\n\`\`\`\n`
+            ragMetni += `\n--- [${KAYNAK_ETIKETI[s.chunk.kind ?? 'example']}: ${s.chunk.title} (${s.chunk.sourceOwner})] ---\n\`\`\`cpp\n${s.chunk.content}\n\`\`\`\n`
           }
 
           return `\n════════════════════════════════════════════════════════
-[RAG: DOĞRULANMIŞ RESMİ KÜTÜPHANE VE KOD REFERANSLARI (multilingual-e5-small)]
-Aşağıdaki kod ve API referansları kullanıcının seçili kartına (${boardContext?.name || 'Gömülü Kart'}) özel taranmış resmi kaynaklardan getirilmiştir.
+[BİLGİ TABANI: KURULU KÜTÜPHANE, ÖRNEK VE KART REFERANSLARI]
+Aşağıdaki kayıtlar kullanıcının makinesindeki kütüphanelerden ve seçili karttan (${boardContext?.name || 'Gömülü Kart'}) alınmıştır.
 Yazacağın kodda bu gerçek fonksiyon adlarını, include başlıklarını ve kullanım kalıplarını referans al:
 ${ragMetni}════════════════════════════════════════════════════════\n`
         }
       } catch (err) {
-        console.warn('[BoardSkillEngine] RAG araması sırasında hata, fallbacke geçiliyor:', err)
+        console.warn('[BoardSkillEngine] Bilgi tabanı araması sırasında hata, yedek aramaya geçiliyor:', err)
       }
     }
 

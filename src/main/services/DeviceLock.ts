@@ -54,18 +54,18 @@ export class DeviceLock {
    */
   async runUpload<T>(port: string, uploadFn: () => Promise<T>): Promise<T> {
     return this.runExclusive(async () => {
-      const portAcikMiydi = this.serial.isOpen() && this.serial.aktifPort() === port
+      // Yalnızca yüklenen port kapatılır; açık olan diğer portlara dokunulmaz
+      const portAcikMiydi = this.serial.isOpen(port)
       // Port zaten açıksa gerçek baud'u kullan; kapalıysa geri açma adımı
       // hiç çalışmayacağı için bu değer kullanılmaz.
-      const oncekiBaud = this.serial.aktifBaud() ?? 115200
-
-      if (portAcikMiydi) {
-        this.uploadIcinGeciciKapatildi = true
-        await this.serial.close()
-        await beklet(300)
-      }
+      const oncekiBaud = this.serial.baudAl(port) ?? 115200
 
       try {
+        if (portAcikMiydi) {
+          this.uploadIcinGeciciKapatildi = true
+          await this.serial.close(port)
+          await beklet(300)
+        }
         return await uploadFn()
       } finally {
         if (portAcikMiydi) {

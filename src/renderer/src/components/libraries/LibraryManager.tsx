@@ -2,6 +2,9 @@ import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useSta
 import type { LibraryInfo, LibrarySearchResult } from '@shared/types'
 import { useAppState } from '../../state/AppStateContext'
 import { useToast } from '../../state/ToastContext'
+import { useKutuphaneGuncellemeleri } from '../../hooks/useKutuphaneGuncellemeleri'
+import SegmentKontrol from '../common/SegmentKontrol'
+import { EylemSatiri, KurulumGunlugu, Led, SECICI_SINIFI, Tus } from '../common/Tus'
 
 type SekmeTuru = 'tumu' | 'kurulu'
 const SAYFA_BOYUTU = 40
@@ -26,6 +29,68 @@ interface LibraryCardProps {
   kurulumLogu: string
 }
 
+/** "N kütüphane güncellenebilir" bandı: ayrıntıyı açar, tek tek ya da toplu güncelleme yapar. */
+function GuncellemeBandi({ onBitti, etkin }: { onBitti: () => void; etkin: boolean }): ReactElement | null {
+  const { guncellemeler, yenile } = useKutuphaneGuncellemeleri(etkin)
+  const { toastGoster } = useToast()
+  const [acik, setAcik] = useState(false)
+  const [calisan, setCalisan] = useState<string | null>(null)
+
+  if (guncellemeler.length === 0) return null
+
+  const guncelle = async (liste: typeof guncellemeler): Promise<void> => {
+    let basarili = 0
+    for (const g of liste) {
+      setCalisan(g.name)
+      try {
+        await window.api.arduinoCli.installLibrary(g.name, g.latest, crypto.randomUUID())
+        basarili++
+      } catch (hata) {
+        toastGoster(hata instanceof Error ? hata.message : `“${g.name}” güncellenemedi`, 'hata')
+      }
+    }
+    setCalisan(null)
+    if (basarili > 0) toastGoster(`${basarili} kütüphane güncellendi`, 'basari')
+    await yenile()
+    onBitti()
+  }
+
+  return (
+    <div className="shrink-0 border-b border-panel-border bg-accent/[0.07] px-3 py-2">
+      <div className="flex items-center justify-between gap-2">
+        <button onClick={() => setAcik((a) => !a)} className="flex min-w-0 items-center gap-1.5 text-left text-gray-200" aria-expanded={acik}>
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true" />
+          <span className="truncate">{guncellemeler.length} kütüphane güncellenebilir</span>
+          <span className="text-gray-500">{acik ? '▴' : '▾'}</span>
+        </button>
+        <Tus tur="birincil" onClick={() => void guncelle(guncellemeler)} disabled={calisan !== null}>
+          {calisan ? 'Güncelleniyor…' : 'Tümünü güncelle'}
+        </Tus>
+      </div>
+      {acik && (
+        <ul className="mt-2 space-y-1">
+          {guncellemeler.map((g) => (
+            <li key={g.name} className="flex items-center justify-between gap-2 text-[11.5px]">
+              <span className="min-w-0 truncate text-gray-300" title={g.name}>
+                {g.name}
+              </span>
+              <span className="flex shrink-0 items-center gap-2">
+                <span className="font-mono text-[10.5px] text-gray-500">
+                  {g.installed} → {g.latest}
+                </span>
+                <Tus onClick={() => void guncelle([g])} disabled={calisan !== null}>
+                  {calisan === g.name ? '…' : 'Güncelle'}
+                </Tus>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {acik && <p className="mt-2 text-[10.5px] leading-snug text-gray-600">Güncelleme kütüphanenin yeni sürümünü kurar; kodunuzda kullandığınız işlevler değişmiş olabilir, güncellemeden sonra derleyip deneyin.</p>}
+    </div>
+  )
+}
+
 const LibraryCard = memo(function LibraryCard({
   lib,
   seciliSurum,
@@ -38,78 +103,39 @@ const LibraryCard = memo(function LibraryCard({
   const kuruluyorBu = kuruluyorAd === lib.name
 
   return (
-    <div className="border-b border-panel-border/70 p-2.5 hover:bg-panel/20 transition-colors">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-xs font-semibold text-gray-100">{lib.name}</div>
-          {/* YAZAR BİLGİSİ */}
-          {lib.author && (
-            <div className="mt-0.5 flex items-center gap-1.5 text-[10.5px] text-[#93a5fb]">
-              <UserIcon className="h-3 w-3 shrink-0 opacity-80" />
-              <span className="truncate font-medium" title={`Yazar: ${lib.author}`}>
-                {temizAuthor(lib.author)}
-              </span>
-            </div>
-          )}
-          {lib.sentence && (
-            <div className="mt-1 line-clamp-2 text-[10.5px] leading-relaxed text-gray-400">
-              {lib.sentence}
-            </div>
-          )}
+    <div className="border-b border-panel-border/70 px-3 py-3 transition-colors hover:bg-white/[0.03]">
+      <div className="flex items-baseline justify-between gap-2">
+        <div className="min-w-0 truncate text-[13px] font-medium text-gray-100" title={lib.name}>
+          {lib.name}
         </div>
-
-        {lib.installed && (
-          <span
-            title="Bu kütüphane bilgisayarınızda kurulu"
-            className="shrink-0 flex items-center gap-1 rounded bg-emerald-950/70 border border-emerald-800/80 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300"
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            v{lib.installedVersion}
-          </span>
-        )}
+        {lib.installed && <Led metin={`v${lib.installedVersion}`} baslik="Bu kütüphane bilgisayarınızda kurulu" />}
       </div>
+      {lib.author && (
+        <div className="mt-0.5 truncate text-[11px] text-gray-500" title={`Yazar: ${lib.author}`}>
+          {temizAuthor(lib.author)}
+        </div>
+      )}
+      {lib.sentence && <p className="mt-1.5 line-clamp-2 text-[11.5px] leading-relaxed text-gray-400">{lib.sentence}</p>}
 
-      <div className="mt-2 flex items-center gap-1.5">
-        <select
-          value={seciliSurum}
-          onChange={(e) => onSurumSec(e.target.value)}
-          className="rounded border border-panel-border bg-panel px-1.5 py-0.5 text-[11px] text-gray-300 outline-none"
-        >
+      <EylemSatiri>
+        <select value={seciliSurum} onChange={(e) => onSurumSec(e.target.value)} className={SECICI_SINIFI}>
           {lib.availableVersions.map((v) => (
             <option key={v} value={v}>
-              v{v} {v === lib.latestVersion ? '(En Son)' : ''}
+              v{v} {v === lib.latestVersion ? '(en son)' : ''}
             </option>
           ))}
         </select>
-        <button
-          onClick={() => onKur(lib.name)}
-          disabled={kuruluyorAd !== null}
-          className="rounded border border-accent bg-accent/20 px-2 py-0.5 text-accent-hover hover:enabled:bg-accent/30 disabled:opacity-50"
-        >
-          {lib.installed ? 'Güncelle/Kur' : 'Kur'}
-        </button>
+        <Tus tur="birincil" onClick={() => onKur(lib.name)} disabled={kuruluyorAd !== null}>
+          {lib.installed ? 'Güncelle' : 'Kur'}
+        </Tus>
         {lib.installed && (
-          <button
-            onClick={() => onKaldir(lib.name)}
-            disabled={kuruluyorAd !== null}
-            className="rounded border border-panel-border bg-panel px-2 py-0.5 text-red-300 hover:enabled:bg-red-950/40 hover:enabled:border-red-900 disabled:opacity-50"
-          >
+          <Tus tur="tehlike" onClick={() => onKaldir(lib.name)} disabled={kuruluyorAd !== null}>
             Kaldır
-          </button>
+          </Tus>
         )}
-      </div>
+      </EylemSatiri>
 
-      {kuruluyorBu && (
-        <div className="mt-2 rounded border border-panel-border bg-panel p-2">
-          <div className="mb-1 flex items-center gap-1.5 text-accent-hover font-medium">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
-            Kuruluyor...
-          </div>
-          <pre className="max-h-24 overflow-y-auto whitespace-pre-wrap font-mono text-[10px] text-gray-500">
-            {kurulumLogu || 'arduino-cli işlemi tamamlanana kadar bekleniyor...'}
-          </pre>
-        </div>
-      )}
+      {kuruluyorBu && <KurulumGunlugu baslik="Kuruluyor…" gunluk={kurulumLogu} />}
     </div>
   )
 })
@@ -140,85 +166,43 @@ const InstalledLibraryCard = memo(function InstalledLibraryCard({
   const kuruluyorBu = kuruluyorAd === lib.name
 
   return (
-    <div className="border-b border-panel-border/70 p-2.5 hover:bg-panel/20 transition-colors">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <span className="truncate text-xs font-semibold text-gray-100">{lib.name}</span>
-            <span className="shrink-0 rounded bg-emerald-950/80 border border-emerald-800 px-1.5 py-0.2 text-[9.5px] font-medium text-emerald-300">
-              v{lib.version}
-            </span>
-          </div>
-
-          {/* YAZAR BİLGİSİ */}
-          {yazar ? (
-            <div className="mt-0.5 flex items-center gap-1.5 text-[10.5px] text-[#93a5fb]">
-              <UserIcon className="h-3 w-3 shrink-0 opacity-80" />
-              <span className="truncate font-medium" title={`Yazar: ${yazar}`}>
-                {temizAuthor(yazar)}
-              </span>
-            </div>
-          ) : (
-            <div className="mt-0.5 text-[10px] text-gray-500 italic">Yazar bilgisi belirtilmemiş</div>
-          )}
-
-          {aciklama && (
-            <div className="mt-1 line-clamp-2 text-[10.5px] leading-relaxed text-gray-400">
-              {aciklama}
-            </div>
-          )}
-        </div>
+    <div className="border-b border-panel-border/70 px-3 py-3 transition-colors hover:bg-white/[0.03]">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="min-w-0 truncate text-[13px] font-medium text-gray-100" title={lib.name}>
+          {lib.name}
+        </span>
+        <Led metin={`v${lib.version}`} />
       </div>
+      <div className="mt-0.5 truncate text-[11px] text-gray-500" title={yazar ? `Yazar: ${yazar}` : undefined}>
+        {yazar ? temizAuthor(yazar) : 'Yazar belirtilmemiş'}
+      </div>
+      {aciklama && <p className="mt-1.5 line-clamp-2 text-[11.5px] leading-relaxed text-gray-400">{aciklama}</p>}
 
-      <div className="mt-2 flex items-center justify-between gap-1.5">
-        {/* Sürüm seçici (Eğer katalogda varsa) */}
+      <EylemSatiri>
         {katalogBilgisi && katalogBilgisi.availableVersions.length > 0 ? (
-          <div className="flex items-center gap-1">
-            <select
-              value={seciliSurum}
-              onChange={(e) => onSurumSec(e.target.value)}
-              className="rounded border border-panel-border bg-panel px-1.5 py-0.5 text-[10.5px] text-gray-300 outline-none"
-            >
+          <>
+            <select value={seciliSurum} onChange={(e) => onSurumSec(e.target.value)} className={SECICI_SINIFI}>
               {katalogBilgisi.availableVersions.map((v) => (
                 <option key={v} value={v}>
-                  v{v} {v === katalogBilgisi.latestVersion ? '(En Son)' : ''}
+                  v{v} {v === katalogBilgisi.latestVersion ? '(en son)' : ''}
                 </option>
               ))}
             </select>
-            <button
-              onClick={() => onKur(lib.name)}
-              disabled={kuruluyorAd !== null}
-              className="rounded border border-accent bg-accent/20 px-2 py-0.5 text-[10.5px] text-accent-hover hover:enabled:bg-accent/30 disabled:opacity-50"
-            >
-              Sürüm Değiştir
-            </button>
-          </div>
+            <Tus tur="ikincil" title="Seçili sürüme geç" onClick={() => onKur(lib.name)} disabled={kuruluyorAd !== null}>
+              Değiştir
+            </Tus>
+          </>
         ) : (
-          <span className="text-[10px] text-gray-500 truncate" title={lib.installDir}>
-            {lib.installDir ? 'Yerel Kütüphane' : ''}
+          <span className="min-w-0 flex-1 truncate text-[11px] text-gray-500" title={lib.installDir}>
+            {lib.installDir ? 'Yerel kütüphane' : ''}
           </span>
         )}
-
-        <button
-          onClick={() => onKaldir(lib.name)}
-          disabled={kuruluyorAd !== null}
-          className="ml-auto rounded border border-panel-border bg-panel px-2 py-0.5 text-[10.5px] text-red-300 hover:enabled:bg-red-950/40 hover:enabled:border-red-900 disabled:opacity-50"
-        >
+        <Tus tur="tehlike" onClick={() => onKaldir(lib.name)} disabled={kuruluyorAd !== null}>
           Kaldır
-        </button>
-      </div>
+        </Tus>
+      </EylemSatiri>
 
-      {kuruluyorBu && (
-        <div className="mt-2 rounded border border-panel-border bg-panel p-2">
-          <div className="mb-1 flex items-center gap-1.5 text-accent-hover font-medium">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
-            İşlem yapılıyor...
-          </div>
-          <pre className="max-h-24 overflow-y-auto whitespace-pre-wrap font-mono text-[10px] text-gray-500">
-            {kurulumLogu || 'arduino-cli işlemi tamamlanana kadar bekleniyor...'}
-          </pre>
-        </div>
-      )}
+      {kuruluyorBu && <KurulumGunlugu baslik="İşlem yapılıyor…" gunluk={kurulumLogu} />}
     </div>
   )
 })
@@ -411,45 +395,26 @@ function LibraryManager(): ReactElement {
 
   return (
     <div className="flex h-full flex-col text-xs select-none">
-      {/* ── Üst Sekme Kontrolü (Tümü / Kurulu Kütüphaneler) ── */}
-      <div className="flex border-b border-panel-border bg-panel/50 p-1 shrink-0">
-        <button
-          onClick={() => {
-            setAktifSekme('tumu')
-            setGorunenKatalogSayisi(SAYFA_BOYUTU)
+      <div className="shrink-0 border-b border-white/[0.06] p-2">
+        <SegmentKontrol
+          secenekler={[
+            { id: 'tumu', ad: 'Katalog' },
+            { id: 'kurulu', ad: 'Kurulu', sayi: kuruluKutuphaneler.length }
+          ]}
+          deger={aktifSekme}
+          onDegis={(id) => {
+            setAktifSekme(id)
+            if (id === 'tumu') {
+              setGorunenKatalogSayisi(SAYFA_BOYUTU)
+            } else {
+              setGorunenKuruluSayisi(SAYFA_BOYUTU)
+              void kurululariYukle(false)
+            }
           }}
-          className={`flex-1 rounded py-1 text-center font-medium transition-colors ${
-            aktifSekme === 'tumu'
-              ? 'bg-panel-border/80 text-gray-100 shadow-sm'
-              : 'text-gray-400 hover:text-gray-200'
-          }`}
-        >
-          Katalog (Tümü)
-        </button>
-        <button
-          onClick={() => {
-            setAktifSekme('kurulu')
-            setGorunenKuruluSayisi(SAYFA_BOYUTU)
-            void kurululariYukle(false)
-          }}
-          className={`flex items-center justify-center gap-1.5 flex-1 rounded py-1 text-center font-medium transition-colors ${
-            aktifSekme === 'kurulu'
-              ? 'bg-panel-border/80 text-emerald-300 shadow-sm'
-              : 'text-gray-400 hover:text-gray-200'
-          }`}
-        >
-          <span>Kurulu</span>
-          <span
-            className={`rounded-full px-1.5 py-0.2 text-[10px] font-semibold ${
-              aktifSekme === 'kurulu'
-                ? 'bg-emerald-500/20 text-emerald-300'
-                : 'bg-panel-border text-gray-400'
-            }`}
-          >
-            {kuruluKutuphaneler.length}
-          </span>
-        </button>
+        />
       </div>
+
+      <GuncellemeBandi onBitti={() => void kurululariYukle(true)} etkin={cliHazir} />
 
       {/* ── Arama Çubuğu (0ms Gecikmeli, Debounce Destekli) ── */}
       {aktifSekme === 'tumu' ? (
@@ -461,7 +426,7 @@ function LibraryManager(): ReactElement {
               onChange={(e) => handleSorguDegisti(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleHemenAra()}
               placeholder="Kütüphane veya yazar ara..."
-              className="w-full rounded border border-panel-border bg-panel pl-8 pr-7 py-1 text-gray-200 outline-none focus:ring-1 focus:ring-accent placeholder:text-gray-500 text-xs"
+              className="h-7 w-full rounded-[5px] border border-panel-border bg-panel pl-8 pr-7 text-xs text-gray-200 outline-none placeholder:text-gray-600 focus:border-accent"
             />
             {sorgu && !yukleniyor && (
               <button
@@ -481,7 +446,7 @@ function LibraryManager(): ReactElement {
           <button
             onClick={handleHemenAra}
             disabled={yukleniyor}
-            className="rounded border border-panel-border bg-panel px-2.5 py-1 text-gray-300 hover:bg-panel-border disabled:opacity-50 shrink-0 font-medium"
+            className="h-7 rounded-[5px] border border-panel-border px-3 text-gray-200 hover:bg-white/[0.06] disabled:opacity-50 shrink-0 font-medium"
           >
             Ara
           </button>
@@ -497,7 +462,7 @@ function LibraryManager(): ReactElement {
                 setGorunenKuruluSayisi(SAYFA_BOYUTU)
               }}
               placeholder="Kurulu kütüphanelerde süz (isim, yazar)..."
-              className="w-full rounded border border-panel-border bg-panel pl-8 pr-7 py-1 text-gray-200 outline-none focus:ring-1 focus:ring-accent placeholder:text-gray-500 text-xs"
+              className="h-7 w-full rounded-[5px] border border-panel-border bg-panel pl-8 pr-7 text-xs text-gray-200 outline-none placeholder:text-gray-600 focus:border-accent"
             />
             {kuruluArama && (
               <button
@@ -513,7 +478,7 @@ function LibraryManager(): ReactElement {
             onClick={() => void kurululariYukle(true)}
             title="Kurulu kütüphaneleri yeniden tara"
             disabled={kurulularYukleniyor}
-            className="rounded border border-panel-border bg-panel p-1 text-gray-400 hover:text-gray-200 disabled:opacity-50 shrink-0"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[5px] border border-panel-border text-gray-400 hover:bg-white/[0.06] hover:text-gray-100 disabled:opacity-50 shrink-0"
           >
             <RefreshIcon className={`h-4 w-4 ${kurulularYukleniyor ? 'animate-spin text-accent' : ''}`} />
           </button>
@@ -637,15 +602,6 @@ function LibraryManager(): ReactElement {
         )}
       </div>
     </div>
-  )
-}
-
-function UserIcon({ className }: { className?: string }): ReactElement {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
-    </svg>
   )
 }
 

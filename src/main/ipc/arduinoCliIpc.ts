@@ -1,7 +1,14 @@
 import { BrowserWindow, dialog, ipcMain, WebContents } from 'electron'
-import { ArduinoOperationEvent, ArduinoOperationKind, IPC_CHANNELS } from '@shared/types'
+import { ArduinoOperationEvent, ArduinoOperationKind, CompileResult, IPC_CHANNELS } from '@shared/types'
 import { ArduinoCliService, OperationCancelledError } from '../services/ArduinoCliService'
 import { DeviceLock } from '../services/DeviceLock'
+import type { HistoryService } from '../services/HistoryService'
+import type { SettingsService } from '../services/SettingsService'
+import { derlemeyiGecmiseIsle } from '../services/derlemeGecmisi'
+import { bayraksizMetin, httpAdresi, istegeBagliBayraksiz, mutlakYol } from './yolDogrulama'
+
+/** Kullanıcının "Gözat" diyaloğundan seçtiği son arduino-cli yolu; setCliPath yalnızca bunu kabul eder */
+let sonSecilenCliYolu: string | null = null
 
 /** Bir işlemin başladığını/bittiğini/başarısız ya da iptal olduğunu renderer'a bildirir */
 async function islemOlaylariIleCalistir<T>(
@@ -46,9 +53,14 @@ async function mesgulKoruyarakCalistir<T>(gonderici: WebContents, gorev: () => P
 export function arduinoCliIpcKaydet(
   mainWindow: BrowserWindow,
   service: ArduinoCliService,
-  deviceLock: DeviceLock
+  deviceLock: DeviceLock,
+  gecmis?: { history: HistoryService; settings: SettingsService }
 ): void {
   const C = IPC_CHANNELS.arduinoCli
+
+  const derlemeyiKaydet = async (sketchPath: string, fqbn: string, sonuc: CompileResult): Promise<void> => {
+    if (gecmis) await derlemeyiGecmiseIsle(gecmis.history, gecmis.settings, sketchPath, fqbn, sonuc)
+  }
 
   ipcMain.handle(C.getStatus, () => service.getStatus())
 
@@ -62,24 +74,31 @@ export function arduinoCliIpcKaydet(
           : [{ name: 'Tüm dosyalar', extensions: ['*'] }]
     })
     if (sonuc.canceled || sonuc.filePaths.length === 0) return null
+    sonSecilenCliYolu = sonuc.filePaths[0]
     return sonuc.filePaths[0]
   })
 
-  ipcMain.handle(C.setCliPath, (_e, yol: string) => service.setCliPath(yol))
+  // Çalıştırılabilir yol yalnızca kullanıcının diyalogdan seçtiği dosya olabilir (renderer keyfi .exe veremez)
+  ipcMain.handle(C.setCliPath, (_e, yol: unknown) => {
+    if (typeof yol !== 'string' || !sonSecilenCliYolu || yol !== sonSecilenCliYolu) {
+      throw new Error('arduino-cli yolu yalnızca "Gözat" ile seçilebilir')
+    }
+    return service.setCliPath(yol)
+  })
   ipcMain.handle(C.getBoardManagerUrls, () => service.getBoardManagerUrls())
-  ipcMain.handle(C.addBoardManagerUrl, (_e, url: string) => service.addBoardManagerUrl(url))
-  ipcMain.handle(C.removeBoardManagerUrl, (_e, url: string) => service.removeBoardManagerUrl(url))
+  ipcMain.handle(C.addBoardManagerUrl, (_e, url: unknown) => service.addBoardManagerUrl(httpAdresi(url, 'Kart yöneticisi adresi')))
+  ipcMain.handle(C.removeBoardManagerUrl, (_e, url: unknown) => service.removeBoardManagerUrl(bayraksizMetin(url, 'Adres', 2000)))
 
   ipcMain.handle(C.updateIndex, (e) =>
     islemOlaylariIleCalistir(e.sender, 'updateIndex', 'update-index', () => service.updateIndex())
   )
 
   ipcMain.handle(C.listCores, () => service.listCores())
-  ipcMain.handle(C.searchCores, (_e, query: string) => service.searchCores(query))
+  ipcMain.handle(C.searchCores, (_e, query: unknown) => service.searchCores(bayraksizMetin(query, 'Arama')))
 
-  ipcMain.handle(C.installCore, (e, id: string, operationId: string) =>
+  ipcMain.handle(C.installCore, (e, id: unknown, operationId: string) =>
     islemOlaylariIleCalistir(e.sender, 'installCore', operationId, () =>
-      service.installCore(id, operationId, (satir) =>
+      service.installCore(bayraksizMetin(id, 'Paket kimliği'), operationId, (satir) =>
         e.sender.send(C.onOperationEvent, {
           operationId,
           kind: 'installCore',
@@ -89,17 +108,17 @@ export function arduinoCliIpcKaydet(
       )
     )
   )
-  ipcMain.handle(C.uninstallCore, (_e, id: string) => service.uninstallCore(id))
+  ipcMain.handle(C.uninstallCore, (_e, id: unknown) => service.uninstallCore(bayraksizMetin(id, 'Paket kimliği')))
 
   ipcMain.handle(C.listPorts, () => service.listPorts())
   ipcMain.handle(C.listAllBoards, () => service.listAllBoards())
 
   ipcMain.handle(C.listLibraries, (_e, force?: boolean) => service.listLibraries(force))
-  ipcMain.handle(C.searchLibraries, (_e, query: string) => service.searchLibraries(query))
+  ipcMain.handle(C.searchLibraries, (_e, query: unknown) => service.searchLibraries(bayraksizMetin(query, 'Arama')))
 
-  ipcMain.handle(C.installLibrary, (e, name: string, version: string | undefined, operationId: string) =>
+  ipcMain.handle(C.installLibrary, (e, name: unknown, version: unknown, operationId: string) =>
     islemOlaylariIleCalistir(e.sender, 'installLibrary', operationId, () =>
-      service.installLibrary(name, version, operationId, (satir) =>
+      service.installLibrary(bayraksizMetin(name, 'Kütüphane adı'), istegeBagliBayraksiz(version, 'Sürüm'), operationId, (satir) =>
         e.sender.send(C.onOperationEvent, {
           operationId,
           kind: 'installLibrary',
@@ -109,23 +128,33 @@ export function arduinoCliIpcKaydet(
       )
     )
   )
-  ipcMain.handle(C.uninstallLibrary, (_e, name: string) => service.uninstallLibrary(name))
+  ipcMain.handle(C.getBoardOptions, (_e, fqbn: unknown) => service.kartSecenekleri(bayraksizMetin(fqbn, 'Kart kimliği')))
+  ipcMain.handle(C.listUpdatableLibraries, (_e, force?: boolean) => service.guncellenebilirKutuphaneler(force === true))
+  ipcMain.handle(C.suggestLibrary, (_e, header: unknown) => service.kutuphaneOner(bayraksizMetin(header, 'Başlık')))
+  ipcMain.handle(C.uninstallLibrary, (_e, name: unknown) => service.uninstallLibrary(bayraksizMetin(name, 'Kütüphane adı')))
 
   ipcMain.handle(C.listExamples, () => service.listExamples())
 
-  ipcMain.handle(C.compile, (e, sketchPath: string, fqbn: string, operationId: string) =>
+  ipcMain.handle(C.compile, (e, sketchPathHam: unknown, fqbnHam: unknown, operationId: string) =>
     mesgulKoruyarakCalistir(e.sender, () =>
       deviceLock.runExclusive(() =>
-        islemOlaylariIleCalistir(e.sender, 'compile', operationId, () =>
-          service.compile(sketchPath, fqbn, operationId, (satir) =>
-            e.sender.send(C.onOperationEvent, {
-              operationId,
-              kind: 'compile',
-              phase: 'log',
-              message: satir
-            } satisfies ArduinoOperationEvent)
-          )
-        )
+        islemOlaylariIleCalistir(e.sender, 'compile', operationId, () => {
+          const sketchPath = mutlakYol(sketchPathHam, 'Sketch yolu')
+          const fqbn = bayraksizMetin(fqbnHam, 'Kart kimliği')
+          return service
+            .compile(sketchPath, fqbn, operationId, (satir) =>
+              e.sender.send(C.onOperationEvent, {
+                operationId,
+                kind: 'compile',
+                phase: 'log',
+                message: satir
+              } satisfies ArduinoOperationEvent)
+            )
+            .then(async (sonuc) => {
+              await derlemeyiKaydet(sketchPath, fqbn, sonuc)
+              return sonuc
+            })
+        })
       )
     )
   )
@@ -138,22 +167,32 @@ export function arduinoCliIpcKaydet(
   // başarılıysa bu `upload` çağrısı): böylece derleme adımı bu servisin
   // mutex'ini/port kilidini hiç tutmaz, yalnızca asıl flash adımı sırasında
   // seri port kapatılır.
-  ipcMain.handle(C.upload, (e, sketchPath: string, fqbn: string, port: string, operationId: string) =>
-    mesgulKoruyarakCalistir(e.sender, () =>
+  ipcMain.handle(C.upload, (e, sketchPathHam: unknown, fqbnHam: unknown, portHam: unknown, operationId: string) => {
+    const sketchPath = mutlakYol(sketchPathHam, 'Sketch yolu')
+    const fqbn = bayraksizMetin(fqbnHam, 'Kart kimliği')
+    const port = bayraksizMetin(portHam, 'Port', 200)
+    return mesgulKoruyarakCalistir(e.sender, () =>
       deviceLock.runUpload(port, () =>
         islemOlaylariIleCalistir(e.sender, 'upload', operationId, () =>
-          service.upload(sketchPath, fqbn, port, operationId, (satir) =>
-            e.sender.send(C.onOperationEvent, {
-              operationId,
-              kind: 'upload',
-              phase: 'log',
-              message: satir
-            } satisfies ArduinoOperationEvent)
-          )
+          service
+            .upload(sketchPath, fqbn, port, operationId, (satir) =>
+              e.sender.send(C.onOperationEvent, {
+                operationId,
+                kind: 'upload',
+                phase: 'log',
+                message: satir
+              } satisfies ArduinoOperationEvent)
+            )
+            .then(async (sonuc) => {
+              if (sonuc.success) {
+                await gecmis?.history.yuklemeIsaretle(sketchPath).catch((h) => console.warn('[geçmiş] yükleme işareti yazılamadı:', h instanceof Error ? h.message : h))
+              }
+              return sonuc
+            })
         )
       )
     )
-  )
+  })
 
   ipcMain.handle(C.cancelOperation, (_e, operationId: string) => service.cancelOperation(operationId))
 }

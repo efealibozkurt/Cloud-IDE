@@ -1,10 +1,14 @@
 import { ipcMain } from 'electron'
-import { IPC_CHANNELS, type ChatSession, type SendAiMessageParams, type AIProviderId } from '@shared/types'
+import { IPC_CHANNELS, type ChatSession, type AIProviderId } from '@shared/types'
 import { ChatService } from '../services/ChatService'
-import { LlmService } from '../services/LlmService'
+import type { ChatCompactionService } from '../services/ChatCompactionService'
 
-/** ChatService ve LlmService'i IPC'ye bağlayan ince sarmalayıcı katman */
-export function chatIpcKaydet(service: ChatService, llmService: LlmService): void {
+/** ChatService ve sohbet özetlemeyi IPC'ye bağlayan ince sarmalayıcı katman */
+export function chatIpcKaydet(
+  service: ChatService,
+  compaction: ChatCompactionService,
+  modelListele: (provider: AIProviderId) => Promise<string[]>
+): void {
   const C = IPC_CHANNELS.chat
 
   ipcMain.handle(C.getSessions, (_e, sketchPath: string) => service.getSessions(sketchPath))
@@ -21,20 +25,9 @@ export function chatIpcKaydet(service: ChatService, llmService: LlmService): voi
   ipcMain.handle(C.migrateSessions, (_e, oldPath: string, newPath: string, newName: string) =>
     service.migrateSessions(oldPath, newPath, newName)
   )
-  ipcMain.handle(C.sendAiMessage, (_e, params: SendAiMessageParams) => llmService.sendMessage(params))
-  ipcMain.handle(C.sendAiMessageStream, (event, params: SendAiMessageParams) => {
-    const streamId = params.streamId || 'stream_' + Math.random().toString(36).slice(2, 9) + '_' + Date.now()
-    const sender = event.sender
-
-    void llmService.sendMessageStream({ ...params, streamId }, (chunkEvent) => {
-      if (!sender.isDestroyed()) {
-        sender.send(C.onStreamChunk, chunkEvent)
-      }
-    })
-
-    return streamId
-  })
-  ipcMain.handle(C.getProviderModels, (_e, provider: AIProviderId) => llmService.getModels(provider))
+  ipcMain.handle(C.getProviderModels, (_e, provider: AIProviderId) =>
+    modelListele(provider)
+  )
   ipcMain.handle(
     C.compactSession,
     async (_e, params: { sessionId: string; provider: AIProviderId; model?: string }) => {
@@ -42,11 +35,23 @@ export function chatIpcKaydet(service: ChatService, llmService: LlmService): voi
       if (!session) {
         return { success: false, error: 'Oturum bulunamadı.' }
       }
-      const result = await llmService.compactChatSession(session, params.provider, params.model)
+      const result = await compaction.compactChatSession(session, params.provider, params.model)
       if (result.success && result.session) {
         await service.saveSession(result.session)
       }
       return result
+    }
+  )
+  ipcMain.handle(
+    C.generateTitle,
+    async (_e, params: { sessionId: string; provider: AIProviderId; model?: string }): Promise<string | null> => {
+      if (!params || typeof params.sessionId !== 'string') return null
+      const session = await service.getSession(params.sessionId)
+      if (!session || session.mesajlar.length < 2) return null
+      const baslik = await compaction.baslikUret(session.mesajlar, params.provider, params.model)
+      if (!baslik) return null
+      await service.renameSession(session.id, baslik)
+      return baslik
     }
   )
 }

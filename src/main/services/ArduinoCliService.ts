@@ -6,12 +6,14 @@ import {
   ArduinoCliStatus,
   BoardOption,
   CompileResult,
-  DerlemeHatasi,
   DetectedPort,
   ExampleGroup,
   ExampleItem,
   LibraryInfo,
   LibrarySearchResult,
+  BoardConfigOption,
+  LibrarySuggestionResult,
+  LibraryUpdateInfo,
   PlatformSearchResult,
   PlatformSummary,
   UploadResult
@@ -20,6 +22,8 @@ import { resolveArduinoCliPath } from '../utils/cliPath'
 import { ArduinoCliOrtami, arduinoCliOrtamiHazirla } from '../utils/arduinoCliConfig'
 import { baslikEksikligiDeseniMi, tumToolchainBaslikYollariniOnar } from '../utils/toolchainHeaderFix'
 import { SettingsService } from './SettingsService'
+import { GCC_HATA_DESENI, boyutuAyikla, stderrdenHatalariCikar } from './compileInfo'
+import { BILINEN_BASLIKLAR, KART_PAKETI_BASLIKLARI } from './headerLibraries'
 
 /** Kullanıcı bir işlemi iptal ettiğinde fırlatılan özel hata türü */
 export class OperationCancelledError extends Error {
@@ -57,42 +61,6 @@ function surumKarsilastir(a: string, b: string): number {
     if (x !== y) return x - y
   }
   return 0
-}
-
-/** gcc'nin klasik "dosya:satır:sütun: tür: mesaj" biçimli tek bir çıktı satırını yakalar */
-const GCC_HATA_DESENI = /^(.+?):(\d+):(\d+):\s+(error|warning|note):\s+(.+)$/
-
-/**
- * builder_result.diagnostics JSON'da yoksa (ör. daha eski bir arduino-cli
- * sürümü ya da beklenmeyen bir çıktı) devreye giren YEDEK yol: ham
- * derleyici çıktısını (stderr) doğrudan regex ile ayrıştırır. "In file
- * included from ..." gibi gürültü satırları ana listeye karışmaz; bir
- * sonraki hatanın 'baglam' dizisine eklenir.
- */
-function stderrdenHatalariCikar(stderrMetni: string): DerlemeHatasi[] {
-  const satirlar = stderrMetni.split(/\r?\n/)
-  const hatalar: DerlemeHatasi[] = []
-  let baglamBirikimi: string[] = []
-
-  for (const satir of satirlar) {
-    const eslesme = GCC_HATA_DESENI.exec(satir)
-    if (eslesme) {
-      const [, dosya, satirNoMetni, sutunNoMetni, tur, mesaj] = eslesme
-      hatalar.push({
-        dosya,
-        satir: parseInt(satirNoMetni, 10),
-        sutun: parseInt(sutunNoMetni, 10),
-        tur: tur as 'error' | 'warning' | 'note',
-        mesaj,
-        hamMetin: satir,
-        baglam: baglamBirikimi.length > 0 ? baglamBirikimi : undefined
-      })
-      baglamBirikimi = []
-    } else if (satir.trim().length > 0) {
-      baglamBirikimi.push(satir.trim())
-    }
-  }
-  return hatalar
 }
 
 /** Terminal renklendirme kodları (arduino-cli'nin "Used library/platform" tablosunda kullanılır) */
@@ -579,6 +547,78 @@ export class ArduinoCliService {
     }
   }
 
+  private kartSecenekOnbellegi = new Map<string, BoardConfigOption[]>()
+
+  /** Kartın ayarlanabilir seçenekleri. Kart paketi kurulu değilse ya da kartın seçeneği yoksa boş liste döner. */
+  async kartSecenekleri(fqbn: string): Promise<BoardConfigOption[]> {
+    if (!/^[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+(:[A-Za-z0-9_.,=-]+)?$/.test(fqbn)) throw new Error('Geçersiz kart adı')
+    const temel = fqbn.split(':').slice(0, 3).join(':')
+    const onbellek = this.kartSecenekOnbellegi.get(temel)
+    if (onbellek) return onbellek
+    try {
+      const veri = await this.runJson<any>(['board', 'details', '-b', temel])
+      const liste: BoardConfigOption[] = (veri?.config_options ?? []).map((o: any) => ({
+        option: String(o.option),
+        label: String(o.option_label ?? o.option),
+        values: (o.values ?? []).map((v: any) => ({ value: String(v.value), label: String(v.value_label ?? v.value) })),
+        varsayilan: String((o.values ?? []).find((v: any) => v.selected)?.value ?? o.values?.[0]?.value ?? '')
+      }))
+      this.kartSecenekOnbellegi.set(temel, liste)
+      return liste
+    } catch {
+      return []
+    }
+  }
+
+  private guncellenebilirOnbellek: { zaman: number; liste: LibraryUpdateInfo[] } | null = null
+
+  /** Kurulu olup daha yeni sürümü çıkmış kütüphaneler. Ağ/dizin hatasında boş liste döner; 15 dk önbelleklenir. */
+  async guncellenebilirKutuphaneler(force = false): Promise<LibraryUpdateInfo[]> {
+    if (!force && this.guncellenebilirOnbellek && Date.now() - this.guncellenebilirOnbellek.zaman < 15 * 60_000) {
+      return this.guncellenebilirOnbellek.liste
+    }
+    try {
+      const veri = await this.runJson<any>(['lib', 'list', '--updatable'])
+      const dizi: any[] = Array.isArray(veri) ? veri : (veri?.installed_libraries ?? [])
+      const liste: LibraryUpdateInfo[] = []
+      for (const g of dizi) {
+        const ad = g?.library?.name
+        const kurulu = g?.library?.version
+        const son = g?.release?.version
+        if (ad && kurulu && son && kurulu !== son) liste.push({ name: ad, installed: kurulu, latest: son })
+      }
+      liste.sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+      this.guncellenebilirOnbellek = { zaman: Date.now(), liste }
+      return liste
+    } catch {
+      return []
+    }
+  }
+
+  /** Eksik bir başlık dosyası için kurulabilecek kütüphaneleri bulur (bilinen tablo, yoksa `provides:` araması). */
+  async kutuphaneOner(header: string): Promise<LibrarySuggestionResult> {
+    const h = header.trim()
+    if (!/^[A-Za-z0-9_+.-]{1,80}\.(h|hpp|hh)$/.test(h)) throw new Error('Geçersiz başlık adı')
+    if (KART_PAKETI_BASLIKLARI.has(h) && !BILINEN_BASLIKLAR[h]) return { header: h, adaylar: [], kartPaketiBasligi: true }
+    const bilinen = BILINEN_BASLIKLAR[h]
+    if (bilinen) {
+      const sonuc = await this.searchLibraries(bilinen)
+      const tam = sonuc.find((s) => s.name === bilinen)
+      if (tam) return { header: h, adaylar: [tam, ...sonuc.filter((s) => s !== tam).slice(0, 2)], kartPaketiBasligi: false }
+    }
+    const sonuc = await this.searchLibraries(`provides:${h}`)
+    // Adı başlığa en çok benzeyenler öne
+    const taban = h.replace(/\.(h|hpp|hh)$/, '').toLowerCase().replace(/[^a-z0-9]/g, '')
+    const sirali = [...sonuc].sort((a, b) => {
+      const puan = (x: LibrarySearchResult): number => {
+        const ad = x.name.toLowerCase().replace(/[^a-z0-9]/g, '')
+        return ad === taban ? 0 : ad.includes(taban) || taban.includes(ad) ? 1 : 2
+      }
+      return puan(a) - puan(b)
+    })
+    return { header: h, adaylar: sirali.slice(0, 4), kartPaketiBasligi: false }
+  }
+
   async searchLibraries(query: string): Promise<LibrarySearchResult[]> {
     const q = query.trim()
     const onbellekGirdisi = this.aramaSonuclariOnbellegi.get(q)
@@ -746,10 +786,12 @@ export class ArduinoCliService {
     )
     const hatalar = stderrdenHatalariCikar(stderr)
     const basarili = kod === 0
+    const log = ansiTemizle([stdout, stderr].filter(Boolean).join('\n'))
     return {
       success: basarili,
       errors: hatalar,
-      log: ansiTemizle([stdout, stderr].filter(Boolean).join('\n')),
+      log,
+      boyut: basarili ? boyutuAyikla(log) : undefined,
       topLevelError:
         !basarili && hatalar.length === 0 ? ilkSatir(stderr) || ilkSatir(stdout) || 'Derleme başarısız oldu' : undefined
     }

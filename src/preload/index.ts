@@ -1,9 +1,15 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
+  AgentAPI,
+  AgentEvent,
   ArduinoCliAPI,
   ArduinoOperationEvent,
   ChatAPI,
   DretAPI,
+  DiagnosticsAPI,
+  HistoryAPI,
+  UpdateStatus,
+  UpdaterAPI,
   SecretsAPI,
   SerialAPI,
   SerialDataChunk,
@@ -42,6 +48,9 @@ const arduinoCli: ArduinoCliAPI = {
   listAllBoards: () => ipcRenderer.invoke(IPC_CHANNELS.arduinoCli.listAllBoards),
   listLibraries: (force) => ipcRenderer.invoke(IPC_CHANNELS.arduinoCli.listLibraries, force),
   searchLibraries: (query) => ipcRenderer.invoke(IPC_CHANNELS.arduinoCli.searchLibraries, query),
+  getBoardOptions: (fqbn) => ipcRenderer.invoke(IPC_CHANNELS.arduinoCli.getBoardOptions, fqbn),
+  listUpdatableLibraries: (force) => ipcRenderer.invoke(IPC_CHANNELS.arduinoCli.listUpdatableLibraries, force),
+  suggestLibrary: (header) => ipcRenderer.invoke(IPC_CHANNELS.arduinoCli.suggestLibrary, header),
   installLibrary: (name, version, operationId) =>
     ipcRenderer.invoke(IPC_CHANNELS.arduinoCli.installLibrary, name, version, operationId),
   uninstallLibrary: (name) => ipcRenderer.invoke(IPC_CHANNELS.arduinoCli.uninstallLibrary, name),
@@ -57,7 +66,11 @@ const arduinoCli: ArduinoCliAPI = {
 }
 
 const sketch: SketchAPI = {
+  createFromTemplate: (name, code) => ipcRenderer.invoke(IPC_CHANNELS.sketch.createFromTemplate, name, code),
   createNew: (name) => ipcRenderer.invoke(IPC_CHANNELS.sketch.createNew, name),
+  createSiblingSketch: (baseFolderPath, sketchName, initialCode) =>
+    ipcRenderer.invoke(IPC_CHANNELS.sketch.createSiblingSketch, baseFolderPath, sketchName, initialCode),
+  getInitialSketchPath: () => ipcRenderer.invoke(IPC_CHANNELS.sketch.getInitialSketchPath),
   openDialog: () => ipcRenderer.invoke(IPC_CHANNELS.sketch.openDialog),
   openPath: (folderPath) => ipcRenderer.invoke(IPC_CHANNELS.sketch.openPath, folderPath),
   saveAsDialog: (currentFolderPath) => ipcRenderer.invoke(IPC_CHANNELS.sketch.saveAsDialog, currentFolderPath),
@@ -74,8 +87,8 @@ const sketch: SketchAPI = {
 const serial: SerialAPI = {
   listPorts: () => ipcRenderer.invoke(IPC_CHANNELS.serial.listPorts),
   open: (port, baud) => ipcRenderer.invoke(IPC_CHANNELS.serial.open, port, baud),
-  close: () => ipcRenderer.invoke(IPC_CHANNELS.serial.close),
-  write: (data, lineEnding) => ipcRenderer.invoke(IPC_CHANNELS.serial.write, data, lineEnding),
+  close: (port) => ipcRenderer.invoke(IPC_CHANNELS.serial.close, port),
+  write: (data, lineEnding, port) => ipcRenderer.invoke(IPC_CHANNELS.serial.write, data, lineEnding, port),
   isOpen: () => ipcRenderer.invoke(IPC_CHANNELS.serial.isOpen),
   onData: (dinleyici) => olayaAbolOl<SerialDataChunk>(IPC_CHANNELS.serial.onData, dinleyici),
   onStatusChanged: (dinleyici) => olayaAbolOl<SerialStatus>(IPC_CHANNELS.serial.onStatusChanged, dinleyici)
@@ -84,6 +97,36 @@ const serial: SerialAPI = {
 const settings: SettingsAPI = {
   get: () => ipcRenderer.invoke(IPC_CHANNELS.settings.get),
   set: (key, value) => ipcRenderer.invoke(IPC_CHANNELS.settings.set, key, value)
+}
+
+const diagnostics: DiagnosticsAPI = {
+  collect: () => ipcRenderer.invoke(IPC_CHANNELS.diagnostics.collect),
+  saveReport: (metin) => ipcRenderer.invoke(IPC_CHANNELS.diagnostics.saveReport, metin),
+  openIssue: (baslik, govde) => ipcRenderer.invoke(IPC_CHANNELS.diagnostics.openIssue, baslik, govde)
+}
+
+const updater: UpdaterAPI = {
+  getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.updater.getStatus),
+  check: () => ipcRenderer.invoke(IPC_CHANNELS.updater.check),
+  download: () => ipcRenderer.invoke(IPC_CHANNELS.updater.download),
+  install: () => ipcRenderer.invoke(IPC_CHANNELS.updater.install),
+  openReleases: () => ipcRenderer.invoke(IPC_CHANNELS.updater.openReleases),
+  onStatus: (dinleyici) => olayaAbolOl<UpdateStatus>(IPC_CHANNELS.updater.onStatus, dinleyici)
+}
+
+const history: HistoryAPI = {
+  status: (p) => ipcRenderer.invoke(IPC_CHANNELS.history.status, p),
+  list: (p, dal) => ipcRenderer.invoke(IPC_CHANNELS.history.list, p, dal),
+  diff: (p, a, b) => ipcRenderer.invoke(IPC_CHANNELS.history.diff, p, a, b),
+  commit: (p, mesaj, otomatik) => ipcRenderer.invoke(IPC_CHANNELS.history.commit, p, mesaj, otomatik),
+  restore: (p, id, dosyalar) => ipcRenderer.invoke(IPC_CHANNELS.history.restore, p, id, dosyalar),
+  tag: (p, id, ad) => ipcRenderer.invoke(IPC_CHANNELS.history.tag, p, id, ad),
+  untag: (p, ad) => ipcRenderer.invoke(IPC_CHANNELS.history.untag, p, ad),
+  createBranch: (p, ad, id) => ipcRenderer.invoke(IPC_CHANNELS.history.createBranch, p, ad, id),
+  checkout: (p, ad) => ipcRenderer.invoke(IPC_CHANNELS.history.checkout, p, ad),
+  deleteBranch: (p, ad) => ipcRenderer.invoke(IPC_CHANNELS.history.deleteBranch, p, ad),
+  exportPackage: (p) => ipcRenderer.invoke(IPC_CHANNELS.history.exportPackage, p),
+  importPackage: () => ipcRenderer.invoke(IPC_CHANNELS.history.importPackage)
 }
 
 const secrets: SecretsAPI = {
@@ -97,22 +140,25 @@ const chat: ChatAPI = {
   getSession: (sessionId: string) => ipcRenderer.invoke(IPC_CHANNELS.chat.getSession, sessionId),
   createSession: (sketchPath: string, sketchName: string, baslik?: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.chat.createSession, sketchPath, sketchName, baslik),
-  saveSession: (session: any) => ipcRenderer.invoke(IPC_CHANNELS.chat.saveSession, session),
+  saveSession: (session) => ipcRenderer.invoke(IPC_CHANNELS.chat.saveSession, session),
   deleteSession: (sessionId: string) => ipcRenderer.invoke(IPC_CHANNELS.chat.deleteSession, sessionId),
   renameSession: (sessionId: string, yeniBaslik: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.chat.renameSession, sessionId, yeniBaslik),
   clearSessions: (sketchPath: string) => ipcRenderer.invoke(IPC_CHANNELS.chat.clearSessions, sketchPath),
   migrateSessions: (oldSketchPath: string, newSketchPath: string, newSketchName: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.chat.migrateSessions, oldSketchPath, newSketchPath, newSketchName),
-  sendAiMessage: (params) => ipcRenderer.invoke(IPC_CHANNELS.chat.sendAiMessage, params),
-  sendAiMessageStream: (params) => ipcRenderer.invoke(IPC_CHANNELS.chat.sendAiMessageStream, params),
-  onStreamChunk: (listener) => {
-    const sarmalayici = (_event: any, chunkEvent: any): void => listener(chunkEvent)
-    ipcRenderer.on(IPC_CHANNELS.chat.onStreamChunk, sarmalayici)
-    return () => ipcRenderer.removeListener(IPC_CHANNELS.chat.onStreamChunk, sarmalayici)
-  },
   getProviderModels: (provider) => ipcRenderer.invoke(IPC_CHANNELS.chat.getProviderModels, provider),
-  compactSession: (params) => ipcRenderer.invoke(IPC_CHANNELS.chat.compactSession, params)
+  compactSession: (params) => ipcRenderer.invoke(IPC_CHANNELS.chat.compactSession, params),
+  generateTitle: (params) => ipcRenderer.invoke(IPC_CHANNELS.chat.generateTitle, params)
+}
+
+const agent: AgentAPI = {
+  run: (params) => ipcRenderer.invoke(IPC_CHANNELS.agent.run, params),
+  abort: (runId) => ipcRenderer.invoke(IPC_CHANNELS.agent.abort, runId),
+  reply: (runId, callId, reply) => ipcRenderer.invoke(IPC_CHANNELS.agent.reply, runId, callId, reply),
+  undo: (checkpointId) => ipcRenderer.invoke(IPC_CHANNELS.agent.undo, checkpointId),
+  onEvent: (dinleyici) => olayaAbolOl<AgentEvent>(IPC_CHANNELS.agent.onEvent, dinleyici),
+  testProvider: (provider, model) => ipcRenderer.invoke(IPC_CHANNELS.agent.testProvider, provider, model)
 }
 
 const skills: SkillsAPI = {
@@ -135,7 +181,8 @@ const windowApi: WindowAPI = {
     ipcRenderer.on(IPC_CHANNELS.window.onCloseRequested, sarmalayici)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.window.onCloseRequested, sarmalayici)
   },
-  replyCloseRequest: (proceed) => ipcRenderer.send(IPC_CHANNELS.window.replyCloseRequest, proceed)
+  replyCloseRequest: (proceed) => ipcRenderer.send(IPC_CHANNELS.window.replyCloseRequest, proceed),
+  openNewWindow: (sketchPath) => ipcRenderer.invoke(IPC_CHANNELS.window.openNewWindow, sketchPath)
 }
 
 /**
@@ -154,8 +201,12 @@ const api: DretAPI = {
   sketch,
   serial,
   settings,
+  diagnostics,
+  updater,
+  history,
   secrets,
   chat,
+  agent,
   skills,
   window: windowApi
 }

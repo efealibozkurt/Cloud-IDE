@@ -20,7 +20,15 @@ const VARSAYILAN_AYARLAR: AppSettings = {
   selectedAiProvider: null,
   selectedModelPerProvider: {},
   selectedReasoningEffort: 'medium',
-  customContextLimits: {}
+  customContextLimits: {},
+  aiBaseUrls: {},
+  agentPermissionMode: 'ask',
+  agentAutoCompile: true,
+  localToolMode: 'auto',
+  historyAutoSnapshot: true,
+  historyMaxAuto: 50,
+  autoUpdateCheck: true,
+  boardOptions: {}
 }
 
 /**
@@ -52,7 +60,15 @@ export class SettingsService {
       selectedAiProvider: this.store.get('selectedAiProvider'),
       selectedModelPerProvider: this.store.get('selectedModelPerProvider') || {},
       selectedReasoningEffort: this.store.get('selectedReasoningEffort') || 'medium',
-      customContextLimits: this.store.get('customContextLimits') || {}
+      customContextLimits: this.store.get('customContextLimits') || {},
+      aiBaseUrls: this.store.get('aiBaseUrls') || {},
+      agentPermissionMode: this.store.get('agentPermissionMode') || 'ask',
+      agentAutoCompile: this.store.get('agentAutoCompile') ?? true,
+      localToolMode: this.store.get('localToolMode') || 'auto',
+      historyAutoSnapshot: this.store.get('historyAutoSnapshot') ?? true,
+      historyMaxAuto: this.store.get('historyMaxAuto') ?? 50,
+      autoUpdateCheck: this.store.get('autoUpdateCheck') ?? true,
+      boardOptions: this.store.get('boardOptions') ?? {}
     }
   }
 

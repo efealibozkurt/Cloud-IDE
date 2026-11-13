@@ -68,7 +68,7 @@ body,
 .ai-button-border-gradient {
   background-image:
     linear-gradient(#1e1e1e, #1e1e1e),
-    linear-gradient(to right, #3b82f6, #8b5cf6, #3b82f6);
+    linear-gradient(to right, #0e7fc4, #2aa8f2, #0e7fc4);
   background-origin: border-box;
   background-clip: padding-box, border-box;
   background-size:
@@ -101,7 +101,7 @@ body,
 /* Aktif yazılan uç satır için parıldayan lazer hüzmesi (Cursor / Windsurf tarzı) */
 @keyframes ai-laser-pulse {
   0%, 100% {
-    box-shadow: inset 0 0 14px rgba(56, 189, 248, 0.25), 0 0 16px rgba(99, 102, 241, 0.2);
+    box-shadow: inset 0 0 14px rgba(56, 189, 248, 0.25), 0 0 16px rgba(14,127,196, 0.2);
     border-left-color: #38bdf8;
   }
   50% {
@@ -114,8 +114,8 @@ body,
   background: linear-gradient(
     90deg,
     rgba(56, 189, 248, 0.22) 0%,
-    rgba(99, 102, 241, 0.16) 25%,
-    rgba(139, 92, 246, 0.08) 60%,
+    rgba(14,127,196, 0.16) 25%,
+    rgba(14,127,196, 0.08) 60%,
     transparent 100%
   ) !important;
   border-left: 3px solid #38bdf8 !important;
@@ -133,8 +133,8 @@ body,
 .ai-code-block-highlight {
   background: linear-gradient(
     90deg,
-    rgba(99, 102, 241, 0.08) 0%,
-    rgba(99, 102, 241, 0.04) 45%,
+    rgba(14,127,196, 0.08) 0%,
+    rgba(14,127,196, 0.04) 45%,
     transparent 100%
   ) !important;
   border-left: 2px solid rgba(129, 140, 248, 0.55) !important;
@@ -142,7 +142,7 @@ body,
 }
 
 .ai-code-block-margin {
-  background: rgba(99, 102, 241, 0.35) !important;
+  background: rgba(14,127,196, 0.35) !important;
 }
 
 /* Yazım tamamlandığında tüm bloğun üzerinden tek seferlik akan pürüzsüz ışık dalgası */
@@ -158,11 +158,11 @@ body,
 .ai-code-shimmer-done {
   background: linear-gradient(
     90deg,
-    rgba(99, 102, 241, 0.06) 0%,
+    rgba(14,127,196, 0.06) 0%,
     rgba(56, 189, 248, 0.18) 35%,
     rgba(165, 180, 252, 0.25) 50%,
     rgba(56, 189, 248, 0.18) 65%,
-    rgba(99, 102, 241, 0.06) 100%
+    rgba(14,127,196, 0.06) 100%
   ) !important;
   background-size: 200% 100% !important;
   animation: ai-shimmer-sweep 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
@@ -180,6 +180,86 @@ body,
   -webkit-backdrop-filter: blur(20px);
   background: rgba(13, 15, 23, 0.88);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(99, 102, 241, 0.12);
+  box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(14,127,196, 0.12);
 }
 
+
+/* Üst çubuk "Cloud AI" düğmesi: dönen ışık halkası.
+   Boşta sönük ve durağan, üzerine gelince yavaş döner; asistan çalışırken hızlı döner. */
+.cloudai-halka {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 9px;
+  padding: 1px;
+  background: rgba(124, 196, 240, 0.16);
+  transition: box-shadow 200ms ease, background-color 200ms ease;
+}
+.cloudai-halka::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 240%;
+  aspect-ratio: 1;
+  z-index: -1;
+  opacity: 0.5;
+  background: conic-gradient(from 0deg, transparent 0 52%, #0e7fc4 74%, #7cc4f0 90%, #d4eeff 96%, transparent 100%);
+  transform: translate(-50%, -50%) rotate(0deg);
+  animation: cloudai-don 5s linear infinite;
+  animation-play-state: paused;
+  transition: opacity 200ms ease;
+}
+.cloudai-halka:hover::before,
+.cloudai-halka[data-aktif='true']::before {
+  opacity: 1;
+  animation-play-state: running;
+}
+.cloudai-halka[data-calisiyor='true']::before {
+  opacity: 1;
+  animation-duration: 1.4s;
+  animation-play-state: running;
+}
+.cloudai-halka:hover,
+.cloudai-halka[data-aktif='true'] {
+  box-shadow: 0 0 14px -2px rgba(14, 127, 196, 0.55);
+}
+.cloudai-halka[data-calisiyor='true'] {
+  box-shadow: 0 0 18px -1px rgba(42, 168, 242, 0.7);
+}
+.cloudai-ic {
+  border-radius: 8px;
+  background: #151a21;
+}
+.cloudai-halka[data-aktif='true'] .cloudai-ic {
+  background: linear-gradient(180deg, #172433, #131b25);
+}
+@keyframes cloudai-don {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+@keyframes cloudai-nokta {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.45; }
+  40% { transform: translateY(-2px); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cloudai-halka::before { animation: none; }
+}
+
+/* Sürüm yumurtası: süzülen bulutlar */
+@keyframes bulut-suru {
+  from { transform: translateX(-35vw); }
+  to { transform: translateX(110vw); }
+}
+.bulut-suru {
+  animation: bulut-suru linear infinite;
+  will-change: transform;
+}
+@keyframes surum-belir {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bulut-suru { animation: none; transform: translateX(30vw); }
+}
