@@ -110,13 +110,10 @@ Kodlama ve gömülü sistemler bilmeyen insanların dahi aklındaki fiziksel pro
 
 ## 📸 Ekran Görüntüleri
 
-> _Ekran görüntüleri yakında eklenecek._
-
-<!--
 <p align="center">
-  <img src="docs/screenshots/editor.png" width="800" />
+  <img src="docs/screenshots/editor.png" alt="Cloud IDE: editör, kart ve port seçimi, Cloud AI düğmesi" width="900" />
 </p>
--->
+<p align="center"><sub>Editör, kart ve port seçimi, Derle / Yükle, Cloud AI ve alt paneller (Çıktı, Seri Monitör, Pin denetimi, Problems)</sub></p>
 
 ## 🚀 Kurulum
 
