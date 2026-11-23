@@ -14,19 +14,19 @@ export interface YardimKonusu {
 
 // ───────── küçük yapı taşları ─────────
 
-function Baslik({ children }: { children: ReactNode }): ReactElement {
+export function Baslik({ children }: { children: ReactNode }): ReactElement {
   return <h3 className="mb-1.5 mt-5 text-[13px] font-semibold text-gray-100 first:mt-0">{children}</h3>
 }
 
-function Par({ children }: { children: ReactNode }): ReactElement {
+export function Par({ children }: { children: ReactNode }): ReactElement {
   return <p className="mb-2 text-[12.5px] leading-relaxed text-gray-400">{children}</p>
 }
 
-function Adimlar({ children }: { children: ReactNode }): ReactElement {
+export function Adimlar({ children }: { children: ReactNode }): ReactElement {
   return <ol className="mb-3 list-none space-y-2">{children}</ol>
 }
 
-function Adim({ no, children }: { no: number; children: ReactNode }): ReactElement {
+export function Adim({ no, children }: { no: number; children: ReactNode }): ReactElement {
   return (
     <li className="flex gap-3 text-[12.5px] leading-relaxed text-gray-300">
       <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-panel-border font-mono text-[11px] text-gray-400">{no}</span>
@@ -35,11 +35,11 @@ function Adim({ no, children }: { no: number; children: ReactNode }): ReactEleme
   )
 }
 
-function Liste({ children }: { children: ReactNode }): ReactElement {
+export function Liste({ children }: { children: ReactNode }): ReactElement {
   return <ul className="mb-3 space-y-1.5 text-[12.5px] leading-relaxed text-gray-400">{children}</ul>
 }
 
-function Madde({ baslik, children }: { baslik?: string; children: ReactNode }): ReactElement {
+export function Madde({ baslik, children }: { baslik?: string; children: ReactNode }): ReactElement {
   return (
     <li className="flex gap-2">
       <span className="mt-[9px] h-1 w-1 shrink-0 rounded-full bg-gray-600" aria-hidden="true" />
@@ -51,7 +51,7 @@ function Madde({ baslik, children }: { baslik?: string; children: ReactNode }): 
   )
 }
 
-function Ipucu({ children, tur = 'ipucu' }: { children: ReactNode; tur?: 'ipucu' | 'dikkat' }): ReactElement {
+export function Ipucu({ children, tur = 'ipucu' }: { children: ReactNode; tur?: 'ipucu' | 'dikkat' }): ReactElement {
   return (
     <div className={`mb-3 rounded-[6px] border-l-2 px-3 py-2 text-[12px] leading-relaxed ${tur === 'dikkat' ? 'border-amber-400/70 bg-amber-400/[0.06] text-amber-100/90' : 'border-accent bg-accent/[0.08] text-gray-300'}`}>
       {children}
@@ -59,11 +59,11 @@ function Ipucu({ children, tur = 'ipucu' }: { children: ReactNode; tur?: 'ipucu'
   )
 }
 
-function Tus({ children }: { children: ReactNode }): ReactElement {
+export function Tus({ children }: { children: ReactNode }): ReactElement {
   return <kbd className="rounded-[4px] border border-panel-border bg-panel px-1.5 py-px font-mono text-[11px] text-gray-200">{children}</kbd>
 }
 
-function Ad({ children }: { children: ReactNode }): ReactElement {
+export function Ad({ children }: { children: ReactNode }): ReactElement {
   return <span className="font-medium text-gray-200">{children}</span>
 }
 
@@ -104,7 +104,7 @@ export const YARDIM_KONULARI: YardimKonusu[] = [
     id: 'projeler',
     baslik: 'Projeler ve dosyalar',
     ozet: 'Çalışma alanı, birden çok proje, dosya ekleme',
-    anahtarlar: 'dosya proje çalışma alanı sketch ino header yeni pencere farklı kaydet',
+    anahtarlar: 'dosya proje çalışma alanı sketch ino header yeni pencere farklı kaydet otomatik tamamlama intellisense hover imza',
     icerik: () => (
       <>
         <Par>Her proje (sketch), aynı adı taşıyan bir klasördür; ana dosya <Ad>proje_adi.ino</Ad>'dur. Yanına <Ad>.h</Ad>, <Ad>.cpp</Ad> gibi dosyalar ekleyerek kodunuzu bölebilirsiniz.</Par>
@@ -125,6 +125,13 @@ export const YARDIM_KONULARI: YardimKonusu[] = [
           <Adim no={3}>Sağdaki <Ad>Bağlantı</Ad> bölümünde hangi kabloyu nereye takacağınızı görürsünüz. Eksik kütüphaneler tek tıkla kurulur.</Adim>
           <Adim no={4}><Ad>Projeyi oluştur</Ad>'a basın; proje açılır, <Ad>Yükle</Ad> demeniz yeter.</Adim>
         </Adimlar>
+        <Baslik>Çevrimdışı kod tamamlama (IntelliSense)</Baslik>
+        <Par>Kod editörü; internet bağlantısı ya da harici bir derleyici sunucusu gerektirmeden tamamen çevrimdışı otomatik tamamlama, Türkçe fonksiyon açıklaması ve parametre ipucu sunar.</Par>
+        <Liste>
+          <Madde baslik="Arduino ve ESP32 API">Yazmaya başladığınızda temel fonksiyonlar (<Ad>pinMode</Ad>, <Ad>digitalWrite</Ad>, <Ad>millis</Ad>…), seçili karta göre pin sabitleri ve hazır kalıplar (<Ad>setup</Ad>, <Ad>loop</Ad>, <Ad>millis_zamanlayici</Ad>) önerilir.</Madde>
+          <Madde baslik="Kurulu kütüphaneler ve nesne üyeleri">Bilgisayarınızda kurulu kütüphanelerin başlık dosyaları taranır. <Ad>#include &lt;</Ad> yazarken başlıkları seçebilir, nesne adından sonra <Ad>.</Ad> (<Ad>Serial.</Ad> veya <Ad>sensor.</Ad>) koyduğunuzda sınıfın metotlarını görebilirsiniz.</Madde>
+          <Madde baslik="Açıklama ve parametre ipucu">Bir fonksiyonun üzerine fareyle geldiğinizde Türkçe açıklaması ve imzası görünür; parantez <Ad>(</Ad> açtığınızda o an doldurduğunuz parametre vurgulanır.</Madde>
+        </Liste>
         <Baslik>Kaydetme</Baslik>
         <Par>
           <Tus>Ctrl</Tus>+<Tus>S</Tus> açık dosyayı kaydeder; <Ad>Derle</Ad> ve <Ad>Yükle</Ad> kaydedilmemiş dosyaları kendileri kaydeder. Kaydedilmemiş sekmelerde ad yanında bir nokta görürsünüz.
@@ -241,6 +248,7 @@ export const YARDIM_KONULARI: YardimKonusu[] = [
           <Madde baslik="Zaman damgası">Her satırın başına saat ekler.</Madde>
           <Madde baslik="Oto kaydır">En yeni satırı hep gösterir; yukarı kaydırınca kendiliğinden kapanır.</Madde>
           <Madde baslik="Bootloader gizle">ESP32'nin açılışta bastığı teknik satırları (rst:, load:, entry …) soluklaştırıp süzer.</Madde>
+          <Madde baslik="AI'a Sor ve hata vurgusu">ESP32 çökme, Watchdog (WDT) veya güç düşümü (Brownout) satırları kırmızıyla vurgulanır. Üstteki <Ad>AI'a Sor</Ad> düğmesi son çıktıyı doğrudan Cloud AI'a gönderir; ayrıca asistan çalışırken açık seri portu kendisi de okuyabilir.</Madde>
         </Liste>
         <Ipucu>Yükleme sırasında ilgili port kısa süre kendiliğinden kapatılır ve yükleme bitince yeniden açılır. Bu sırada "Yükleme için geçici kapatıldı" yazar; endişelenmeyin.</Ipucu>
       </>
@@ -266,6 +274,8 @@ export const YARDIM_KONULARI: YardimKonusu[] = [
         <Par>Sekmede seçili kartın tüm pinleri küçük kutular olarak çizilir; her kutudaki renkli noktalar pinin ne yapabildiğini (PWM, analog, kesme, I2C, SPI…) gösterir. Kodunuzda kullandığınız pinler mavi çerçeveyle işaretlenir; bir pinin üzerine gelince tüm özellikleri ve koddaki rolü yazar. Kırmızı üstü çizili pinler flash belleğe bağlıdır, kullanmayın. Harita Arduino Uno/Nano/Mega, ESP32 ve ESP8266 için vardır.</Par>
         <Baslik>Sekmede ne görürsünüz</Baslik>
         <Par>Üstte durum satırı (kaç dosya tarandı, hangi kartın kuralları uygulandı), ardından bulgular; bir bulguya tıklayınca editörde o satıra gidilir. En altta kodda kullandığınız tüm pinlerin rollerini gösteren bir tablo vardır; kablolama yaparken bu tabloya bakabilirsiniz.</Par>
+        <Baslik>Bağlantı Kılavuzu sekmesi</Baslik>
+        <Par>Alt paneldeki <Ad>Bağlantı Kılavuzu</Ad> sekmesi kodunuzdan kullandığınız sensör, ekran, motor ve pinleri okuyarak etkileşimli bir kablolama şeması çıkarır. 3.3V / 5V mantık uyumu ve eksik direnç uyarılarını gösterir; <Ad>AI ile Oluştur</Ad> düğmesiyle Cloud AI'ın kılavuzu derinleştirip proje içine kaydetmesini sağlayabilir, <Ad>Bağladım</Ad> onay kutularıyla kablolama adımlarınızı takip edebilirsiniz.</Par>
         <Ipucu tur="dikkat">Bu bir ön kontroldür, derleyici değildir. Pin numarası bir değişkenle hesaplanıyorsa denetlenemez ve atlanır. Özel kuralları şimdilik Arduino Uno/Nano/Mega, ESP32 ve ESP8266 için vardır; diğer kartlarda yalnızca çakışma kontrolleri çalışır. Üst çubuktan kart seçmezseniz kart kuralları uygulanamaz.</Ipucu>
       </>
     )
@@ -324,8 +334,8 @@ export const YARDIM_KONULARI: YardimKonusu[] = [
         <Par>Asistan işini bitirince yanıtın altındaki <Ad>Değişiklikleri geri al</Ad> bağlantısıyla o yanıttaki tüm dosya değişikliklerini tek tıkla eski haline döndürebilirsiniz. Ayrıca asistan çalışmadan önce projenizin anlık görüntüsü <Ad>Sürüm geçmişi</Ad>ne de alınır.</Par>
         <Baslik>Seçili kodla çalışma</Baslik>
         <Par>Editörde bir kodu fare ile seçince üstünde küçük bir araç çubuğu çıkar: <Ad>AI ile Düzelt</Ad> seçili kodu düzeltmesini ister, <Ad>Açıkla</Ad> ne yaptığını satır satır, yeni başlayanlara uygun Türkçe anlattırır (kodu değiştirmez), <Ad>Prompt Gir</Ad> seçili kodu panele ekleyip kendi isteğinizi yazmanızı sağlar. Üçünde de istem panele hazırlanır; göndermek için <Tus>Enter</Tus>'a basarsınız.</Par>
-        <Baslik>Bilgi tabanı</Baslik>
-        <Par>Panel altındaki <Ad>Donanım ve bilgi tabanı</Ad>, asistanın kullandığı kart bilgilerini, kütüphane belgelerini ve sizin ekleyebileceğiniz özel notları gösterir. Kartınıza özgü bir kural eklemek isterseniz buradan ekleyebilirsiniz; asistan ilgili olduğunda bunlara başvurur.</Par>
+        <Baslik>Bilgi tabanı ve donanım araçları</Baslik>
+        <Par>Panel altındaki <Ad>Donanım ve bilgi tabanı</Ad>, asistanın kullandığı kart bilgilerini, kütüphane belgelerini ve sizin ekleyebileceğiniz özel notları gösterir. Ayrıca asistan gerektiğinde açık <Ad>Seri Monitör</Ad> çıktısını okuyabilir (onayınızla komut gönderebilir), pin kurallarını denetleyebilir ve <Ad>Bağlantı Kılavuzu</Ad>nu oluşturup güncelleyebilir.</Par>
         <Baslik>Bağlam göstergesi</Baslik>
         <Par>Sohbet uzadıkça modelin hatırlayabildiği miktar dolar. Giriş kutusu altındaki ince <Ad>Bağlam</Ad> göstergesi doluluğu gösterir; dolmaya yaklaşırsa <Ad>Geçmişi özetle</Ad> ile eski mesajları kısaltabilir veya yeni sohbet başlatabilirsiniz.</Par>
         <Ipucu tur="dikkat">Yapay zekâ hata yapabilir. Özellikle kart bağlantıları ve güç konusunda ürettiği kodu yüklemeden önce okuyun; pin denetimi ve derleme size ek güvence sağlar.</Ipucu>
@@ -350,6 +360,8 @@ export const YARDIM_KONULARI: YardimKonusu[] = [
               [['Ctrl', 'W'], 'Açık sekmeyi kapat'],
               [['Ctrl', 'Shift', 'M'], 'Seri monitörü aç/kapat'],
               [['Ctrl', 'Shift', 'N'], 'Yeni IDE penceresi'],
+              [['Ctrl', 'Space'], 'Otomatik tamamlama önerilerini aç'],
+              [['Ctrl', 'Shift', 'Space'], 'Parametre ipucunu göster'],
               [['F1'], 'Yardım'],
               [['Enter'], 'Cloud AI: mesajı gönder'],
               [['Esc'], 'Cloud AI: çalışmayı durdur']

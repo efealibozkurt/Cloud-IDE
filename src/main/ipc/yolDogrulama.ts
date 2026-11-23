@@ -9,8 +9,10 @@ import { basename, extname, isAbsolute } from 'path'
 const OKUNABILIR = new Set(['.ino', '.h', '.hpp', '.cpp', '.c', '.cc', '.hh', '.tpp', '.ipp', '.inc', '.s', '.md', '.txt'])
 /** Yazılabilen/silinebilen dosya uzantıları */
 const YAZILABILIR = new Set(['.ino', '.h', '.hpp', '.cpp', '.c'])
-/** Proje notları: sketch klasöründe tutulan tek kaynak-dışı dosya */
+/** Proje notları: sketch klasöründe tutulan kaynak-dışı dosya */
 const NOT_DOSYASI = 'NOTLAR.md'
+/** Bağlantı kılavuzu: sketch klasöründe tutulan etkileşimli kablolama verisi */
+const BAGLANTI_DOSYASI = 'BAGLANTI.json'
 
 export function mutlakYol(v: unknown, ad = 'Yol'): string {
   if (typeof v !== 'string' || v.length === 0 || v.length > 1024 || v.includes('\0') || !isAbsolute(v)) {
@@ -21,13 +23,15 @@ export function mutlakYol(v: unknown, ad = 'Yol'): string {
 
 export function okunabilirDosya(v: unknown): string {
   const yol = mutlakYol(v, 'Dosya yolu')
+  if (basename(yol) === BAGLANTI_DOSYASI) return yol
   if (!OKUNABILIR.has(extname(yol).toLowerCase())) throw new Error('Bu dosya türü okunamaz')
   return yol
 }
 
 export function yazilabilirDosya(v: unknown): string {
   const yol = mutlakYol(v, 'Dosya yolu')
-  if (basename(yol) === NOT_DOSYASI) return yol
+  const ad = basename(yol)
+  if (ad === NOT_DOSYASI || ad === BAGLANTI_DOSYASI) return yol
   if (!YAZILABILIR.has(extname(yol).toLowerCase())) throw new Error('Yalnızca .ino, .h, .hpp, .cpp ve .c dosyaları değiştirilebilir')
   return yol
 }

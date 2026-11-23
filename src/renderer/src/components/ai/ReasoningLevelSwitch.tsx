@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect, type ReactElement, type PointerEvent as ReactPointerEvent } from 'react'
 import type { ReasoningEffort } from '@shared/types'
+import { useT } from '../../i18n'
 
 interface ReasoningLevelSwitchProps {
   value: ReasoningEffort
@@ -44,6 +45,7 @@ const LEVELS: LevelConfig[] = [
 ]
 
 export function ReasoningLevelSwitch({ value, onChange, disabled }: ReasoningLevelSwitchProps): ReactElement {
+  const t = useT()
   const containerRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [buttonRects, setButtonRects] = useState<Array<{ left: number; width: number }>>([])
@@ -115,7 +117,7 @@ export function ReasoningLevelSwitch({ value, onChange, disabled }: ReasoningLev
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      title={`${activeItem.desc} (Sürükleyin veya tıklayın)`}
+      title={`${t(activeItem.desc)} (${t('Sürükleyin veya tıklayın')})`}
       className={`relative inline-flex h-7 shrink-0 cursor-grab items-center rounded-lg border border-panel-border bg-black/45 p-0.5 select-none transition-opacity active:cursor-grabbing ${
         disabled ? 'opacity-40 pointer-events-none' : ''
       }`}
@@ -144,13 +146,13 @@ export function ReasoningLevelSwitch({ value, onChange, disabled }: ReasoningLev
               e.stopPropagation()
               onChange(lvl.id)
             }}
-            title={lvl.desc}
+            title={t(lvl.desc)}
             className={`relative z-10 flex h-6 items-center justify-center gap-1.5 rounded-md px-2 text-[10px] font-medium transition-all ${
               isCurrent ? `font-semibold ${lvl.color}` : 'text-gray-400 hover:text-gray-200'
             }`}
           >
             {lvl.renderIcon(isCurrent ? 'h-3.5 w-3.5 shrink-0' : 'h-3.5 w-3.5 shrink-0 opacity-70')}
-            {isCurrent && <span className="tracking-tight">{lvl.label}</span>}
+            {isCurrent && <span className="tracking-tight">{t(lvl.label)}</span>}
           </button>
         )
       })}

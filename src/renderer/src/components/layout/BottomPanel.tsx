@@ -10,12 +10,14 @@ import type { BuildSizeItem } from '@shared/types'
 import { useAppState } from '../../state/AppStateContext'
 import ProblemsPanel from '../build/ProblemsPanel'
 import PinPanel from '../build/PinPanel'
+import BaglantiKilavuzuPanel from '../build/BaglantiKilavuzuPanel'
 import { YardimDugmesi } from '../common/YardimDugmesi'
 import type { YardimKonuId } from '../help/yardimKonulari'
 import { usePinSorunlari } from '../../hooks/usePinSorunlari'
 import SerialMonitor from '../serial/SerialMonitor'
+import { useT } from '../../i18n'
 
-export type BottomPanelTab = 'cikti' | 'seri' | 'problems' | 'pinler'
+export type BottomPanelTab = 'cikti' | 'seri' | 'pinler' | 'baglanti' | 'problems'
 
 interface BottomPanelProps {
   activeTab: BottomPanelTab
@@ -23,7 +25,13 @@ interface BottomPanelProps {
   onClose: () => void
 }
 
-const YARDIM_KONUSU: Record<BottomPanelTab, YardimKonuId> = { cikti: 'derleme', seri: 'seri', problems: 'derleme', pinler: 'pin' }
+const YARDIM_KONUSU: Record<BottomPanelTab, YardimKonuId> = {
+  cikti: 'derleme',
+  seri: 'seri',
+  pinler: 'pin',
+  baglanti: 'pin',
+  problems: 'derleme'
+}
 
 const MIN_HEIGHT = 120
 const MAX_HEIGHT = 640
@@ -34,6 +42,7 @@ const DEFAULT_HEIGHT = 240
  * sağlar. Üst kenarından fare ile sürüklenerek yüksekliği değiştirilebilir.
  */
 function BottomPanel({ activeTab, onTabChange, onClose }: BottomPanelProps): ReactElement {
+  const t = useT()
   const { state } = useAppState()
   const [height, setHeight] = useState(DEFAULT_HEIGHT)
   const isDragging = useRef(false)
@@ -80,12 +89,13 @@ function BottomPanel({ activeTab, onTabChange, onClose }: BottomPanelProps): Rea
   }
 
   const TABS: { id: BottomPanelTab; label: string }[] = [
-    { id: 'cikti', label: 'Çıktı' },
-    { id: 'seri', label: 'Seri Monitör' },
-    { id: 'pinler', label: pinSorunlari.length > 0 ? `Pin denetimi (${pinSorunlari.length})` : 'Pin denetimi' },
+    { id: 'cikti', label: t('Çıktı') },
+    { id: 'seri', label: t('Seri Monitör') },
+    { id: 'pinler', label: pinSorunlari.length > 0 ? `${t('Pin denetimi')} (${pinSorunlari.length})` : t('Pin denetimi') },
+    { id: 'baglanti', label: t('Bağlantı Kılavuzu') },
     {
       id: 'problems',
-      label: hataSayisi + uyariSayisi > 0 ? `Problems (${hataSayisi + uyariSayisi})` : 'Problems'
+      label: hataSayisi + uyariSayisi > 0 ? `${t('Problems')} (${hataSayisi + uyariSayisi})` : t('Problems')
     }
   ]
 
@@ -97,7 +107,7 @@ function BottomPanel({ activeTab, onTabChange, onClose }: BottomPanelProps): Rea
       {/* Yükseklik sürükleme tutamacı */}
       <div
         onMouseDown={startDrag}
-        title="Sürükleyerek boyutlandır"
+        title={t('Sürükleyerek boyutlandır')}
         className="absolute -top-1 left-0 right-0 z-10 h-2 cursor-row-resize"
       />
 
@@ -117,7 +127,7 @@ function BottomPanel({ activeTab, onTabChange, onClose }: BottomPanelProps): Rea
         ))}
         <div className="flex-1" />
         {state.build.boyut && (
-          <div className="mr-3 flex items-center gap-4" aria-label="Bellek kullanımı">
+          <div className="mr-3 flex items-center gap-4" aria-label={t('Bellek kullanımı')}>
             {state.build.boyut.flash && <BoyutCubugu ad="Flash" oge={state.build.boyut.flash} />}
             {state.build.boyut.ram && <BoyutCubugu ad="RAM" oge={state.build.boyut.ram} />}
           </div>
@@ -125,7 +135,7 @@ function BottomPanel({ activeTab, onTabChange, onClose }: BottomPanelProps): Rea
         <YardimDugmesi konu={YARDIM_KONUSU[activeTab]} />
         <button
           onClick={onClose}
-          title="Alt paneli kapat"
+          title={t('Alt paneli kapat')}
           className="mr-2 flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:bg-panel-border hover:text-gray-200"
         >
           <CloseIcon />
@@ -138,14 +148,15 @@ function BottomPanel({ activeTab, onTabChange, onClose }: BottomPanelProps): Rea
             {state.build.currentOperation && (
               <div className="mb-1 flex items-center gap-1.5 text-accent-hover">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
-                {state.build.currentOperation === 'compile' ? 'Derleniyor...' : 'Yükleniyor...'}
+                {state.build.currentOperation === 'compile' ? t('Derleniyor...') : t('Yükleniyor...')}
               </div>
             )}
-            {state.build.log || 'Henüz bir derleme/yükleme yapılmadı. (Ctrl+R derle, Ctrl+U yükle)'}
+            {state.build.log || t('Henüz bir derleme/yükleme yapılmadı. (Ctrl+R derle, Ctrl+U yükle)')}
           </pre>
         )}
         {activeTab === 'seri' && <SerialMonitor />}
-        {activeTab === 'pinler' && <PinPanel sonuc={pinSonuc} />}
+        {activeTab === 'pinler' && <PinPanel sonuc={pinSonuc} onOpenBaglanti={() => onTabChange('baglanti')} />}
+        {activeTab === 'baglanti' && <BaglantiKilavuzuPanel />}
         {activeTab === 'problems' && <ProblemsPanel pinSorunlari={pinSorunlari} />}
       </div>
     </section>

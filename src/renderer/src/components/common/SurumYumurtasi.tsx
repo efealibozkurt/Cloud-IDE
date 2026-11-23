@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactElement } from 'react'
+import { useT } from '../../i18n'
 import { SURUM_ADLARI, surumAdiBul, type SurumAdi } from '@shared/surumAdlari'
 
 interface SurumYumurtasiProps {
@@ -32,6 +33,7 @@ function BulutSekli({ boyut, saydamlik }: { boyut: number; saydamlik: number }):
  * geldiğini ve bundan sonraki bulutları gösterir; bulutlar ekranda süzülür.
  */
 function SurumYumurtasi({ surum, onKapat }: SurumYumurtasiProps): ReactElement {
+  const t = useT()
   const simdiki = surumAdiBul(surum)
   const [bakilan, setBakilan] = useState<SurumAdi>(simdiki)
 
@@ -49,7 +51,7 @@ function SurumYumurtasi({ surum, onKapat }: SurumYumurtasiProps): ReactElement {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={`Sürüm kod adı: ${simdiki.ad}`}
+      aria-label={`${t('Sürüm kod adı')}: ${simdiki.ad}`}
       onClick={onKapat}
       className="fixed inset-0 z-[90] overflow-hidden bg-[#0a121b]/95 backdrop-blur-sm"
       style={{ animation: 'surum-belir 400ms ease-out both' }}
@@ -61,7 +63,7 @@ function SurumYumurtasi({ surum, onKapat }: SurumYumurtasiProps): ReactElement {
       ))}
 
       <div className="relative z-10 flex h-full flex-col items-center justify-center px-6" onClick={(e) => e.stopPropagation()}>
-        <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-sky-300/70">v{surum} · kod adı</p>
+        <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-sky-300/70">v{surum} · {t('kod adı')}</p>
         <h1 className="mt-3 font-serif text-[76px] font-normal italic leading-none text-white">{simdiki.ad}</h1>
         <div className="mt-5 space-y-1.5" aria-hidden="true">
           {[1, 0.55, 0.28].map((o, i) => (
@@ -70,7 +72,7 @@ function SurumYumurtasi({ surum, onKapat }: SurumYumurtasiProps): ReactElement {
         </div>
         <p className="mt-6 max-w-md text-center text-[14px] leading-relaxed text-sky-100/80">{simdiki.bulut}</p>
 
-        <ol className="mt-10 w-full max-w-sm" aria-label="Bulut basamakları">
+        <ol className="mt-10 w-full max-w-sm" aria-label={t('Bulut basamakları')}>
           {sira.map((a) => {
             const buradasin = a.ad === simdiki.ad
             const gelecek = SURUM_ADLARI.indexOf(a) > SURUM_ADLARI.indexOf(simdiki)
@@ -91,7 +93,7 @@ function SurumYumurtasi({ surum, onKapat }: SurumYumurtasiProps): ReactElement {
                   </span>
                   <span className={`w-28 shrink-0 text-right text-[13px] ${buradasin ? 'font-semibold text-white' : gelecek ? 'text-sky-100/40' : 'text-sky-100/80'}`}>
                     {a.ad}
-                    {buradasin && <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[#3ddc84] shadow-[0_0_6px_#3ddc84]" title="Buradasın" />}
+                    {buradasin && <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[#3ddc84] shadow-[0_0_6px_#3ddc84]" title={t('Buradasın')} />}
                   </span>
                 </button>
               </li>
@@ -106,7 +108,7 @@ function SurumYumurtasi({ surum, onKapat }: SurumYumurtasiProps): ReactElement {
           <p className="mt-0.5">{bakilan.donem}</p>
         </div>
 
-        <p className="mt-6 text-[11px] text-sky-200/35">Her sürümde bulut biraz daha yükselir · kapatmak için tıklayın ya da Esc</p>
+        <p className="mt-6 text-[11px] text-sky-200/35">{t('Her sürümde bulut biraz daha yükselir · kapatmak için tıklayın ya da Esc')}</p>
       </div>
     </div>
   )

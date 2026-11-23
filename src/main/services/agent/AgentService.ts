@@ -14,6 +14,7 @@ import type { ArduinoCliService } from '../ArduinoCliService'
 import type { BoardContext, BoardSkillEngine } from '../BoardSkillEngine'
 import type { DeviceLock } from '../DeviceLock'
 import type { SecretsService } from '../SecretsService'
+import type { SerialService } from '../SerialService'
 import type { SettingsService } from '../SettingsService'
 import type { SketchService } from '../SketchService'
 import { AgentWorkspace, CheckpointStore } from './AgentWorkspace'
@@ -40,6 +41,8 @@ export interface AgentServiceBagimliliklari {
   /** Derleme/yükleme karşılıklı dışlaması (UI ile çakışmayı önler) */
   deviceLock: DeviceLock
   sketchService: SketchService
+  /** Açık seri portları okuma/yazma araçları için opsiyonel servis */
+  serial?: SerialService
   /** Belgelerim/Cloud_IDE_Sketches */
   sketchbookDir: string
   userDataDir: string
@@ -300,6 +303,7 @@ export class AgentService {
         ws,
         arduino: this.d.arduino,
         kilit: this.d.deviceLock,
+        serial: this.d.serial,
         derlemeyiKaydet: this.d.history
           ? (klasor, fqbn, sonuc) => derlemeyiGecmiseIsle(this.d.history!, this.d.settings, klasor, fqbn, sonuc)
           : undefined,
@@ -522,6 +526,10 @@ export class AgentService {
     const b = p.board
     satirlar.push(`Seçili kart: ${b?.name || '(seçilmedi)'}${b?.fqbn ? ` [${b.fqbn}]` : ''}${b?.platformName ? ` — ${b.platformName}` : ''}`)
     if (p.port) satirlar.push(`Seçili port: ${p.port}`)
+    const acikSeri = this.d.serial?.acikPortlar() ?? []
+    if (acikSeri.length > 0) {
+      satirlar.push(`Açık seri portlar: ${acikSeri.map((s) => `${s.port} @ ${s.baud}`).join(', ')}`)
+    }
     const klasorler = ws.bilinenSketchKlasorleri()
     satirlar.push(`Açık sketch sayısı: ${klasorler.length}`)
     for (const k of klasorler.slice(0, 12)) {

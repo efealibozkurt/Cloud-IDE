@@ -1,5 +1,6 @@
 import { type ReactElement } from 'react'
 import type { RagChunkSummary, SkillsInfoResult } from '@shared/types'
+import { useT } from '../../i18n'
 import { RefreshIcon, CopyIcon, CheckIcon, SearchIcon } from './skillsIcons'
 
 const AILE_STILI: Record<string, string> = {
@@ -54,12 +55,13 @@ export function RagVectorView({
   kopyalaMetin: (text: string) => void
   kopyalandi: boolean
 }): ReactElement {
+  const t = useT()
   return (
     <div className="flex h-full flex-col">
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/[0.07] bg-white/[0.02] px-6 py-3 text-xs">
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-1 font-medium text-emerald-300">
-            {ragStatus?.totalChunks ?? 0} kayıt
+            {t('{n} kayıt', { n: ragStatus?.totalChunks ?? 0 })}
           </span>
           <span
             className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${
@@ -67,17 +69,17 @@ export function RagVectorView({
             }`}
           >
             <span className={`h-1.5 w-1.5 rounded-full ${ragStatus?.modelLoaded ? 'bg-sky-400' : 'animate-pulse bg-amber-400'}`} />
-            {ragStatus?.modelLoaded ? 'Anlamsal arama hazır' : 'Anlamsal arama yükleniyor, sözcük araması çalışıyor'}
+            {ragStatus?.modelLoaded ? t('Anlamsal arama hazır') : t('Anlamsal arama yükleniyor, sözcük araması çalışıyor')}
           </span>
         </div>
         <button
           onClick={onReindex}
           disabled={reindexing}
           className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 font-medium text-gray-100 transition-colors hover:bg-white/10 disabled:opacity-50"
-          title="Kurulu kütüphaneleri ve örnekleri yeniden tarar"
+          title={t('Kurulu kütüphaneleri ve örnekleri yeniden tarar')}
         >
           <RefreshIcon className={`h-3.5 w-3.5 ${reindexing ? 'animate-spin' : ''}`} />
-          {reindexing ? 'Taranıyor…' : 'Kütüphaneleri yeniden tara'}
+          {reindexing ? t('Taranıyor…') : t('Kütüphaneleri yeniden tara')}
         </button>
       </div>
 
@@ -90,20 +92,20 @@ export function RagVectorView({
               type="text"
               value={query}
               onChange={(e) => onQueryChange(e.target.value)}
-              placeholder="Ara: wifi, servo, imu…"
-              aria-label="Kayıtlarda ara"
+              placeholder={t('Ara: wifi, servo, imu…')}
+              aria-label={t('Kayıtlarda ara')}
               className="w-full rounded-lg border border-white/10 bg-[#0b0d13] py-1.5 pl-8 pr-2.5 text-xs text-gray-100 outline-none placeholder:text-gray-600 focus:border-[#2aa8f2]/70"
             />
             </span>
             <select
               value={familyFilter}
               onChange={(e) => onFamilyFilterChange(e.target.value)}
-              aria-label="Kart ailesi"
+              aria-label={t('Kart ailesi')}
               className="w-28 rounded border border-panel-border bg-panel px-1.5 py-1.5 text-xs text-gray-200 outline-none focus:border-accent"
             >
               {AILELER.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.ad}
+                  {t(a.ad)}
                 </option>
               ))}
             </select>
@@ -111,7 +113,7 @@ export function RagVectorView({
 
           <ul className="min-h-0 flex-1 overflow-y-auto">
             {chunks.length === 0 ? (
-              <li className="p-6 text-center text-xs text-gray-500">Aramanızla eşleşen kayıt yok.</li>
+              <li className="p-6 text-center text-xs text-gray-500">{t('Aramanızla eşleşen kayıt yok.')}</li>
             ) : (
               chunks.map((c) => {
                 const secili = selectedChunk?.id === c.id
@@ -124,9 +126,9 @@ export function RagVectorView({
                       {secili && <span className="absolute inset-y-1 left-0 w-1 rounded-r bg-gradient-to-b from-[#0e7fc4] to-[#2aa8f2]" />}
                       <p className="truncate text-[13px] font-medium text-gray-100">{c.title}</p>
                       <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
-                        <span className={`shrink-0 rounded-full border px-1.5 py-px text-[10px] ${ailePuli(c.boardFamily)}`}>{c.boardFamily || 'genel'}</span>
+                        <span className={`shrink-0 rounded-full border px-1.5 py-px text-[10px] ${ailePuli(c.boardFamily)}`}>{c.boardFamily || t('genel')}</span>
                         <span className="truncate">{c.sourceOwner}</span>
-                        {c.isCustom && <span className="shrink-0 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-1.5 py-px text-[10px] text-cyan-300">sizin</span>}
+                        {c.isCustom && <span className="shrink-0 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-1.5 py-px text-[10px] text-cyan-300">{t('sizin')}</span>}
                       </p>
                     </button>
                   </li>
@@ -151,7 +153,7 @@ export function RagVectorView({
                   className="flex shrink-0 items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-gray-100 transition-colors hover:bg-white/10"
                 >
                   {kopyalandi ? <CheckIcon className="h-3.5 w-3.5 text-emerald-400" /> : <CopyIcon className="h-3.5 w-3.5 text-gray-400" />}
-                  {kopyalandi ? 'Kopyalandı' : 'Kopyala'}
+                  {kopyalandi ? t('Kopyalandı') : t('Kopyala')}
                 </button>
               </div>
               <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap bg-[#0b0d13] p-5 font-mono text-xs leading-relaxed text-sky-100/90">
@@ -159,7 +161,7 @@ export function RagVectorView({
               </pre>
             </>
           ) : (
-            <div className="flex h-full items-center justify-center text-xs text-gray-500">Soldan bir kayıt seçin.</div>
+            <div className="flex h-full items-center justify-center text-xs text-gray-500">{t('Soldan bir kayıt seçin.')}</div>
           )}
         </div>
       </div>

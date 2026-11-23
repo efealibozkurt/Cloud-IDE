@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties, type ReactElement } from 'react'
 import cloudIcon from '../../assets/icon.png'
 import { surumAdiBul } from '@shared/surumAdlari'
+import { useT } from '../../i18n'
 
 interface DeveloperMessageModalProps {
   onClose: () => void
@@ -39,6 +40,7 @@ const MEKTUP_YAZISI: CSSProperties = { fontFamily: "Georgia, 'Palatino Linotype'
  * sağda kısa bir mektubu ve sürüm durumunu gösterir.
  */
 function DeveloperMessageModal({ onClose }: DeveloperMessageModalProps): ReactElement {
+  const t = useT()
   const [birDahaGosterme, setBirDahaGosterme] = useState(false)
   const [surum, setSurum] = useState('0.1.5')
   useEffect(() => {
@@ -81,8 +83,8 @@ function DeveloperMessageModal({ onClose }: DeveloperMessageModalProps): ReactEl
       >
         <button
           onClick={kapat}
-          title="Kapat (Esc)"
-          aria-label="Kapat"
+          title={t('Kapat (Esc)')}
+          aria-label={t('Kapat')}
           className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-white/10 hover:text-white"
         >
           <CloseIcon />
@@ -99,13 +101,13 @@ function DeveloperMessageModal({ onClose }: DeveloperMessageModalProps): ReactEl
                 <p className="text-[17px] leading-tight text-white" style={MEKTUP_YAZISI}>
                   Efe Ali Bozkurt
                 </p>
-                <p className="mt-0.5 text-xs text-gray-500">Cloud IDE’nin yapımcısı</p>
+                <p className="mt-0.5 text-xs text-gray-500">{t('Cloud IDE’nin yapımcısı')}</p>
               </div>
             </div>
 
             <p
               className="mt-5 inline-block -rotate-2 rounded border border-dashed border-amber-400/50 px-2.5 py-1 font-mono text-[11px] tracking-wide text-amber-300"
-              title="Uygulamanın şu anki sürümü"
+              title={t('Uygulamanın şu anki sürümü')}
             >
               v{surum} · {surumAdiBul(surum).ad} · beta
             </p>
@@ -123,7 +125,7 @@ function DeveloperMessageModal({ onClose }: DeveloperMessageModalProps): ReactEl
                     >
                       <Ikon />
                       <span className="min-w-0 flex-1">
-                        <span className="block text-xs text-gray-300 group-hover:text-white">{b.name}</span>
+                        <span className="block text-xs text-gray-300 group-hover:text-white">{t(b.name)}</span>
                         <span className="block truncate text-[11px] text-gray-600">{b.label}</span>
                       </span>
                       <ArrowUpRightIcon className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
@@ -137,22 +139,20 @@ function DeveloperMessageModal({ onClose }: DeveloperMessageModalProps): ReactEl
           {/* Sağ taraf: mektup ve sürüm durumu */}
           <div className="min-h-0 flex-1 overflow-y-auto px-8 py-7">
             <h2 id="gelistirici-notu-baslik" className="text-[26px] leading-tight text-white" style={MEKTUP_YAZISI}>
-              Merhaba,
+              {t('Merhaba,')}
             </h2>
 
             <div className="mt-4 max-w-[58ch] space-y-4 text-[15px] leading-[1.75] text-gray-300" style={MEKTUP_YAZISI}>
               <p>
-                Yapay zekâ sayesinde artık kodlama ve gömülü sistem bilmeyen insanların da aklındaki fiziksel projeleri yapabileceğine
-                inanıyorum. Cloud IDE’yi bu düşünceyle geliştirdim: donanım ve yazılım önündeki teknik engellerin kalkması için.
+                {t('Yapay zekâ sayesinde artık kodlama ve gömülü sistem bilmeyen insanların da aklındaki fiziksel projeleri yapabileceğine inanıyorum. Cloud IDE’yi bu düşünceyle geliştirdim: donanım ve yazılım önündeki teknik engellerin kalkması için.')}
               </p>
               <p>
-                Fikir geçen yıldan kalma, ama uygulamanın kendisi son bir ayın yoğun çalışmasıyla çıktı. Bu sürümde kendi içinde gelen
-                derleyici, kartınızı tanıyan bir yapay zekâ asistanı ve kütüphane bilginizi tarayan yerel bir bilgi tabanı var.
+                {t('Fikir geçen yıldan kalma, ama uygulamanın kendisi son bir ayın yoğun çalışmasıyla çıktı. Bu sürümde kendi içinde gelen derleyici, kartınızı tanıyan bir yapay zekâ asistanı ve kütüphane bilginizi tarayan yerel bir bilgi tabanı var.')}
               </p>
               <blockquote className="border-l-2 border-amber-400/70 py-0.5 pl-4 text-[17px] italic text-gray-100">
-                Yapay zekâ ile artık her şeyi yapabilirsiniz, ama en önemli olan şey hâlâ sizin yönlendirmeniz ve özgünlüğünüz.
+                {t('Yapay zekâ ile artık her şeyi yapabilirsiniz, ama en önemli olan şey hâlâ sizin yönlendirmeniz ve özgünlüğünüz.')}
               </blockquote>
-              <p>İyi kullanmalar. Geri bildirimleriniz bir sonraki sürümleri şekillendiriyor.</p>
+              <p>{t('İyi kullanmalar. Geri bildirimleriniz bir sonraki sürümleri şekillendiriyor.')}</p>
             </div>
 
             <p className="mt-5 text-[22px] italic text-amber-300" style={MEKTUP_YAZISI}>
@@ -161,21 +161,20 @@ function DeveloperMessageModal({ onClose }: DeveloperMessageModalProps): ReactEl
 
             {/* Sürüm durumu: zaman çizgisi (şimdi → sırada) */}
             <div className="mt-8 border-t border-white/[0.07] pt-5">
-              <h3 className="text-xs font-semibold text-gray-400">Sürüm durumu</h3>
+              <h3 className="text-xs font-semibold text-gray-400">{t('Sürüm durumu')}</h3>
               <ol className="relative mt-3 space-y-4 pl-6 before:absolute before:bottom-1 before:left-[5px] before:top-1.5 before:w-px before:bg-white/15">
                 <li className="relative">
                   <span className="absolute -left-6 top-1 h-[11px] w-[11px] rounded-full border-2 border-emerald-400 bg-[#14161d]" />
-                  <p className="text-xs font-semibold text-emerald-300">Şimdi</p>
+                  <p className="text-xs font-semibold text-emerald-300">{t('Şimdi')}</p>
                   <p className="mt-0.5 text-xs leading-relaxed text-gray-400">
-                    Yerleşik Arduino CLI, çoklu yapay zekâ sağlayıcısı (Gemini, OpenAI, Claude, DeepSeek, Kimi, NVIDIA, Ollama, LM Studio),
-                    kod düzenleyip derleyebilen asistan ve yerel bilgi tabanı.
+                    {t('Yerleşik Arduino CLI, çoklu yapay zekâ sağlayıcısı (Gemini, OpenAI, Claude, DeepSeek, Kimi, NVIDIA, Ollama, LM Studio), kod düzenleyip derleyebilen asistan ve yerel bilgi tabanı.')}
                   </p>
                 </li>
                 <li className="relative">
                   <span className="absolute -left-6 top-1 h-[11px] w-[11px] rounded-full border-2 border-dashed border-gray-500 bg-[#14161d]" />
-                  <p className="text-xs font-semibold text-gray-300">Sırada</p>
+                  <p className="text-xs font-semibold text-gray-300">{t('Sırada')}</p>
                   <p className="mt-0.5 text-xs leading-relaxed text-gray-400">
-                    Devre şemasından pin bağlantılarına ve donanım testine kadar uçtan uca yapay zekâ destekli geliştirme modu.
+                    {t('Devre şemasından pin bağlantılarına ve donanım testine kadar uçtan uca yapay zekâ destekli geliştirme modu.')}
                   </p>
                 </li>
               </ol>
@@ -186,7 +185,7 @@ function DeveloperMessageModal({ onClose }: DeveloperMessageModalProps): ReactEl
               {SOSYAL_MEDYA_BAGLANTILARI.map((b) => (
                 <li key={b.id}>
                   <button onClick={() => window.open(b.url, '_blank')} className="text-gray-400 underline-offset-2 hover:text-white hover:underline">
-                    {b.name}
+                    {t(b.name)}
                   </button>
                 </li>
               ))}
@@ -202,13 +201,13 @@ function DeveloperMessageModal({ onClose }: DeveloperMessageModalProps): ReactEl
               onChange={(e) => setBirDahaGosterme(e.target.checked)}
               className="h-3.5 w-3.5 cursor-pointer accent-amber-400"
             />
-            Açılışta bir daha gösterme
+            {t('Açılışta bir daha gösterme')}
           </label>
           <button
             onClick={kapat}
             className="rounded-lg bg-amber-400 px-5 py-2 text-xs font-semibold text-[#1a1405] transition-colors hover:bg-amber-300 active:scale-[0.98]"
           >
-            Başlayalım
+            {t('Başlayalım')}
           </button>
         </div>
       </div>

@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement, type UIEvent } from 'react'
+import { BOOTLOADER_DESENI, hataSatiriMi } from '@shared/seriTeshis'
 import type { LineEnding } from '@shared/types'
 import { useAppState } from '../../state/AppStateContext'
 import SerialPlotter from './SerialPlotter'
-
-/** ESP32/ESP8266 önyükleyici (bootloader) çıktısına ait yaygın satır kalıpları (en iyi çaba, kesin değil) */
-const BOOTLOADER_DESENI = /^(rst:|ets |load:|entry |ho \d|configsip:|clk_drv:|mode:|invalid header|waiting for download)/i
+import { useI18n } from '../../i18n'
 
 /** Her satır sabit yükseklikte tutulur (sanal liste hesaplarının basit kalması için satırlar kaydırılmaz) */
 const SATIR_YUKSEKLIGI = 18
@@ -21,7 +20,8 @@ const PORT_RENKLERI = ['text-sky-400', 'text-amber-400', 'text-emerald-400', 'te
  * DOM'a yalnızca o an görünen satırlar + küçük bir taşma payı eklenir.
  */
 function SerialMonitor(): ReactElement {
-  const { state, connectSerial, disconnectSerial, writeSerial, clearSerial } = useAppState()
+  const { t, dil } = useI18n()
+  const { state, connectSerial, disconnectSerial, writeSerial, clearSerial, askDretAi } = useAppState()
   const [zamanDamgasi, setZamanDamgasi] = useState(false)
   const [otoKaydirma, setOtoKaydirma] = useState(true)
   const [satirSonu, setSatirSonu] = useState<LineEnding>('nl')
@@ -83,6 +83,24 @@ function SerialMonitor(): ReactElement {
     setMesaj('')
   }
 
+  const sorAiya = (): void => {
+    if (gorunurSatirlar.length === 0) return
+    const son = gorunurSatirlar.slice(-60)
+    const metin = son
+      .map((s) => `${portlar.length > 1 ? `[${kisaAd(s.port)}] ` : ''}${s.text}`)
+      .join('\n')
+    const baglam = [
+      hedefPort ? `Port: ${hedefPort}${hedefBaud ? ` @ ${hedefBaud} baud` : ''}` : null,
+      state.arduinoCli.selectedFqbn ? `Kart: ${state.arduinoCli.selectedFqbn}` : null
+    ]
+      .filter(Boolean)
+      .join(' · ')
+    askDretAi(
+      metin,
+      `Seri monitördeki bu çıktıyı incele${baglam ? ` (${baglam})` : ''}. Bir çökme, hata, baud uyumsuzluğu veya beklenmeyen davranış varsa nedenini açıkla ve gerekirse kodu düzelt.`
+    )
+  }
+
   const toplamYukseklik = gorunurSatirlar.length * SATIR_YUKSEKLIGI
   const baslangicIndex = Math.max(0, Math.floor(scrollTop / SATIR_YUKSEKLIGI) - ASIRI_RENDER)
   const bitisIndex = Math.min(
@@ -99,45 +117,53 @@ function SerialMonitor(): ReactElement {
           <span className="text-gray-400">
             {durum.open
               ? portlar.length > 1
-                ? `${portlar.length} port bağlı`
-                : `Bağlı: ${hedefPort} @ ${hedefBaud}`
+                ? t('{n} port bağlı', { n: portlar.length })
+                : t('Bağlı: {port} @ {baud}', { port: hedefPort ?? '', baud: hedefBaud ?? '' })
               : durum.temporarilyClosedForUpload
-                ? 'Yükleme için geçici kapatıldı...'
-                : 'Bağlı değil'}
+                ? t('Yükleme için geçici kapatıldı...')
+                : t('Bağlı değil')}
           </span>
         </span>
         <div className="flex-1" />
-        <div role="tablist" aria-label="Görünüm" className="flex gap-0.5 rounded-[5px] border border-panel-border bg-panel p-0.5">
+        <div role="tablist" aria-label={t('Görünüm')} className="flex gap-0.5 rounded-[5px] border border-panel-border bg-panel p-0.5">
           {(['metin', 'grafik'] as const).map((g) => (
             <button
               key={g}
               role="tab"
               aria-selected={gorunum === g}
               onClick={() => setGorunum(g)}
-              title={g === 'grafik' ? 'Gelen sayıları canlı grafik olarak çiz' : 'Satırları metin olarak göster'}
+              title={g === 'grafik' ? t('Gelen sayıları canlı grafik olarak çiz') : t('Satırları metin olarak göster')}
               className={`rounded-[3px] px-2 py-0.5 text-[11px] ${gorunum === g ? 'bg-panel-light text-gray-100' : 'text-gray-500 hover:text-gray-200'}`}
             >
-              {g === 'metin' ? 'Metin' : 'Grafik'}
+              {g === 'metin' ? t('Metin') : t('Grafik')}
             </button>
           ))}
         </div>
         <label className="flex items-center gap-1 text-gray-500">
           <input type="checkbox" checked={zamanDamgasi} onChange={(e) => setZamanDamgasi(e.target.checked)} />
-          Zaman damgası
+          {t('Zaman damgası')}
         </label>
         <label className="flex items-center gap-1 text-gray-500">
           <input type="checkbox" checked={otoKaydirma} onChange={(e) => setOtoKaydirma(e.target.checked)} />
-          Oto kaydır
+          {t('Oto kaydır')}
         </label>
         <label className="flex items-center gap-1 text-gray-500">
           <input type="checkbox" checked={bootloaderGizle} onChange={(e) => setBootloaderGizle(e.target.checked)} />
-          Bootloader gizle
+          {t('Bootloader gizle')}
         </label>
+        <button
+          onClick={sorAiya}
+          disabled={gorunurSatirlar.length === 0}
+          title={t('Son seri monitör çıktısını Cloud AI ile analiz et')}
+          className="rounded border border-accent/40 bg-accent/10 px-2 py-0.5 text-[#7cc4f0] hover:enabled:bg-accent/20 disabled:opacity-40"
+        >
+          {t("AI'a Sor")}
+        </button>
         <button
           onClick={() => clearSerial(aktifSekme === 'hepsi' ? undefined : aktifSekme)}
           className="rounded border border-panel-border px-2 py-0.5 text-gray-400 hover:bg-panel-border"
         >
-          Temizle
+          {t('Temizle')}
         </button>
         {durum.open && (
           <button
@@ -145,21 +171,21 @@ function SerialMonitor(): ReactElement {
             disabled={durum.temporarilyClosedForUpload}
             className="rounded border border-red-700 px-2 py-0.5 text-red-300 hover:enabled:bg-red-950 disabled:opacity-50"
           >
-            {portlar.length > 1 ? `${kisaAd(hedefPort ?? '')} kes` : 'Kes'}
+            {portlar.length > 1 ? `${kisaAd(hedefPort ?? '')} ${t('kes')}` : t('Kes')}
           </button>
         )}
         <button
           onClick={() => void connectSerial()}
           disabled={durum.temporarilyClosedForUpload}
-          title={durum.open ? 'Üst çubukta seçili portu da bağla (diğer bağlantılar açık kalır)' : undefined}
+          title={durum.open ? t('Üst çubukta seçili portu da bağla (diğer bağlantılar açık kalır)') : undefined}
           className="rounded border border-accent px-2 py-0.5 text-accent-hover hover:enabled:bg-accent/20 disabled:opacity-50"
         >
-          {durum.open ? 'Port ekle' : 'Bağlan'}
+          {durum.open ? t('Port ekle') : t('Bağlan')}
         </button>
       </div>
 
       {portlar.length > 1 && (
-        <div role="tablist" aria-label="Seri portlar" className="flex shrink-0 items-center gap-1 border-b border-panel-border px-2 py-1">
+        <div role="tablist" aria-label={t('Seri portlar')} className="flex shrink-0 items-center gap-1 border-b border-panel-border px-2 py-1">
           {['hepsi', ...portlar.map((p) => p.port)].map((id) => {
             const secili = id === aktifSekme
             const sira = portlar.findIndex((p) => p.port === id)
@@ -174,7 +200,7 @@ function SerialMonitor(): ReactElement {
                 }`}
               >
                 {id !== 'hepsi' && <span className={`h-1.5 w-1.5 rounded-full bg-current ${PORT_RENKLERI[sira % PORT_RENKLERI.length]}`} aria-hidden="true" />}
-                {id === 'hepsi' ? 'Tümü' : `${kisaAd(id)} @ ${portlar[sira].baud}`}
+                {id === 'hepsi' ? t('Tümü') : `${kisaAd(id)} @ ${portlar[sira].baud}`}
               </button>
             )
           })}
@@ -189,13 +215,14 @@ function SerialMonitor(): ReactElement {
       <div ref={kaydirmaRef} onScroll={kaydirmaDegisti} className="flex-1 overflow-auto p-1.5 font-mono">
         {gorunurSatirlar.length === 0 && (
           <p className="text-gray-600">
-            {durum.open ? 'Veri bekleniyor...' : "Bağlanmak için üst çubuktan bir port seçip 'Bağlan'a tıklayın."}
+            {durum.open ? t('Veri bekleniyor...') : t("Bağlanmak için üst çubuktan bir port seçip 'Bağlan'a tıklayın.")}
           </p>
         )}
         {gorunurSatirlar.length > 0 && (
           <div style={{ height: toplamYukseklik, position: 'relative' }}>
             {gorunenDilim.map((satir, i) => {
               const bootloaderMu = BOOTLOADER_DESENI.test(satir.text)
+              const hataMi = hataSatiriMi(satir.text)
               return (
                 <div
                   key={satir.id}
@@ -207,11 +234,11 @@ function SerialMonitor(): ReactElement {
                     height: SATIR_YUKSEKLIGI,
                     lineHeight: `${SATIR_YUKSEKLIGI}px`
                   }}
-                  className={`whitespace-nowrap ${bootloaderMu ? 'text-gray-600' : 'text-gray-300'}`}
+                  className={`whitespace-nowrap ${hataMi ? 'text-red-400' : bootloaderMu ? 'text-gray-600' : 'text-gray-300'}`}
                 >
                   {zamanDamgasi && (
                     <span className="mr-2 text-gray-600">
-                      {new Date(satir.timestamp).toLocaleTimeString('tr-TR')}
+                      {new Date(satir.timestamp).toLocaleTimeString(dil === 'en' ? 'en-US' : 'tr-TR')}
                     </span>
                   )}
                   {aktifSekme === 'hepsi' && portlar.length > 1 && (
@@ -234,7 +261,7 @@ function SerialMonitor(): ReactElement {
           onChange={(e) => setMesaj(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && gonder()}
           disabled={!durum.open}
-          placeholder={durum.open ? 'Gönderilecek veri...' : 'Bağlanmadan veri gönderilemez'}
+          placeholder={durum.open ? t('Gönderilecek veri...') : t('Bağlanmadan veri gönderilemez')}
           className="flex-1 rounded border border-panel-border bg-panel px-2 py-1 text-gray-200 outline-none disabled:opacity-50"
         />
         <select
@@ -242,7 +269,7 @@ function SerialMonitor(): ReactElement {
           onChange={(e) => setSatirSonu(e.target.value as LineEnding)}
           className="rounded border border-panel-border bg-panel px-1 py-1 text-gray-300"
         >
-          <option value="none">Satır sonu yok</option>
+          <option value="none">{t('Satır sonu yok')}</option>
           <option value="nl">NL</option>
           <option value="cr">CR</option>
           <option value="nlcr">NL+CR</option>
@@ -252,7 +279,7 @@ function SerialMonitor(): ReactElement {
           disabled={!durum.open}
           className="rounded border border-panel-border bg-panel px-2 py-1 text-gray-300 hover:enabled:bg-panel-border disabled:opacity-50"
         >
-          Gönder
+          {t('Gönder')}
         </button>
       </div>
     </div>

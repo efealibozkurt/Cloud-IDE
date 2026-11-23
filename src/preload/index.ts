@@ -47,6 +47,7 @@ const arduinoCli: ArduinoCliAPI = {
   listPorts: () => ipcRenderer.invoke(IPC_CHANNELS.arduinoCli.listPorts),
   listAllBoards: () => ipcRenderer.invoke(IPC_CHANNELS.arduinoCli.listAllBoards),
   listLibraries: (force) => ipcRenderer.invoke(IPC_CHANNELS.arduinoCli.listLibraries, force),
+  getLibrarySymbols: (force) => ipcRenderer.invoke(IPC_CHANNELS.arduinoCli.getLibrarySymbols, force),
   searchLibraries: (query) => ipcRenderer.invoke(IPC_CHANNELS.arduinoCli.searchLibraries, query),
   getBoardOptions: (fqbn) => ipcRenderer.invoke(IPC_CHANNELS.arduinoCli.getBoardOptions, fqbn),
   listUpdatableLibraries: (force) => ipcRenderer.invoke(IPC_CHANNELS.arduinoCli.listUpdatableLibraries, force),

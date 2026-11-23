@@ -133,7 +133,14 @@ interface AppState {
     targetRange?: { startLine: number; endLine: number }
     isWriting: boolean
   } | null
+  /** Ajanın yazdığı kodun editörde daktilo gibi akması: içerik zaten diske yazılmış ve durumda güncel; yalnızca görsel efekt */
+  aiYazim: { id: number; filePath: string; onceki: string; hedef: string } | null
+  /** BAGLANTI.json güncellendiğinde Bağlantı Kılavuzu panelini yenilemek için sayaç */
+  baglantiSurumu: number
 }
+
+/** Yazım efektlerini ayırt etmek için artan kimlik */
+let aiYazimSayaci = 0
 
 const baslangicDurumu: AppState = {
   ready: false,
@@ -156,7 +163,9 @@ const baslangicDurumu: AppState = {
   },
   dretAi: { open: false, seed: null },
   editorHighlight: null,
-  aiDiffReview: null
+  aiDiffReview: null,
+  aiYazim: null,
+  baglantiSurumu: 0
 }
 
 // ────────────────────────────────────────────────────────────────────────
@@ -220,9 +229,12 @@ type Action =
       newCode: string
       targetRange?: { startLine: number; endLine: number }
     }
+  | { type: 'aiYazim/basladi'; id: number; filePath: string; onceki: string; hedef: string }
+  | { type: 'aiYazim/bitti'; id: number }
   | { type: 'aiDiff/writingFinished' }
   | { type: 'aiDiff/accepted' }
   | { type: 'aiDiff/rejected' }
+  | { type: 'baglanti/yenilendi' }
 
 const SERI_TAMPON_LIMIT = 5000
 const OTOMATIK_ANLIK_ARALIK_MS = 2 * 60 * 1000
@@ -527,6 +539,10 @@ function reducer(state: AppState, action: Action): AppState {
           isWriting: true
         }
       }
+    case 'aiYazim/basladi':
+      return { ...state, aiYazim: { id: action.id, filePath: action.filePath, onceki: action.onceki, hedef: action.hedef } }
+    case 'aiYazim/bitti':
+      return state.aiYazim && state.aiYazim.id === action.id ? { ...state, aiYazim: null } : state
     case 'aiDiff/writingFinished':
       return state.aiDiffReview
         ? { ...state, aiDiffReview: { ...state.aiDiffReview, isWriting: false } }
@@ -535,6 +551,8 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, aiDiffReview: null }
     case 'aiDiff/rejected':
       return { ...state, aiDiffReview: null }
+    case 'baglanti/yenilendi':
+      return { ...state, baglantiSurumu: state.baglantiSurumu + 1 }
 
     default:
       return state
@@ -596,6 +614,8 @@ interface AppStateBaglami {
   /** AI kodu editöre yazma ve Onayla/Reddet akışını başlatır */
   startAiDiffReview: (filePath: string, newCode: string, targetRange?: { startLine: number; endLine: number }) => void | Promise<void>
   setAiDiffWritingFinished: () => void
+  /** Editördeki yazım efekti bitince çağrılır */
+  aiYazimBitti: (id: number) => void
   acceptAiDiff: () => void | Promise<void>
   rejectAiDiff: () => void
   // sketch
@@ -1041,12 +1061,17 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
         }
       }
     }
+    if (folders.length > 0) dispatch({ type: 'baglanti/yenilendi' })
   }, [])
 
   const syncAgentChanges = useCallback(
     async (changes: AgentChangeItem[]): Promise<void> => {
       const yenilenecek = new Set<string>()
+      let baglantiGuncellendi = false
       for (const c of changes) {
+        if (c.fileName?.toUpperCase() === 'BAGLANTI.JSON' || c.path.toLowerCase().endsWith('baglanti.json')) {
+          baglantiGuncellendi = true
+        }
         switch (c.kind) {
           case 'write_file':
           case 'create_file': {
@@ -1054,6 +1079,19 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
             if (c.content !== undefined) {
               const acik = stateRef.current.sketch.tabs.some((t) => ayniDosyaMi(t.path, c.path))
               if (acik) {
+                const sekme = stateRef.current.sketch.tabs.find((t) => ayniDosyaMi(t.path, c.path))
+                const aktifMi = ayniDosyaMi(stateRef.current.sketch.activeTabPath ?? '', c.path)
+                // Yalnızca açık ve görünen sekmede, makul boyutta içerikte optik tarama yazım efektini oynat
+                if (
+                  sekme &&
+                  aktifMi &&
+                  sekme.content !== c.content &&
+                  c.content.length < 60000 &&
+                  !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+                ) {
+                  aiYazimSayaci += 1
+                  dispatch({ type: 'aiYazim/basladi', id: aiYazimSayaci, filePath: c.path, onceki: sekme.content, hedef: c.content })
+                }
                 dispatch({ type: 'sketch/tabContentChanged', path: c.path, content: c.content })
                 dispatch({ type: 'sketch/tabSaved', path: c.path, content: c.content })
               }
@@ -1081,6 +1119,7 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
         }
       }
       if (yenilenecek.size > 0) await reloadSketchFolders([...yenilenecek])
+      if (baglantiGuncellendi) dispatch({ type: 'baglanti/yenilendi' })
     },
     [reloadSketchFolders]
   )
@@ -1184,6 +1223,10 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
 
   const setAiDiffWritingFinished = useCallback(() => {
     dispatch({ type: 'aiDiff/writingFinished' })
+  }, [])
+
+  const aiYazimBitti = useCallback((id: number) => {
+    dispatch({ type: 'aiYazim/bitti', id })
   }, [])
 
   const acceptAiDiff = useCallback(async () => {
@@ -1819,6 +1862,7 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
       clearEditorHighlight,
       startAiDiffReview,
       setAiDiffWritingFinished,
+      aiYazimBitti,
       acceptAiDiff,
       rejectAiDiff,
       newSketch,
@@ -1885,6 +1929,7 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
       clearEditorHighlight,
       startAiDiffReview,
       setAiDiffWritingFinished,
+      aiYazimBitti,
       acceptAiDiff,
       rejectAiDiff,
       newSketch,

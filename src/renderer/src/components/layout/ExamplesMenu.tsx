@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react'
 import type { ExampleGroup } from '@shared/types'
 import { useAppState } from '../../state/AppStateContext'
+import { useT } from '../../i18n'
 
 interface ExamplesMenuProps {
   onClose: () => void
@@ -13,6 +14,7 @@ interface ExamplesMenuProps {
  * doğrudan sketch olarak açılır (bkz. AppStateContext.openExample).
  */
 function ExamplesMenu({ onClose }: ExamplesMenuProps): ReactElement {
+  const t = useT()
   const { openExample } = useAppState()
   const [gruplar, setGruplar] = useState<ExampleGroup[] | null>(null)
   const [hata, setHata] = useState<string | null>(null)
@@ -26,7 +28,7 @@ function ExamplesMenu({ onClose }: ExamplesMenuProps): ReactElement {
         if (!iptalEdildi) setGruplar(sonuc)
       })
       .catch((h) => {
-        if (!iptalEdildi) setHata(h instanceof Error ? h.message : 'Örnekler yüklenemedi')
+        if (!iptalEdildi) setHata(h instanceof Error ? h.message : t('Örnekler yüklenemedi'))
       })
     return () => {
       iptalEdildi = true
@@ -63,22 +65,22 @@ function ExamplesMenu({ onClose }: ExamplesMenuProps): ReactElement {
           autoFocus
           value={arama}
           onChange={(e) => setArama(e.target.value)}
-          placeholder="Örnek ara..."
+          placeholder={t('Örnek ara...')}
           className="w-full rounded border border-panel-border bg-panel px-2 py-1 text-xs text-gray-200 outline-none focus:border-accent"
         />
       </div>
       <div className="max-h-96 overflow-y-auto p-1 text-xs">
-        {!gruplar && !hata && <div className="p-3 text-center text-gray-500">Yükleniyor...</div>}
+        {!gruplar && !hata && <div className="p-3 text-center text-gray-500">{t('Yükleniyor...')}</div>}
         {hata && <div className="p-3 text-center text-red-400">{hata}</div>}
         {gruplar && filtrelenmis.length === 0 && (
           <div className="p-3 text-center text-gray-500">
-            {aramaAktif ? 'Eşleşen örnek yok' : 'Kurulu kütüphane/kart örneği yok'}
+            {aramaAktif ? t('Eşleşen örnek yok') : t('Kurulu kütüphane/kart örneği yok')}
           </div>
         )}
         {kutuphaneGruplari.length > 0 && (
           <div className="mb-1">
             <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
-              Kütüphanelerim
+              {t('Kütüphanelerim')}
             </div>
             {kutuphaneGruplari.map((g) => (
               <ExampleGroupItem key={`library-${g.ownerName}`} grup={g} zorlaAcik={aramaAktif} onSelect={secildi} />
@@ -88,7 +90,7 @@ function ExamplesMenu({ onClose }: ExamplesMenuProps): ReactElement {
         {cekirdekGruplari.length > 0 && (
           <div>
             <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
-              Kart Örnekleri
+              {t('Kart Örnekleri')}
             </div>
             {cekirdekGruplari.map((g) => (
               <ExampleGroupItem

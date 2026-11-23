@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactElement } from 'react'
 import { Tus } from '../common/Tus'
+import { useT } from '../../i18n'
 
 export const TUR_GORULDU_ANAHTARI = 'cloud_ide_tur_goruldu'
 
@@ -79,6 +80,7 @@ interface Kutu {
  * işaretlidir; ekranda bulunmayan (ör. kapalı bir panel) adımlar kendiliğinden atlanır.
  */
 function TurRehberi({ onBitti }: { onBitti: () => void }): ReactElement | null {
+  const t = useT()
   const [sira, setSira] = useState(0)
   const [kutu, setKutu] = useState<Kutu | null>(null)
   const [olcum, setOlcum] = useState(0)
@@ -156,7 +158,7 @@ function TurRehberi({ onBitti }: { onBitti: () => void }): ReactElement | null {
   }
 
   return (
-    <div className="fixed inset-0 z-[85]" role="dialog" aria-modal="true" aria-label="Başlangıç turu">
+    <div className="fixed inset-0 z-[85]" role="dialog" aria-modal="true" aria-label={t('Başlangıç turu')}>
       {kutu ? (
         <div
           className="pointer-events-none absolute rounded-[8px] ring-2 ring-[#7cc4f0]"
@@ -180,16 +182,16 @@ function TurRehberi({ onBitti }: { onBitti: () => void }): ReactElement | null {
         <p className="font-mono text-[10.5px] tracking-wide text-gray-500">
           {sira + 1} / {gorunenAdimlar.length}
         </p>
-        <h3 className="mt-1 text-[14px] font-semibold text-gray-100">{adim.baslik}</h3>
-        <p className="mt-1.5 text-[12.5px] leading-relaxed text-gray-400">{adim.metin}</p>
+        <h3 className="mt-1 text-[14px] font-semibold text-gray-100">{t(adim.baslik)}</h3>
+        <p className="mt-1.5 text-[12.5px] leading-relaxed text-gray-400">{t(adim.metin)}</p>
         <div className="mt-4 flex items-center justify-between">
           <button onClick={bitir} className="text-[12px] text-gray-500 hover:text-gray-200">
-            Atla
+            {t('Atla')}
           </button>
           <div className="flex gap-2">
-            {sira > 0 && <Tus onClick={geri}>Geri</Tus>}
+            {sira > 0 && <Tus onClick={geri}>{t('Geri')}</Tus>}
             <Tus tur="birincil" onClick={ileri} autoFocus>
-              {sira >= gorunenAdimlar.length - 1 ? 'Bitir' : 'İleri'}
+              {sira >= gorunenAdimlar.length - 1 ? t('Bitir') : t('İleri')}
             </Tus>
           </div>
         </div>

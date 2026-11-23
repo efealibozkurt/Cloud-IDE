@@ -3,6 +3,7 @@ import type { CustomSkill, RagChunkSummary, SkillsInfoResult } from '@shared/typ
 import { ArchitecturesView } from './ArchitecturesView'
 import { RagVectorView } from './RagVectorView'
 import { CustomMarkdownSkillsView } from './CustomSkillsView'
+import { useT } from '../../i18n'
 import { CloseIcon, CpuIcon, DatabaseIcon, FileCodeIcon, MicrochipIcon } from './skillsIcons'
 
 interface RagSkillsModalProps {
@@ -18,6 +19,7 @@ interface RagSkillsModalProps {
 type TabType = 'architectures' | 'rag' | 'custom'
 
 export function RagSkillsModal({ isOpen, onClose, activeBoardContext }: RagSkillsModalProps): ReactElement | null {
+  const t = useT()
   const [activeTab, setActiveTab] = useState<TabType>('architectures')
   const [loading, setLoading] = useState(true)
   const [loadingError, setLoadingError] = useState<string | null>(null)
@@ -55,7 +57,7 @@ export function RagSkillsModal({ isOpen, onClose, activeBoardContext }: RagSkill
 
       // 8 saniyelik zaman aşımı emniyeti
       const zamanAsimi = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Yükleme zaman aşımına uğradı')), 8000)
+        setTimeout(() => reject(new Error(t('Yükleme zaman aşımına uğradı'))), 8000)
       )
 
       const [info, customList, dirPath] = await Promise.race([yuklemeIslemi, zamanAsimi])
@@ -72,7 +74,7 @@ export function RagSkillsModal({ isOpen, onClose, activeBoardContext }: RagSkill
       }
     } catch (err: any) {
       console.error('RAG ve Beceri verileri yüklenemedi:', err)
-      setLoadingError(err?.message || 'Veriler yüklenirken bir sorun oluştu.')
+      setLoadingError(err?.message || t('Veriler yüklenirken bir sorun oluştu.'))
     } finally {
       setLoading(false)
     }
@@ -181,9 +183,9 @@ export function RagSkillsModal({ isOpen, onClose, activeBoardContext }: RagSkill
   }
 
   const sekmeler: Array<{ id: TabType; ad: string; sayi?: number; ikon: typeof CpuIcon; renk: string }> = [
-    { id: 'architectures', ad: 'Kartlar', ikon: CpuIcon, renk: 'text-sky-400' },
-    { id: 'rag', ad: 'Bilgi tabanı', sayi: skillsInfo?.chunks.length || 0, ikon: DatabaseIcon, renk: 'text-emerald-400' },
-    { id: 'custom', ad: 'Kurallarım', sayi: customSkills.length, ikon: FileCodeIcon, renk: 'text-cyan-400' }
+    { id: 'architectures', ad: t('Kartlar'), ikon: CpuIcon, renk: 'text-sky-400' },
+    { id: 'rag', ad: t('Bilgi tabanı'), sayi: skillsInfo?.chunks.length || 0, ikon: DatabaseIcon, renk: 'text-emerald-400' },
+    { id: 'custom', ad: t('Kurallarım'), sayi: customSkills.length, ikon: FileCodeIcon, renk: 'text-cyan-400' }
   ]
 
   return (
@@ -196,7 +198,7 @@ export function RagSkillsModal({ isOpen, onClose, activeBoardContext }: RagSkill
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Donanım ve bilgi tabanı"
+        aria-label={t('Donanım ve bilgi tabanı')}
         className="flex h-[84vh] max-h-[780px] min-h-[480px] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#12141c] text-gray-200 shadow-[0_24px_80px_rgba(0,0,0,0.7),0_0_60px_rgba(14,127,196,0.15)]"
       >
         {/* Üst şerit: ikon, başlık ve sekmeler */}
@@ -210,17 +212,17 @@ export function RagSkillsModal({ isOpen, onClose, activeBoardContext }: RagSkill
               </span>
               <div className="min-w-0">
                 <h2 className="bg-gradient-to-r from-white to-[#bfe3fa] bg-clip-text text-lg font-semibold text-transparent">
-                  Donanım ve bilgi tabanı
+                  {t('Donanım ve bilgi tabanı')}
                 </h2>
                 <p className="mt-0.5 text-xs text-gray-400">
-                  Yapay zekânın kartınız, kütüphaneleriniz ve kendi kurallarınız hakkında bildiklerini buradan görür ve düzenlersiniz.
+                  {t('Yapay zekânın kartınız, kütüphaneleriniz ve kendi kurallarınız hakkında bildiklerini buradan görür ve düzenlersiniz.')}
                 </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              title="Kapat (Esc)"
-              aria-label="Kapat"
+              title={t('Kapat (Esc)')}
+              aria-label={t('Kapat')}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
             >
               <CloseIcon className="h-4 w-4" />
@@ -228,23 +230,23 @@ export function RagSkillsModal({ isOpen, onClose, activeBoardContext }: RagSkill
           </div>
 
           <div role="tablist" className="relative mt-4 flex gap-1 px-5">
-            {sekmeler.map((t) => {
-              const secili = activeTab === t.id
-              const Ikon = t.ikon
+            {sekmeler.map((sek) => {
+              const secili = activeTab === sek.id
+              const Ikon = sek.ikon
               return (
                 <button
-                  key={t.id}
+                  key={sek.id}
                   role="tab"
                   aria-selected={secili}
-                  onClick={() => setActiveTab(t.id)}
+                  onClick={() => setActiveTab(sek.id)}
                   className={`relative flex items-center gap-2 rounded-t-lg px-4 py-2.5 text-[13px] font-medium transition-colors ${
                     secili ? 'bg-white/[0.06] text-white' : 'text-gray-400 hover:bg-white/[0.03] hover:text-gray-200'
                   }`}
                 >
-                  <Ikon className={`h-4 w-4 ${t.renk}`} />
-                  {t.ad}
-                  {t.sayi !== undefined && (
-                    <span className="rounded-full bg-white/10 px-1.5 py-px text-[10.5px] tabular-nums text-gray-300">{t.sayi}</span>
+                  <Ikon className={`h-4 w-4 ${sek.renk}`} />
+                  {sek.ad}
+                  {sek.sayi !== undefined && (
+                    <span className="rounded-full bg-white/10 px-1.5 py-px text-[10.5px] tabular-nums text-gray-300">{sek.sayi}</span>
                   )}
                   {secili && <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-gradient-to-r from-[#0e7fc4] to-[#2aa8f2]" />}
                 </button>
@@ -257,13 +259,13 @@ export function RagSkillsModal({ isOpen, onClose, activeBoardContext }: RagSkill
           {loading ? (
             <div className="flex h-full items-center justify-center gap-2 text-xs text-gray-500">
               <span className="h-3.5 w-3.5 animate-spin rounded-full border border-gray-500 border-t-transparent" />
-              Yükleniyor…
+              {t('Yükleniyor…')}
             </div>
           ) : loadingError ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
               <p className="max-w-md text-xs text-rose-300">{loadingError}</p>
               <button onClick={verileriYukle} className="rounded border border-panel-border px-3 py-1.5 text-xs text-gray-200 hover:bg-white/5">
-                Tekrar dene
+                {t('Tekrar dene')}
               </button>
             </div>
           ) : activeTab === 'architectures' ? (

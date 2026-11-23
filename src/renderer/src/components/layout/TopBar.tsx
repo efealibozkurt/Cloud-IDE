@@ -10,6 +10,7 @@ import { surumAdiBul } from '@shared/surumAdlari'
 import ExamplesMenu from './ExamplesMenu'
 import BoardPicker from '../boards/BoardPicker'
 import type { AIModeOrigin } from '../ai/AIModeScreen'
+import { useT } from '../../i18n'
 import beyazCloudIde from '../../assets/beyaz_cloud_ide.png'
 
 interface TopBarProps {
@@ -58,6 +59,7 @@ function TopBar({
   } = useAppState()
   const { platforms, ports, busy, selectedFqbn, selectedPort, selectedBaud, status } = state.arduinoCli
 
+  const t = useT()
   const { yardimAc } = useYardim()
   const [yumurtaAcik, setYumurtaAcik] = useState(false)
   const rozetTiklari = useRef<number[]>([])
@@ -73,7 +75,7 @@ function TopBar({
   const kartlar = tumKartlariDuzlestir(platforms)
   const hataSayisi = state.build.errors.filter((h) => h.tur === 'error').length
   const uyariSayisi = state.build.errors.filter((h) => h.tur === 'warning').length
-  const meşgulNedeni = busy ? 'Bir derleme/yükleme işlemi zaten çalışıyor' : undefined
+  const meşgulNedeni = busy ? t('Bir derleme/yükleme işlemi zaten çalışıyor') : undefined
 
   const [ornekMenuAcik, setOrnekMenuAcik] = useState(false)
   const ornekMenuRef = useRef<HTMLDivElement>(null)
@@ -120,15 +122,15 @@ function TopBar({
 
       <div data-tur="derle" className="flex items-center gap-2">
       <ToolbarButton
-        label="Derle"
-        title={meşgulNedeni ?? "Sketch'i derle (Ctrl+R)"}
+        label={t('Derle')}
+        title={meşgulNedeni ?? t("Sketch'i derle (Ctrl+R)")}
         disabled={busy}
         onClick={() => void compileActive()}
         icon={<CompileIcon />}
       />
       <ToolbarButton
-        label="Yükle"
-        title={meşgulNedeni ?? 'Karta yükle (Ctrl+U)'}
+        label={t('Yükle')}
+        title={meşgulNedeni ?? t('Karta yükle (Ctrl+U)')}
         disabled={busy}
         onClick={() => void uploadActive()}
         icon={<UploadIcon />}
@@ -137,8 +139,8 @@ function TopBar({
 
       <div ref={ornekMenuRef} data-tur="ornekler" className="relative">
         <ToolbarButton
-          label="Örnekler"
-          title="Kurulu kütüphane/kart örneklerini aç"
+          label={t('Örnekler')}
+          title={t('Kurulu kütüphane/kart örneklerini aç')}
           onClick={() => setOrnekMenuAcik((a) => !a)}
           icon={<ExamplesIcon />}
         />
@@ -156,8 +158,8 @@ function TopBar({
         <select
           value={state.sketch.activeSketchPath || state.sketch.info?.folderPath || ''}
           onChange={(e) => setActiveSketch(e.target.value)}
-          aria-label="Derlenecek proje"
-          title="Derle ve Yükle düğmeleri bu projeye uygulanır"
+          aria-label={t('Derlenecek proje')}
+          title={t('Derle ve Yükle düğmeleri bu projeye uygulanır')}
           className="h-7 min-w-0 max-w-[120px] rounded border border-panel-border bg-panel px-2 text-xs text-gray-300 outline-none focus:border-accent lg:max-w-[180px]"
         >
           {state.sketch.workspaceSketches.map((sk) => (
@@ -180,10 +182,10 @@ function TopBar({
           disabled={busy || !status?.found}
           value={selectedPort ?? ''}
           onChange={(e) => selectPort(e.target.value || null)}
-          title="Port seçici (3 saniyede bir otomatik yenilenir)"
+          title={t('Port seçici (3 saniyede bir otomatik yenilenir)')}
           className="h-7 min-w-0 max-w-[130px] rounded border border-panel-border bg-panel px-2 text-xs text-gray-300 disabled:cursor-not-allowed disabled:text-gray-500 lg:max-w-[200px]"
         >
-          <option value="">Port bulunamadı</option>
+          <option value="">{t('Port bulunamadı')}</option>
           {ports.map((p) => (
             <option key={p.address} value={p.address}>
               {p.address}
@@ -194,7 +196,7 @@ function TopBar({
         <button
           onClick={() => void refreshPorts()}
           disabled={busy || !status?.found}
-          title="Port listesini şimdi yenile"
+          title={t('Port listesini şimdi yenile')}
           className="flex h-7 w-7 items-center justify-center rounded border border-panel-border bg-panel text-gray-400 hover:enabled:bg-panel-border disabled:cursor-not-allowed disabled:text-gray-600"
         >
           <RefreshIcon />
@@ -205,7 +207,7 @@ function TopBar({
         disabled={busy}
         value={selectedBaud}
         onChange={(e) => selectBaud(Number(e.target.value) as BaudRate)}
-        title="Baud hızı"
+        title={t('Baud hızı')}
         className="h-7 rounded border border-panel-border bg-panel px-2 text-xs text-gray-300 disabled:cursor-not-allowed"
       >
         {BAUD_RATES.map((b) => (
@@ -219,7 +221,7 @@ function TopBar({
 
       <button
         onClick={onToggleSerialMonitor}
-        title="Seri Monitör'ü aç/kapat (Ctrl+Shift+M)"
+        title={t("Seri Monitör'ü aç/kapat (Ctrl+Shift+M)")}
         className={`flex h-7 items-center gap-1.5 rounded border px-2 text-xs transition-colors ${
           serialMonitorActive
             ? 'border-accent bg-accent/20 text-accent-hover'
@@ -227,7 +229,7 @@ function TopBar({
         }`}
       >
         <SerialIcon />
-        <span className="hidden lg:inline">Seri Monitör</span>
+        <span className="hidden lg:inline">{t('Seri Monitör')}</span>
       </button>
 
       {/* Dar pencerede (<1280px) yer açmak için gizlenir; "yakında" yer tutucusudur */}
@@ -235,12 +237,12 @@ function TopBar({
         <button
           ref={aiButtonRef}
           onClick={aiModunuAc}
-          title="AI ile Geliştir (Yakında - Farklı AI Ajan Sistemi) · Kod yazma ve düzenleme için Cloud AI aktiftir"
+          title={t('AI ile Geliştir (Yakında - Farklı AI Ajan Sistemi) · Kod yazma ve düzenleme için Cloud AI aktiftir')}
           className="flex h-7 items-center gap-1.5 rounded-full border border-white/10 bg-panel px-2.5 text-xs text-gray-400 hover:border-white/20 hover:text-gray-200"
         >
           <SparkleIcon className="text-gray-500" />
-          <span>AI ile Geliştir</span>
-          <span className="rounded bg-white/5 px-1 py-0.2 text-[9px] text-gray-500">Yakında</span>
+          <span>{t('AI ile Geliştir')}</span>
+          <span className="rounded bg-white/5 px-1 py-0.2 text-[9px] text-gray-500">{t('Yakında')}</span>
         </button>
       </div>
 
@@ -249,22 +251,22 @@ function TopBar({
       {onOpenDeveloperMessage && (
         <button
           onClick={onOpenDeveloperMessage}
-          title="Geliştiriciden Mesaj & Beta Sürüm Notu"
+          title={t('Geliştiriciden Mesaj & Beta Sürüm Notu')}
           className="flex h-7 items-center gap-1.5 rounded border border-panel-border bg-panel px-2 text-xs text-gray-300 transition-colors hover:border-sky-500/40 hover:bg-panel-border hover:text-white"
         >
           <DeveloperIcon />
-          <span className="hidden xl:inline text-[11px]">Geliştirici & Sürüm Notu</span>
+          <span className="hidden xl:inline text-[11px]">{t('Geliştirici & Sürüm Notu')}</span>
           <span className="hidden rounded border border-amber-500/30 bg-amber-500/15 px-1 py-px text-[8.5px] font-bold text-amber-300 uppercase xl:inline">BETA</span>
         </button>
       )}
 
       <button
         onClick={() => void openInNewWindow()}
-        title="Yeni IDE Penceresi Aç (Ctrl+Shift+N)"
+        title={t('Yeni IDE Penceresi Aç (Ctrl+Shift+N)')}
         className="flex h-7 items-center gap-1.5 rounded border border-panel-border bg-panel px-2 text-xs text-gray-300 transition-colors hover:border-cyan-500/40 hover:bg-panel-border hover:text-cyan-200"
       >
         <WindowTopBarIcon />
-        <span className="hidden xl:inline text-[11px]">Yeni Pencere</span>
+        <span className="hidden xl:inline text-[11px]">{t('Yeni Pencere')}</span>
       </button>
 
       <GuncellemeDugmesi />
@@ -272,8 +274,8 @@ function TopBar({
       <button
         onClick={() => yardimAc()}
         data-tur="yardim"
-        title="Yardım ve rehber (F1)"
-        aria-label="Yardım ve rehber"
+        title={t('Yardım ve rehber (F1)')}
+        aria-label={t('Yardım ve rehber')}
         className="flex h-7 w-7 items-center justify-center rounded border border-panel-border bg-panel text-gray-400 hover:bg-panel-border hover:text-gray-200"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -284,7 +286,7 @@ function TopBar({
 
       <button
         onClick={onOpenSettings}
-        title="Uygulama Ayarları"
+        title={t('Uygulama Ayarları')}
         className="flex h-7 w-7 items-center justify-center rounded border border-panel-border bg-panel text-gray-400 hover:bg-panel-border hover:text-gray-200"
       >
         <SettingsIcon />

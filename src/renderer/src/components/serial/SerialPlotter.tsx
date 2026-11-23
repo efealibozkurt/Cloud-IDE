@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import { seriOrnekleriniTopla } from '../../utils/seriCizici'
+import { useT } from '../../i18n'
 
 const RENKLER = ['#4fb3f0', '#f0a24f', '#5fd68a', '#e86a8a', '#c9b24f', '#4fd1c5', '#e0794f', '#a3b1c2']
 const PENCERELER = [100, 300, 1000]
@@ -19,6 +20,7 @@ function sayiMetni(n: number): string {
  * `Serial.println("a:1 b:2")` ya da `1,2,3` biçimi kullanılabilir. Y ekseni kendiliğinden ölçeklenir.
  */
 function SerialPlotter({ satirlar }: { satirlar: string[] }): ReactElement {
+  const t = useT()
   const [pencere, setPencere] = useState(300)
   const [durdu, setDurdu] = useState(false)
   const [gizli, setGizli] = useState<Set<string>>(new Set())
@@ -126,7 +128,7 @@ function SerialPlotter({ satirlar }: { satirlar: string[] }): ReactElement {
                   return y
                 })
               }
-              title={kapali ? 'Çizgiyi göster' : 'Çizgiyi gizle'}
+              title={kapali ? t('Çizgiyi göster') : t('Çizgiyi gizle')}
               className={`flex items-center gap-1.5 rounded px-1 py-0.5 text-[11px] hover:bg-white/[0.06] ${kapali ? 'opacity-40' : ''}`}
             >
               <span className="h-2 w-2 rounded-full" style={{ background: RENKLER[i % RENKLER.length] }} />
@@ -137,7 +139,7 @@ function SerialPlotter({ satirlar }: { satirlar: string[] }): ReactElement {
         })}
         <div className="flex-1" />
         <label className="flex items-center gap-1 text-[11px] text-gray-500">
-          Pencere
+          {t('Pencere')}
           <select
             value={pencere}
             onChange={(e) => setPencere(Number(e.target.value))}
@@ -145,7 +147,7 @@ function SerialPlotter({ satirlar }: { satirlar: string[] }): ReactElement {
           >
             {PENCERELER.map((p) => (
               <option key={p} value={p}>
-                {p} örnek
+                {t('{n} örnek', { n: p })}
               </option>
             ))}
           </select>
@@ -154,15 +156,14 @@ function SerialPlotter({ satirlar }: { satirlar: string[] }): ReactElement {
           onClick={() => setDurdu((d) => !d)}
           className={`rounded border px-2 py-0.5 text-[11px] ${durdu ? 'border-amber-500/60 text-amber-300' : 'border-panel-border text-gray-400 hover:bg-panel-border'}`}
         >
-          {durdu ? 'Devam' : 'Duraklat'}
+          {durdu ? t('Devam') : t('Duraklat')}
         </button>
       </div>
       <div ref={kapRef} className="relative min-h-0 flex-1">
         <canvas ref={canvasRef} style={{ width: boyut.w, height: boyut.h }} className="absolute inset-0" />
         {bos && (
           <p className="absolute inset-0 flex items-center justify-center px-6 text-center text-xs leading-relaxed text-gray-600">
-            Çizilecek sayı bekleniyor. Kodunuzda Serial.println(deger) ya da Serial.println(&quot;sicaklik:&quot; + String(t)) gibi sayı gönderin;
-            birden çok değeri virgül veya boşlukla ayırabilirsiniz.
+            {t('Çizilecek sayı bekleniyor. Kodunuzda Serial.println(deger) ya da Serial.println("sicaklik:" + String(t)) gibi sayı gönderin; birden çok değeri virgül veya boşlukla ayırabilirsiniz.')}
           </p>
         )}
       </div>

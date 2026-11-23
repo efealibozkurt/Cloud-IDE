@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactElement } from 'react'
 import '@fontsource/bricolage-grotesque/600.css'
 import { useToast } from '../../state/ToastContext'
+import { useT } from '../../i18n'
 
 /** Kapanış animasyonunun süresiyle (ms) birebir eşleşmeli — bkz. aşağıdaki `duration-[600ms]` sınıfları */
 const GECIS_SURESI_MS = 600
@@ -45,6 +46,7 @@ const ONERILER_DONGU = [...ONERILER, ...ONERILER]
  */
 function AIModeScreen({ origin, onClose }: AIModeScreenProps): ReactElement {
   const { toastGoster } = useToast()
+  const t = useT()
   const [mod, setMod] = useState<YanitModu>('kaliteli')
   const [prompt, setPrompt] = useState('')
   const [visible, setVisible] = useState(false)
@@ -76,7 +78,7 @@ function AIModeScreen({ origin, onClose }: AIModeScreenProps): ReactElement {
 
   const gonder = (): void => {
     if (!prompt.trim()) return
-    toastGoster('AI ile geliştirme yakında geliyor. Bu ekran bir önizlemedir.', 'bilgi')
+    toastGoster(t('AI ile geliştirme yakında geliyor. Bu ekran bir önizlemedir.'), 'bilgi')
   }
 
   return (
@@ -124,7 +126,7 @@ function AIModeScreen({ origin, onClose }: AIModeScreenProps): ReactElement {
 
       <button
         onClick={kapat}
-        title="Kapat (Esc)"
+        title={t('Kapat (Esc)')}
         className="absolute right-6 top-6 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/60 backdrop-blur-xl transition-colors hover:bg-white/10 hover:text-white"
       >
         <CloseIcon />
@@ -133,10 +135,10 @@ function AIModeScreen({ origin, onClose }: AIModeScreenProps): ReactElement {
       <div className="relative z-[1] flex w-full flex-col items-center gap-6 px-6">
         <div className="flex items-center gap-2">
           <span className="rounded-full border border-sky-500/30 bg-sky-500/15 px-3 py-1 text-xs font-semibold text-sky-300 backdrop-blur-md">
-            Full AI Modu · Gelecek Vizyonu
+            {t('Full AI Modu · Gelecek Vizyonu')}
           </span>
           <span className="rounded-full border border-amber-500/40 bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-300 uppercase">
-            BETA ÖNİZLEME
+            {t('BETA ÖNİZLEME')}
           </span>
         </div>
 
@@ -144,15 +146,15 @@ function AIModeScreen({ origin, onClose }: AIModeScreenProps): ReactElement {
           style={{ fontFamily: "'Bricolage Grotesque', sans-serif" }}
           className="max-w-3xl bg-gradient-to-b from-white to-white/70 bg-clip-text text-center text-[clamp(40px,5.5vw,76px)] font-semibold leading-[1.08] tracking-tight text-transparent"
         >
-          Hayalindekini yaz.
+          {t('Hayalindekini yaz.')}
         </h1>
 
         <div className="flex h-[66px] w-[min(680px,90vw)] items-center rounded-full border border-white/10 bg-white/[0.06] px-2 shadow-[0_20px_60px_rgba(0,0,0,0.4)] backdrop-blur-xl">
           <div className="flex items-center gap-1 pl-1.5">
-            <ModToggleButton aktif={mod === 'hizli'} etiket="Hızlı" onClick={() => setMod('hizli')}>
+            <ModToggleButton aktif={mod === 'hizli'} etiket={t('Hızlı')} onClick={() => setMod('hizli')}>
               <BoltIcon />
             </ModToggleButton>
-            <ModToggleButton aktif={mod === 'kaliteli'} etiket="Kaliteli" onClick={() => setMod('kaliteli')}>
+            <ModToggleButton aktif={mod === 'kaliteli'} etiket={t('Kaliteli')} onClick={() => setMod('kaliteli')}>
               <QualityGlyph stroke="currentColor" strokeWidth="1.5" width="19" height="19" />
             </ModToggleButton>
           </div>
@@ -166,13 +168,13 @@ function AIModeScreen({ origin, onClose }: AIModeScreenProps): ReactElement {
             onKeyDown={(e) => {
               if (e.key === 'Enter') gonder()
             }}
-            placeholder="Bir şeyler yaz..."
+            placeholder={t('Bir şeyler yaz...')}
             className="h-full flex-1 bg-transparent text-[16px] text-white outline-none placeholder:text-white/35"
           />
 
           <button
             onClick={gonder}
-            title="Gönder"
+            title={t('Gönder')}
             className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-white to-[#d8d8dc] shadow-[0_4px_20px_rgba(255,255,255,0.15)] transition-[filter] hover:brightness-95"
           >
             <ArrowUpIcon />
@@ -190,7 +192,7 @@ function AIModeScreen({ origin, onClose }: AIModeScreenProps): ReactElement {
             {ONERILER_DONGU.map(({ metin, icon }, i) => (
               <button
                 key={`${metin}-${i}`}
-                onClick={() => setPrompt(metin)}
+                onClick={() => setPrompt(t(metin))}
                 className="group flex w-[228px] shrink-0 flex-col gap-3.5 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-white/[0.16] hover:bg-white/[0.065] hover:shadow-[0_12px_32px_rgba(0,0,0,0.35)]"
               >
                 <div className="flex items-center justify-between">
@@ -201,7 +203,7 @@ function AIModeScreen({ origin, onClose }: AIModeScreenProps): ReactElement {
                     <ArrowUpRightIcon />
                   </span>
                 </div>
-                <span className="text-[13.5px] leading-snug text-white/80">{metin}</span>
+                <span className="text-[13.5px] leading-snug text-white/80">{t(metin)}</span>
               </button>
             ))}
           </div>

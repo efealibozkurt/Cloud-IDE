@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Bm25Dizini, belirtecle, kodTanimlayicilari, rrfBirlestir } from './bm25'
 import { vektorleriAc, vektorleriPaketle, icCarpim } from './vectorStore'
-import { anahtarKelimeleriOku, apiOzetiniParcala, basliktanApiCikar } from './libraryApi'
+import { anahtarKelimeleriOku, apiOzetiniParcala, basliktanApiCikar, basliktanSembolCikar } from './libraryApi'
 
 describe('belirtecle', () => {
   it('Türkçe karakterleri sadeleştirir', () => {
@@ -105,5 +105,80 @@ describe('kodTanimlayicilari', () => {
     expect(sonuc).not.toContain('hava')
     expect(sonuc).not.toContain('bloktur')
     expect(sonuc).not.toContain('yazdır')
+  })
+})
+
+describe('basliktanSembolCikar', () => {
+  it('sınıf üyelerini sahip sınıfıyla çıkarır ve private üyeleri atlar', () => {
+    const baslik = `
+#ifndef DHT_H
+#define DHT_H
+#define DHT11 11
+class DHT {
+  uint8_t _pin;
+ public:
+  DHT(uint8_t pin, uint8_t type);
+  void begin(uint8_t usec = 55);
+  float readTemperature(bool S = false);
+ private:
+  void _gizliMetot();
+};
+#endif
+`
+    const sonuc = basliktanSembolCikar(baslik)
+    expect(sonuc.siniflar).toEqual(['DHT'])
+    expect(sonuc.sabitler).toEqual(['DHT11'])
+    const kurucu = sonuc.uyeler.find((u) => u.ad === 'DHT')
+    expect(kurucu).toMatchObject({ sinif: 'DHT', kurucu: true, parametreler: 'uint8_t pin, uint8_t type' })
+    expect(sonuc.uyeler.find((u) => u.ad === 'begin')).toMatchObject({
+      sinif: 'DHT',
+      donusTipi: 'void',
+      parametreler: 'uint8_t usec = 55'
+    })
+    expect(sonuc.uyeler.find((u) => u.ad === 'readTemperature')).toMatchObject({
+      sinif: 'DHT',
+      donusTipi: 'float'
+    })
+    expect(sonuc.uyeler.some((u) => u.ad === '_gizliMetot')).toBe(false)
+  })
+
+  it('satır içi metot gövdesinin sınıf kapsamını erken kapatmamasını sağlar', () => {
+    const baslik = `
+class Sensor {
+ public:
+  int hizliOku() { return _son; }
+  void cokSatirli() {
+    _son = 1;
+  }
+  bool hazirMi();
+ private:
+  int _son;
+};
+`
+    const sonuc = basliktanSembolCikar(baslik)
+    const adlar = sonuc.uyeler.map((u) => `${u.sinif}.${u.ad}`)
+    expect(adlar).toEqual(['Sensor.hizliOku', 'Sensor.cokSatirli', 'Sensor.hazirMi'])
+  })
+
+  it('alt satırda süslü parantez açılan sınıfı ve serbest fonksiyonu ayırır', () => {
+    const baslik = `
+class IleriBildirim;
+class Motor
+{
+public:
+  Motor(int pin);
+  void ileri();
+};
+int yardimciTopla(int a, int b);
+`
+    const sonuc = basliktanSembolCikar(baslik)
+    expect(sonuc.siniflar).toEqual(['Motor'])
+    expect(sonuc.uyeler.find((u) => u.ad === 'Motor')).toMatchObject({ sinif: 'Motor', kurucu: true })
+    expect(sonuc.uyeler.find((u) => u.ad === 'ileri')).toMatchObject({ sinif: 'Motor', donusTipi: 'void' })
+    expect(sonuc.uyeler.find((u) => u.ad === 'yardimciTopla')).toMatchObject({
+      sinif: undefined,
+      donusTipi: 'int',
+      parametreler: 'int a, int b'
+    })
   })
 })

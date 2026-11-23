@@ -1,5 +1,6 @@
 import { useEffect, type ReactElement, type ReactNode } from 'react'
 import { Tus } from './Tus'
+import { useT } from '../../i18n'
 
 interface ConfirmModalProps {
   baslik: string
@@ -12,6 +13,7 @@ interface ConfirmModalProps {
 
 /** Native window.confirm yerine uygulamanın temasına uyan küçük onay penceresi. */
 function ConfirmModal({ baslik, children, onayMetni, tehlikeli, onOnay, onVazgec }: ConfirmModalProps): ReactElement {
+  const t = useT()
   useEffect(() => {
     const tus = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') onVazgec()
@@ -31,7 +33,7 @@ function ConfirmModal({ baslik, children, onayMetni, tehlikeli, onOnay, onVazgec
         <h3 className="text-[13px] font-medium text-gray-100 [overflow-wrap:anywhere]">{baslik}</h3>
         <div className="mt-2 text-xs leading-relaxed text-gray-400 [overflow-wrap:anywhere]">{children}</div>
         <div className="mt-4 flex justify-end gap-2">
-          <Tus onClick={onVazgec}>Vazgeç</Tus>
+          <Tus onClick={onVazgec}>{t('Vazgeç')}</Tus>
           <Tus tur={tehlikeli ? 'tehlike' : 'birincil'} onClick={onOnay} autoFocus>
             {onayMetni}
           </Tus>

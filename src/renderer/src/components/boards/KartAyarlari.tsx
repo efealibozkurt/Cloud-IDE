@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactElement } from 'react'
 import type { BoardConfigOption } from '@shared/types'
 import { temelFqbn } from '@shared/boardFqbn'
 import { useAppState } from '../../state/AppStateContext'
+import { useT } from '../../i18n'
 
 /** Bilinen seçenekler için kısa ipuçları (anahtar: küçük harfli seçenek adı) */
 const IPUCLARI: Record<string, string> = {
@@ -18,6 +19,7 @@ const IPUCLARI: Record<string, string> = {
  * derleme/yükleme sırasında kart adına eklenir.
  */
 function KartAyarlari(): ReactElement | null {
+  const t = useT()
   const { state, setBoardOption } = useAppState()
   const fqbn = state.arduinoCli.selectedFqbn
   const temel = fqbn ? temelFqbn(fqbn) : null
@@ -64,26 +66,26 @@ function KartAyarlari(): ReactElement | null {
       <button
         onClick={() => setAcik((a) => !a)}
         aria-expanded={acik}
-        title="Kart ayarları (işlemci, bölüm şeması, yükleme hızı…)"
-        aria-label="Kart ayarları"
+        title={t('Kart ayarları (işlemci, bölüm şeması, yükleme hızı…)')}
+        aria-label={t('Kart ayarları')}
         className={`relative flex h-7 w-7 items-center justify-center rounded border bg-panel transition-colors hover:bg-panel-border ${
           acik ? 'border-accent text-gray-100' : 'border-panel-border text-gray-400 hover:text-gray-200'
         }`}
       >
         <SlidersIcon />
-        {degisenSayisi > 0 && <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-accent ring-2 ring-panel-light" aria-label="Varsayılandan farklı ayar var" />}
+        {degisenSayisi > 0 && <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-accent ring-2 ring-panel-light" aria-label={t('Varsayılandan farklı ayar var')} />}
       </button>
 
       {acik && (
-        <div role="dialog" aria-label="Kart ayarları" className="absolute left-0 top-full z-50 mt-1.5 w-80 rounded-[8px] border border-panel-border bg-panel-light p-3.5 shadow-2xl">
+        <div role="dialog" aria-label={t('Kart ayarları')} className="absolute left-0 top-full z-50 mt-1.5 w-80 rounded-[8px] border border-panel-border bg-panel-light p-3.5 shadow-2xl">
           <div className="flex items-center justify-between">
-            <h3 className="text-[13px] font-semibold text-gray-100">Kart ayarları</h3>
+            <h3 className="text-[13px] font-semibold text-gray-100">{t('Kart ayarları')}</h3>
             {degisenSayisi > 0 && (
               <button
                 onClick={() => secenekler.forEach((o) => void setBoardOption(temel, o.option, null))}
                 className="text-[11px] text-gray-500 hover:text-gray-200"
               >
-                Varsayılana dön
+                {t('Varsayılana dön')}
               </button>
             )}
           </div>
@@ -104,17 +106,17 @@ function KartAyarlari(): ReactElement | null {
                     {o.values.map((v) => (
                       <option key={v.value} value={v.value}>
                         {v.label}
-                        {v.value === o.varsayilan ? ' (varsayılan)' : ''}
+                        {v.value === o.varsayilan ? ` (${t('varsayılan')})` : ''}
                       </option>
                     ))}
                   </select>
-                  {ipucu && <span className="mt-0.5 block text-[11px] leading-snug text-gray-600">{ipucu}</span>}
+                  {ipucu && <span className="mt-0.5 block text-[11px] leading-snug text-gray-600">{t(ipucu)}</span>}
                 </label>
               )
             })}
           </div>
           <p className="mt-3 border-t border-panel-border pt-2 text-[11px] leading-relaxed text-gray-600">
-            Ayarlar bu kart için hatırlanır ve Derle/Yükle ile Cloud AI’ın derlemelerinde kullanılır.
+            {t('Ayarlar bu kart için hatırlanır ve Derle/Yükle ile Cloud AI’ın derlemelerinde kullanılır.')}
           </p>
         </div>
       )}

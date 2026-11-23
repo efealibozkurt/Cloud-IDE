@@ -3,6 +3,7 @@ import { useAppState } from '../../state/AppStateContext'
 import SablonSihirbazi from './SablonSihirbazi'
 import type { SketchInfo } from '@shared/types'
 import { ayniDosyaMi } from '../../utils/paths'
+import { useT } from '../../i18n'
 
 interface BaglamMenusu {
   x: number
@@ -22,6 +23,7 @@ interface BaglamMenusu {
  * menüsünde çıkar.
  */
 function FileTree(): ReactElement {
+  const t = useT()
   const {
     state,
     openFileInTab,
@@ -71,29 +73,29 @@ function FileTree(): ReactElement {
   if (projeler.length === 0) {
     return (
       <div className="flex flex-col gap-3 px-4 py-6">
-        <p className="text-[13px] text-gray-300">Açık proje yok</p>
+        <p className="text-[13px] text-gray-300">{t('Açık proje yok')}</p>
         <p className="text-xs leading-relaxed text-gray-500">
-          Yeni bir sketch oluşturun veya diskteki bir Arduino klasörünü açın.
+          {t('Yeni bir sketch oluşturun veya diskteki bir Arduino klasörünü açın.')}
         </p>
         <div className="flex flex-col gap-1.5">
           <button
             onClick={() => void newSketch()}
             className="rounded bg-accent px-3 py-1.5 text-left text-xs font-medium text-white hover:bg-accent-hover"
           >
-            Yeni sketch
+            {t('Yeni sketch')}
           </button>
           <button
             onClick={() => setSablonAcik(true)}
             data-tur="sablon"
             className="rounded border border-panel-border px-3 py-1.5 text-left text-xs text-gray-300 hover:bg-white/5"
           >
-            Şablondan proje…
+            {t('Şablondan proje…')}
           </button>
           <button
             onClick={() => void openSketchDialog()}
             className="rounded border border-panel-border px-3 py-1.5 text-left text-xs text-gray-300 hover:bg-white/5"
           >
-            Klasör aç…
+            {t('Klasör aç…')}
           </button>
         </div>
         {sablonAcik && <SablonSihirbazi onKapat={() => setSablonAcik(false)} />}
@@ -129,11 +131,11 @@ function FileTree(): ReactElement {
   }
 
   const handleSil = (yol: string, ad: string, folderPath: string): void => {
-    const sekme = tabs.find((t) => ayniDosyaMi(t.path, yol))
+    const sekme = tabs.find((sekme) => ayniDosyaMi(sekme.path, yol))
     const kirli = sekme ? sekme.content !== sekme.savedContent : false
     const mesaj = kirli
-      ? `"${ad}" içinde kaydedilmemiş değişiklikler var. Yine de silinsin mi?`
-      : `"${ad}" silinsin mi?`
+      ? t('"{ad}" içinde kaydedilmemiş değişiklikler var. Yine de silinsin mi?', { ad })
+      : t('"{ad}" silinsin mi?', { ad })
     if (!window.confirm(mesaj)) return
     void deleteFile(yol, folderPath)
   }
@@ -157,20 +159,20 @@ function FileTree(): ReactElement {
   return (
     <div className="flex h-full select-none flex-col text-[13px]">
       <div className="flex items-center justify-between px-3 py-1.5">
-        <span className="text-xs font-medium text-gray-400">Projeler</span>
+        <span className="text-xs font-medium text-gray-400">{t('Projeler')}</span>
         <div className="flex items-center">
           <IkonButon
-            baslik="Çalışma alanına proje ekle"
+            baslik={t('Çalışma alanına proje ekle')}
             onClick={() => void addSketchToWorkspaceDialog()}
           >
             <FolderPlusIcon />
           </IkonButon>
           <span data-tur="sablon" className="flex">
-            <IkonButon baslik="Şablondan proje (hazır, çalışan örnekler)" onClick={() => setSablonAcik(true)}>
+            <IkonButon baslik={t('Şablondan proje (hazır, çalışan örnekler)')} onClick={() => setSablonAcik(true)}>
               <TemplateIcon />
             </IkonButon>
           </span>
-          <IkonButon baslik="Yeni sketch" onClick={() => void newSketch()}>
+          <IkonButon baslik={t('Yeni sketch')} onClick={() => void newSketch()}>
             <PlusIcon />
           </IkonButon>
         </div>
@@ -186,7 +188,7 @@ function FileTree(): ReactElement {
               <div
                 onClick={() => setActiveSketch(proje.folderPath)}
                 onContextMenu={(e) => menuAc(e, { tur: 'proje', folderPath: proje.folderPath })}
-                title={`${proje.folderPath}\nDerleme hedefi olarak seçmek için tıklayın`}
+                title={`${proje.folderPath}\n${t('Derleme hedefi olarak seçmek için tıklayın')}`}
                 className={`group relative flex h-6 cursor-pointer items-center gap-1 pl-1 pr-2 hover:bg-white/[0.05] ${
                   aktif ? 'bg-white/[0.04]' : ''
                 }`}
@@ -197,7 +199,7 @@ function FileTree(): ReactElement {
                     e.stopPropagation()
                     toggleDaralt(proje.folderPath)
                   }}
-                  aria-label={daraltilmis ? 'Genişlet' : 'Daralt'}
+                  aria-label={daraltilmis ? t('Genişlet') : t('Daralt')}
                   className="flex h-4 w-4 shrink-0 items-center justify-center text-gray-500 hover:text-gray-200"
                 >
                   <ChevronIcon className={daraltilmis ? '-rotate-90' : ''} />
@@ -206,11 +208,11 @@ function FileTree(): ReactElement {
                   {proje.name}
                 </span>
                 <div className="ml-auto flex shrink-0 items-center opacity-0 group-hover:opacity-100">
-                  <IkonButon baslik="Dosya ekle (.h, .cpp, .c)" onClick={() => dosyaEklemeyiBaslat(proje.folderPath)}>
+                  <IkonButon baslik={t('Dosya ekle (.h, .cpp, .c)')} onClick={() => dosyaEklemeyiBaslat(proje.folderPath)}>
                     <PlusIcon />
                   </IkonButon>
                   <IkonButon
-                    baslik={projeler.length > 1 ? 'Çalışma alanından kaldır' : 'Sketch’i kapat'}
+                    baslik={projeler.length > 1 ? t('Çalışma alanından kaldır') : t('Sketch’i kapat')}
                     onClick={() => projeyiKapat(proje.folderPath)}
                   >
                     <CloseIcon />
@@ -222,7 +224,7 @@ function FileTree(): ReactElement {
                 <div>
                   {proje.files.map((dosya) => {
                     const sekmeAktif = activeTabPath ? ayniDosyaMi(activeTabPath, dosya.path) : false
-                    const kirli = tabs.some((t) => ayniDosyaMi(t.path, dosya.path) && t.content !== t.savedContent)
+                    const kirli = tabs.some((sekme) => ayniDosyaMi(sekme.path, dosya.path) && sekme.content !== sekme.savedContent)
                     const adlandiriliyor = yenidenAdlandirilanYol === dosya.path
 
                     return (
@@ -270,7 +272,7 @@ function FileTree(): ReactElement {
                               <FileIcon />
                               <span className="truncate">{dosya.name}</span>
                             </button>
-                            {kirli && <span className="ml-1 h-1.5 w-1.5 shrink-0 rounded-full bg-gray-300" title="Kaydedilmedi" />}
+                            {kirli && <span className="ml-1 h-1.5 w-1.5 shrink-0 rounded-full bg-gray-300" title={t('Kaydedilmedi')} />}
                           </>
                         )}
                       </div>
@@ -282,7 +284,7 @@ function FileTree(): ReactElement {
                       <input
                         autoFocus
                         value={yeniDosyaAdi}
-                        placeholder="dosya.h, dosya.cpp veya dosya.c"
+                        placeholder={t('dosya.h, dosya.cpp veya dosya.c')}
                         onChange={(e) => setYeniDosyaAdi(e.target.value)}
                         onBlur={() => eklemeyiOnayla(proje.folderPath)}
                         onKeyDown={(e) =>
@@ -317,9 +319,9 @@ function FileTree(): ReactElement {
         >
           {menu.tur === 'proje' ? (
             <>
-              <MenuOgesi onClick={() => { dosyaEklemeyiBaslat(menu.folderPath); setMenu(null) }}>Yeni dosya</MenuOgesi>
-              <MenuOgesi onClick={() => { setActiveSketch(menu.folderPath); setMenu(null) }}>Derleme hedefi yap</MenuOgesi>
-              <MenuOgesi onClick={() => { void openInNewWindow(menu.folderPath); setMenu(null) }}>Yeni pencerede aç</MenuOgesi>
+              <MenuOgesi onClick={() => { dosyaEklemeyiBaslat(menu.folderPath); setMenu(null) }}>{t('Yeni dosya')}</MenuOgesi>
+              <MenuOgesi onClick={() => { setActiveSketch(menu.folderPath); setMenu(null) }}>{t('Derleme hedefi yap')}</MenuOgesi>
+              <MenuOgesi onClick={() => { void openInNewWindow(menu.folderPath); setMenu(null) }}>{t('Yeni pencerede aç')}</MenuOgesi>
               <MenuOgesi
                 onClick={() => {
                   const klasor = menu.folderPath
@@ -335,10 +337,10 @@ function FileTree(): ReactElement {
                   })()
                 }}
               >
-                Farklı kaydet (kopya oluştur)…
+                {t('Farklı kaydet (kopya oluştur)…')}
               </MenuOgesi>
               <MenuOgesi onClick={() => { projeyiKapat(menu.folderPath); setMenu(null) }}>
-                {projeler.length > 1 ? 'Çalışma alanından kaldır' : 'Kapat'}
+                {projeler.length > 1 ? t('Çalışma alanından kaldır') : t('Kapat')}
               </MenuOgesi>
             </>
           ) : (
@@ -347,13 +349,13 @@ function FileTree(): ReactElement {
                 devreDisi={menu.anaDosya}
                 onClick={() => { if (menu.dosyaYolu && menu.dosyaAdi) yenidenAdlandirmayiBaslat(menu.dosyaYolu, menu.dosyaAdi); setMenu(null) }}
               >
-                Yeniden adlandır
+                {t('Yeniden adlandır')}
               </MenuOgesi>
               <MenuOgesi
                 devreDisi={menu.anaDosya}
                 onClick={() => { if (menu.dosyaYolu && menu.dosyaAdi) handleSil(menu.dosyaYolu, menu.dosyaAdi, menu.folderPath); setMenu(null) }}
               >
-                Sil
+                {t('Sil')}
               </MenuOgesi>
             </>
           )}

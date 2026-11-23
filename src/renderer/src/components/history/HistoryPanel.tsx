@@ -3,6 +3,7 @@ import { fqbnSecenekleriyle, temelFqbn } from '@shared/boardFqbn'
 import { useAppState } from '../../state/AppStateContext'
 import { useToast } from '../../state/ToastContext'
 import { Tus } from '../common/Tus'
+import { useI18n, type TFonksiyonu } from '../../i18n'
 import ConfirmModal from '../common/ConfirmModal'
 import HistoryDiffModal from './HistoryDiffModal'
 import type { BuildMeta, HistoryCommit, HistoryDiffFile, HistoryListResult, HistoryStatus } from '@shared/types'
@@ -15,12 +16,12 @@ const TUR_ETIKETI: Record<HistoryCommit['tur'], string> = {
   derleme: 'derleme'
 }
 
-function kb(bayt: number): string {
-  return `${(bayt / 1024).toLocaleString('tr-TR', { maximumFractionDigits: 1 })} KB`
+function kb(bayt: number, yerel: string): string {
+  return `${(bayt / 1024).toLocaleString(yerel, { maximumFractionDigits: 1 })} KB`
 }
 
 /** Bellek kullanımı özeti: "Flash %12 · RAM %8" ve bir önceki derlemeye göre flash farkı */
-function boyutOzeti(derleme: BuildMeta, onceki?: BuildMeta): string {
+function boyutOzeti(derleme: BuildMeta, yerel: string, onceki?: BuildMeta): string {
   const parcalar: string[] = []
   const f = derleme.boyut?.flash
   const ram = derleme.boyut?.ram
@@ -29,7 +30,7 @@ function boyutOzeti(derleme: BuildMeta, onceki?: BuildMeta): string {
     const of = onceki?.boyut?.flash
     if (of && of.kullanilan !== f.kullanilan) {
       const fark = f.kullanilan - of.kullanilan
-      metin += ` (${fark > 0 ? '+' : '−'}${kb(Math.abs(fark))})`
+      metin += ` (${fark > 0 ? '+' : '−'}${kb(Math.abs(fark), yerel)})`
     }
     parcalar.push(metin)
   }
@@ -38,26 +39,26 @@ function boyutOzeti(derleme: BuildMeta, onceki?: BuildMeta): string {
 }
 
 /** Geri yüklenecek sürümün derlendiği ortam, şu anki ortamla uyuşmuyorsa uyarı metinleri üretir. */
-function ortamUyarilari(derleme: BuildMeta, simdikiFqbn: string | null, kurulu: Record<string, string> | null): string[] {
+function ortamUyarilari(derleme: BuildMeta, simdikiFqbn: string | null, kurulu: Record<string, string> | null, t: TFonksiyonu): string[] {
   const uyarilar: string[] = []
-  if (simdikiFqbn && derleme.fqbn !== simdikiFqbn) uyarilar.push(`Kart farklı: sürüm ${derleme.fqbn} için derlenmiş, şu an ${simdikiFqbn} seçili.`)
+  if (simdikiFqbn && derleme.fqbn !== simdikiFqbn) uyarilar.push(t('Kart farklı: sürüm {a} için derlenmiş, şu an {b} seçili.', { a: derleme.fqbn, b: simdikiFqbn }))
   if (kurulu) {
     for (const [ad, surum] of Object.entries(derleme.kutuphaneler)) {
       const simdiki = kurulu[ad]
-      if (simdiki === undefined) uyarilar.push(`“${ad}” ${surum} kurulu değil.`)
-      else if (simdiki !== surum) uyarilar.push(`“${ad}” sürümü farklı: ${surum} → şu an ${simdiki}.`)
+      if (simdiki === undefined) uyarilar.push(t('“{ad}” {surum} kurulu değil.', { ad, surum }))
+      else if (simdiki !== surum) uyarilar.push(t('“{ad}” sürümü farklı: {surum} → şu an {simdiki}.', { ad, surum, simdiki }))
     }
   }
   return uyarilar
 }
 
-function gorelZaman(ms: number): string {
+function gorelZaman(ms: number, t: TFonksiyonu, yerel: string): string {
   const sn = Math.max(0, Math.round((Date.now() - ms) / 1000))
-  if (sn < 60) return 'şimdi'
-  if (sn < 3600) return `${Math.floor(sn / 60)} dk önce`
-  if (sn < 86400) return `${Math.floor(sn / 3600)} sa önce`
-  if (sn < 86400 * 30) return `${Math.floor(sn / 86400)} gün önce`
-  return new Date(ms).toLocaleDateString('tr-TR')
+  if (sn < 60) return t('şimdi')
+  if (sn < 3600) return t('{n} dk önce', { n: Math.floor(sn / 60) })
+  if (sn < 86400) return t('{n} sa önce', { n: Math.floor(sn / 3600) })
+  if (sn < 86400 * 30) return t('{n} gün önce', { n: Math.floor(sn / 86400) })
+  return new Date(ms).toLocaleDateString(yerel)
 }
 
 function klasorAdi(yol: string): string {
@@ -69,6 +70,8 @@ type Onay = { tur: 'geri-yukle'; surum: HistoryCommit } | { tur: 'dal-sil'; ad: 
 
 /** Proje sürüm geçmişi: sürüm kaydet, eski hallere bak, karşılaştır, geri yükle, etiket ve dal. */
 function HistoryPanel(): ReactElement {
+  const { dil, t } = useI18n()
+  const yerel = dil === 'en' ? 'en-US' : 'tr-TR'
   const { state, saveAllTabs, reloadSketchFolders, addSketchToWorkspace } = useAppState()
   const { toastGoster } = useToast()
   const proje = state.sketch.activeSketchPath || state.sketch.info?.folderPath || null
@@ -99,7 +102,7 @@ function HistoryPanel(): ReactElement {
   }, [proje])
 
   // Dosya kaydedildikçe değişiklik sayısı güncellenir
-  const kaydedilmisImza = state.sketch.tabs.map((t) => `${t.path}:${t.savedContent.length}`).join('|')
+  const kaydedilmisImza = state.sketch.tabs.map((sekme) => `${sekme.path}:${sekme.savedContent.length}`).join('|')
   useEffect(() => {
     void yenile()
   }, [yenile, kaydedilmisImza])
@@ -123,26 +126,26 @@ function HistoryPanel(): ReactElement {
       const sonuc = await window.api.history.commit(proje, mesaj)
       if (sonuc) {
         setMesaj('')
-        toastGoster('Sürüm kaydedildi', 'basari')
+        toastGoster(t('Sürüm kaydedildi'), 'basari')
       } else {
-        toastGoster('Son sürümden bu yana değişiklik yok', 'bilgi')
+        toastGoster(t('Son sürümden bu yana değişiklik yok'), 'bilgi')
       }
-    }, 'Sürüm kaydedilemedi')
+    }, t('Sürüm kaydedilemedi'))
 
   const karsilastir = (baslik: string, a: string, b: string): Promise<void> =>
     calistir(async () => {
       if (!proje) return
       if (b === 'calisma') await saveAllTabs()
       setFark({ baslik, dosyalar: await window.api.history.diff(proje, a, b) })
-    }, 'Karşılaştırma yapılamadı')
+    }, t('Karşılaştırma yapılamadı'))
 
   const geriYukle = (s: HistoryCommit): Promise<void> =>
     calistir(async () => {
       if (!proje) return
       const degisen = await window.api.history.restore(proje, s.id)
       await reloadSketchFolders([proje])
-      toastGoster(degisen.length ? `${degisen.length} dosya geri yüklendi` : 'Dosyalar zaten bu sürümde', degisen.length ? 'basari' : 'bilgi')
-    }, 'Geri yüklenemedi')
+      toastGoster(degisen.length ? t('{n} dosya geri yüklendi', { n: degisen.length }) : t('Dosyalar zaten bu sürümde'), degisen.length ? 'basari' : 'bilgi')
+    }, t('Geri yüklenemedi'))
 
   const girdiyiUygula = (): Promise<void> =>
     calistir(async () => {
@@ -158,7 +161,7 @@ function HistoryPanel(): ReactElement {
       }
       setGirdi(null)
       setGirdiDegeri('')
-    }, 'İşlem tamamlanamadı')
+    }, t('İşlem tamamlanamadı'))
 
   const dalDegistir = (ad: string): Promise<void> =>
     calistir(async () => {
@@ -166,31 +169,31 @@ function HistoryPanel(): ReactElement {
       await saveAllTabs()
       await window.api.history.checkout(proje, ad)
       await reloadSketchFolders([proje])
-    }, 'Dal değiştirilemedi')
+    }, t('Dal değiştirilemedi'))
 
   const paketIceAktar = (): Promise<void> =>
     calistir(async () => {
       const klasor = await window.api.history.importPackage()
       if (!klasor) return
       await addSketchToWorkspace(await window.api.sketch.openPath(klasor))
-      toastGoster('Proje içe aktarıldı, geçmişiyle birlikte çalışma alanına eklendi', 'basari')
-    }, 'Paket içe aktarılamadı')
+      toastGoster(t('Proje içe aktarıldı, geçmişiyle birlikte çalışma alanına eklendi'), 'basari')
+    }, t('Paket içe aktarılamadı'))
 
   const paketDisaAktar = (): Promise<void> =>
     calistir(async () => {
       if (!proje) return
       await saveAllTabs()
       const dosya = await window.api.history.exportPackage(proje)
-      if (dosya) toastGoster('Proje paketi kaydedildi', 'basari')
-    }, 'Paket oluşturulamadı')
+      if (dosya) toastGoster(t('Proje paketi kaydedildi'), 'basari')
+    }, t('Paket oluşturulamadı'))
 
   if (!proje) {
     return (
       <div className="px-3 py-4">
-        <p className="text-xs text-gray-500">Sürüm geçmişi için önce bir proje açın.</p>
+        <p className="text-xs text-gray-500">{t('Sürüm geçmişi için önce bir proje açın.')}</p>
         <div className="mt-3">
           <Tus onClick={() => void paketIceAktar()} disabled={mesgul}>
-            Paket içe aktar (.zip)
+            {t('Paket içe aktar (.zip)')}
           </Tus>
         </div>
       </div>
@@ -210,7 +213,7 @@ function HistoryPanel(): ReactElement {
           </span>
           <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-gray-500">
             <span className={`h-1.5 w-1.5 rounded-full ${degisiklikSayisi ? 'bg-amber-400' : 'bg-[#3ddc84]'}`} aria-hidden="true" />
-            {degisiklikSayisi ? `${degisiklikSayisi} değişiklik` : liste?.surumler.length ? 'güncel' : 'kayıt yok'}
+            {degisiklikSayisi ? t('{n} değişiklik', { n: degisiklikSayisi }) : liste?.surumler.length ? t('güncel') : t('kayıt yok')}
           </span>
         </div>
         <input
@@ -220,33 +223,33 @@ function HistoryPanel(): ReactElement {
             if (e.key === 'Enter' && !mesgul) void surumKaydet()
           }}
           maxLength={200}
-          placeholder="Sürüm notu (isteğe bağlı)"
+          placeholder={t('Sürüm notu (isteğe bağlı)')}
           className="h-7 w-full rounded-[5px] border border-panel-border bg-panel px-2 text-xs text-gray-100 outline-none placeholder:text-gray-600 focus:border-accent"
         />
         <div className="flex gap-2">
           <Tus tur="birincil" onClick={() => void surumKaydet()} disabled={mesgul}>
-            Sürüm kaydet
+            {t('Sürüm kaydet')}
           </Tus>
           <Tus
-            onClick={() => sonSurum && void karsilastir('Son sürüm ↔ çalışma kopyası', sonSurum.id, 'calisma')}
+            onClick={() => sonSurum && void karsilastir(t('Son sürüm ↔ çalışma kopyası'), sonSurum.id, 'calisma')}
             disabled={mesgul || !sonSurum || degisiklikSayisi === 0}
           >
-            Değişiklikleri gör
+            {t('Değişiklikleri gör')}
           </Tus>
         </div>
         {sonDerlenen && degisiklikSayisi > 0 && (
           <button
-            onClick={() => void karsilastir('Son derlenen sürüm ↔ çalışma kopyası', sonDerlenen.id, 'calisma')}
+            onClick={() => void karsilastir(t('Son derlenen sürüm ↔ çalışma kopyası'), sonDerlenen.id, 'calisma')}
             disabled={mesgul}
             className="text-left text-[11px] text-accent hover:underline disabled:opacity-50"
           >
-            Derleme hatası mı aldınız? Son derlenen sürümden bu yana ne değişti →
+            {t('Derleme hatası mı aldınız? Son derlenen sürümden bu yana ne değişti')} →
           </button>
         )}
         {liste && (
           <div className="flex items-center gap-2">
             <label className="flex min-w-0 flex-1 items-center gap-1.5 text-[11px] text-gray-500">
-              Dal
+              {t('Dal')}
               <select
                 value={liste.aktifDal}
                 disabled={mesgul}
@@ -263,7 +266,7 @@ function HistoryPanel(): ReactElement {
             </label>
             {liste.aktifDal !== 'ana' && (
               <Tus tur="tehlike" onClick={() => setOnay({ tur: 'dal-sil', ad: liste.aktifDal })} disabled={mesgul}>
-                Dalı sil
+                {t('Dalı sil')}
               </Tus>
             )}
           </div>
@@ -273,12 +276,15 @@ function HistoryPanel(): ReactElement {
       <div className="min-h-0 flex-1 overflow-y-auto">
         {!liste || liste.surumler.length === 0 ? (
           <p className="px-3 py-4 text-xs leading-relaxed text-gray-500">
-            Bu proje için henüz sürüm yok. “Sürüm kaydet” ile bugünkü halini saklayın; sonradan değişiklikleri karşılaştırıp istediğiniz sürüme dönebilirsiniz.
+            {t('Bu proje için henüz sürüm yok. “Sürüm kaydet” ile bugünkü halini saklayın; sonradan değişiklikleri karşılaştırıp istediğiniz sürüme dönebilirsiniz.')}
           </p>
         ) : (
           <ul className="py-1">
             {liste.surumler.map((s, i) => {
               const onceki = liste.surumler[i + 1]
+              // En yeni sürümde (dal ucu) düğme, çalışma kopyası ondan farklıysa görünür: eski bir sürüme
+              // dönüldükten sonra yeniye geri dönebilmek için gerekir
+              const geriYuklenebilir = i > 0 || (durum !== null && durum.degisenler.length > 0)
               return (
                 <li key={s.id} className="group border-b border-panel-border/50 px-3 py-2">
                   <div className="flex items-start justify-between gap-2">
@@ -287,8 +293,8 @@ function HistoryPanel(): ReactElement {
                         {s.mesaj}
                       </p>
                       <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-gray-500">
-                        <span>{gorelZaman(s.zaman)}</span>
-                        {TUR_ETIKETI[s.tur] && <span>· {TUR_ETIKETI[s.tur]}</span>}
+                        <span>{gorelZaman(s.zaman, t, yerel)}</span>
+                        {TUR_ETIKETI[s.tur] && <span>· {t(TUR_ETIKETI[s.tur])}</span>}
                         {s.etiketler.map((e) => (
                           <span key={e} className="rounded-[3px] border border-accent/40 px-1 text-accent">
                             {e}
@@ -298,26 +304,26 @@ function HistoryPanel(): ReactElement {
                     </div>
                   </div>
                   {s.derleme && (
-                    <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[11px] text-gray-500" title={`${s.derleme.fqbn}${s.derleme.cekirdek ? ` · çekirdek ${s.derleme.cekirdek.ad} ${s.derleme.cekirdek.surum}` : ''}`}>
+                    <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[11px] text-gray-500" title={`${s.derleme.fqbn}${s.derleme.cekirdek ? ` · ${t('çekirdek')} ${s.derleme.cekirdek.ad} ${s.derleme.cekirdek.surum}` : ''}`}>
                       <span className="flex items-center gap-1">
                         <span className="h-1.5 w-1.5 rounded-full bg-[#3ddc84]" aria-hidden="true" />
-                        {s.derleme.yuklendi ? 'derlendi ve yüklendi' : 'derlendi'}
+                        {s.derleme.yuklendi ? t('derlendi ve yüklendi') : t('derlendi')}
                       </span>
-                      {boyutOzeti(s.derleme, liste.surumler.slice(i + 1).find((x) => x.derleme)?.derleme) && (
-                        <span className="font-mono text-[10.5px]">{boyutOzeti(s.derleme, liste.surumler.slice(i + 1).find((x) => x.derleme)?.derleme)}</span>
+                      {boyutOzeti(s.derleme, yerel, liste.surumler.slice(i + 1).find((x) => x.derleme)?.derleme) && (
+                        <span className="font-mono text-[10.5px]">{boyutOzeti(s.derleme, yerel, liste.surumler.slice(i + 1).find((x) => x.derleme)?.derleme)}</span>
                       )}
                     </p>
                   )}
                   <div className="mt-1.5 flex flex-wrap gap-1 opacity-70 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
                     {onceki && (
                       <Tus onClick={() => void karsilastir(`${onceki.mesaj} → ${s.mesaj}`, onceki.id, s.id)} disabled={mesgul}>
-                        Fark
+                        {t('Fark')}
                       </Tus>
                     )}
-                    <Tus onClick={() => void karsilastir(`${s.mesaj} ↔ çalışma kopyası`, s.id, 'calisma')} disabled={mesgul}>
-                      Şimdikiyle
+                    <Tus onClick={() => void karsilastir(`${s.mesaj} ↔ ${t('çalışma kopyası')}`, s.id, 'calisma')} disabled={mesgul}>
+                      {t('Şimdikiyle')}
                     </Tus>
-                    {i > 0 && (
+                    {geriYuklenebilir && (
                       <Tus
                       onClick={() => {
                         setOnay({ tur: 'geri-yukle', surum: s })
@@ -331,7 +337,7 @@ function HistoryPanel(): ReactElement {
                       }}
                       disabled={mesgul}
                     >
-                        Geri yükle
+                        {i === 0 ? t('Bu sürüme dön') : t('Geri yükle')}
                       </Tus>
                     )}
                     <Tus
@@ -341,7 +347,7 @@ function HistoryPanel(): ReactElement {
                       }}
                       disabled={mesgul}
                     >
-                      Etiket
+                      {t('Etiket')}
                     </Tus>
                     <Tus
                       onClick={() => {
@@ -350,7 +356,7 @@ function HistoryPanel(): ReactElement {
                       }}
                       disabled={mesgul}
                     >
-                      Dal aç
+                      {t('Dal aç')}
                     </Tus>
                   </div>
                   {girdi?.id === s.id && (
@@ -369,11 +375,11 @@ function HistoryPanel(): ReactElement {
                           if (e.key === 'Escape') setGirdi(null)
                         }}
                         maxLength={40}
-                        placeholder={girdi.tur === 'etiket' ? 'Etiket adı (ör. v1.0)' : 'Yeni dal adı'}
+                        placeholder={girdi.tur === 'etiket' ? t('Etiket adı (ör. v1.0)') : t('Yeni dal adı')}
                         className="h-[26px] min-w-0 flex-1 rounded-[5px] border border-panel-border bg-panel px-2 text-xs text-gray-100 outline-none placeholder:text-gray-600 focus:border-accent"
                       />
                       <Tus type="submit" tur="birincil" disabled={mesgul || !girdiDegeri.trim()}>
-                        Ekle
+                        {t('Ekle')}
                       </Tus>
                     </form>
                   )}
@@ -382,11 +388,11 @@ function HistoryPanel(): ReactElement {
                       {s.etiketler.map((e) => (
                         <button
                           key={e}
-                          onClick={() => void calistir(() => window.api.history.untag(proje, e), 'Etiket kaldırılamadı')}
+                          onClick={() => void calistir(() => window.api.history.untag(proje, e), t('Etiket kaldırılamadı'))}
                           className="text-[10.5px] text-gray-600 hover:text-rose-300"
-                          title="Etiketi kaldır"
+                          title={t('Etiketi kaldır')}
                         >
-                          {e} etiketini kaldır
+                          {t('{e} etiketini kaldır', { e })}
                         </button>
                       ))}
                     </div>
@@ -400,17 +406,17 @@ function HistoryPanel(): ReactElement {
 
       <div className="flex shrink-0 gap-2 border-t border-panel-border px-3 py-2">
         <Tus onClick={() => void paketDisaAktar()} disabled={mesgul} >
-          Paketle (.zip)
+          {t('Paketle (.zip)')}
         </Tus>
         <Tus onClick={() => void paketIceAktar()} disabled={mesgul}>
-          İçe aktar
+          {t('İçe aktar')}
         </Tus>
       </div>
 
       {onay?.tur === 'geri-yukle' && (
         <ConfirmModal
-          baslik="Bu sürüme dönülsün mü?"
-          onayMetni="Geri yükle"
+          baslik={t('Bu sürüme dönülsün mü?')}
+          onayMetni={t('Geri yükle')}
           onOnay={() => {
             const s = onay.surum
             setOnay(null)
@@ -418,10 +424,10 @@ function HistoryPanel(): ReactElement {
           }}
           onVazgec={() => setOnay(null)}
         >
-          <p>“{onay.surum.mesaj}” sürümündeki dosyalar çalışma kopyasına yazılacak. Kaydedilmemiş düzenlemeleriniz bu dosyalarda değişebilir.</p>
+          <p>{t('“{ad}” sürümündeki dosyalar çalışma kopyasına yazılacak. Kaydedilmemiş düzenlemeleriniz bu dosyalarda değişebilir.', { ad: onay.surum.mesaj })}</p>
           {onay.surum.derleme && (
             <div className="mt-2 rounded-[5px] border border-panel-border bg-panel px-2.5 py-2">
-              <p className="text-gray-300">Bu sürüm şu ortamla derlenmişti:</p>
+              <p className="text-gray-300">{t('Bu sürüm şu ortamla derlenmişti:')}</p>
               <p className="mt-1 font-mono text-[11px] text-gray-400">
                 {onay.surum.derleme.fqbn}
                 {onay.surum.derleme.cekirdek?.surum ? ` · ${onay.surum.derleme.cekirdek.ad} ${onay.surum.derleme.cekirdek.surum}` : ''}
@@ -433,20 +439,20 @@ function HistoryPanel(): ReactElement {
                     .join(', ')}
                 </p>
               )}
-              {ortamUyarilari(onay.surum.derleme, state.arduinoCli.selectedFqbn ? fqbnSecenekleriyle(state.arduinoCli.selectedFqbn, state.settings?.boardOptions?.[temelFqbn(state.arduinoCli.selectedFqbn)]) : null, kurulu).map((u) => (
+              {ortamUyarilari(onay.surum.derleme, state.arduinoCli.selectedFqbn ? fqbnSecenekleriyle(state.arduinoCli.selectedFqbn, state.settings?.boardOptions?.[temelFqbn(state.arduinoCli.selectedFqbn)]) : null, kurulu, t).map((u) => (
                 <p key={u} className="mt-1 text-amber-300/90">
                   ⚠ {u}
                 </p>
               ))}
             </div>
           )}
-          <p className="mt-2">Bugünkü hal otomatik olarak “geri yükleme öncesi” kaydıyla saklanır; istediğiniz zaman oradan geri dönebilirsiniz.</p>
+          <p className="mt-2">{t('Bugünkü hal otomatik olarak “geri yükleme öncesi” kaydıyla saklanır; istediğiniz zaman oradan geri dönebilirsiniz.')}</p>
         </ConfirmModal>
       )}
       {onay?.tur === 'dal-sil' && (
         <ConfirmModal
-          baslik={`“${onay.ad}” dalı silinsin mi?`}
-          onayMetni="Dalı sil"
+          baslik={t('“{ad}” dalı silinsin mi?', { ad: onay.ad })}
+          onayMetni={t('Dalı sil')}
           tehlikeli
           onOnay={() => {
             const ad = onay.ad
@@ -457,11 +463,11 @@ function HistoryPanel(): ReactElement {
               await window.api.history.checkout(proje, 'ana')
               await window.api.history.deleteBranch(proje, ad)
               await reloadSketchFolders([proje])
-            }, 'Dal silinemedi')
+            }, t('Dal silinemedi'))
           }}
           onVazgec={() => setOnay(null)}
         >
-          <p>Önce “ana” dala geçilir, sonra bu dalın kaydı kaldırılır. Dalda yapılan sürümler listeden kaybolur.</p>
+          <p>{t('Önce “ana” dala geçilir, sonra bu dalın kaydı kaldırılır. Dalda yapılan sürümler listeden kaybolur.')}</p>
         </ConfirmModal>
       )}
       {fark && <HistoryDiffModal baslik={fark.baslik} dosyalar={fark.dosyalar} onKapat={() => setFark(null)} />}

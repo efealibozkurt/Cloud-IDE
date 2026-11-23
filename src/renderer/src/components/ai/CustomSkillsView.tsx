@@ -1,5 +1,6 @@
 import { type ReactElement } from 'react'
 import type { CustomSkill } from '@shared/types'
+import { useT } from '../../i18n'
 import { FolderOpenIcon, RefreshIcon, PlusSmallIcon, CopyIcon, CheckIcon, TrashIcon } from './skillsIcons'
 
 const AILELER: Array<{ id: string; ad: string }> = [
@@ -63,20 +64,21 @@ export function CustomMarkdownSkillsView({
   kopyalaMetin: (text: string) => void
   kopyalandi: boolean
 }): ReactElement {
+  const t = useT()
   return (
     <div className="flex h-full flex-col">
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/[0.07] bg-white/[0.02] px-6 py-3 text-xs">
         <p className="min-w-0 truncate text-gray-500" title={skillsDirectory}>
-          Dosyalar: {skillsDirectory || 'skills klasörü'}
+          {t('Dosyalar')}: {skillsDirectory || t('skills klasörü')}
         </p>
         <div className="flex shrink-0 items-center gap-2">
           <button onClick={onOpenFolder} className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-gray-100 transition-colors hover:bg-white/10">
             <FolderOpenIcon className="h-3.5 w-3.5 text-amber-400" />
-            Klasörü aç
+            {t('Klasörü aç')}
           </button>
           <button onClick={onRefresh} className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-gray-100 transition-colors hover:bg-white/10">
             <RefreshIcon className="h-3.5 w-3.5 text-gray-400" />
-            Yenile
+            {t('Yenile')}
           </button>
           <button
             onClick={onToggleAdd}
@@ -87,7 +89,7 @@ export function CustomMarkdownSkillsView({
             }
           >
             {!isAdding && <PlusSmallIcon className="h-3.5 w-3.5" />}
-            {isAdding ? 'Vazgeç' : 'Yeni kural'}
+            {isAdding ? t('Vazgeç') : t('Yeni kural')}
           </button>
         </div>
       </div>
@@ -97,43 +99,43 @@ export function CustomMarkdownSkillsView({
           <div className="max-w-2xl space-y-4">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <label className="block text-xs text-gray-400 sm:col-span-3">
-                Başlık
+                {t('Başlık')}
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => onTitleChange(e.target.value)}
-                  placeholder="Örn. BMP280 sıcaklık sensörü"
+                  placeholder={t('Örn. BMP280 sıcaklık sensörü')}
                   className={`${girdiSinifi} mt-1`}
                 />
               </label>
               <label className="block text-xs text-gray-400">
-                Hangi kartlar için
+                {t('Hangi kartlar için')}
                 <select value={boardFamily} onChange={(e) => onBoardFamilyChange(e.target.value)} className={`${girdiSinifi} mt-1`}>
                   {AILELER.map((a) => (
                     <option key={a.id} value={a.id}>
-                      {a.ad}
+                      {t(a.ad)}
                     </option>
                   ))}
                 </select>
               </label>
               <label className="block text-xs text-gray-400 sm:col-span-2">
-                Tür
+                {t('Tür')}
                 <select value={type} onChange={(e) => onTypeChange(e.target.value as 'snippet' | 'rule')} className={`${girdiSinifi} mt-1`}>
-                  <option value="snippet">Kod örneği: gerektiğinde aranır</option>
-                  <option value="rule">Kural: her zaman yönerge olarak verilir</option>
+                  <option value="snippet">{t('Kod örneği: gerektiğinde aranır')}</option>
+                  <option value="rule">{t('Kural: her zaman yönerge olarak verilir')}</option>
                 </select>
               </label>
             </div>
 
             <label className="block text-xs text-gray-400">
-              {type === 'snippet' ? 'Örnek kod' : 'Kural metni'}
+              {type === 'snippet' ? t('Örnek kod') : t('Kural metni')}
               <textarea
                 value={content}
                 onChange={(e) => onContentChange(e.target.value)}
                 placeholder={
                   type === 'snippet'
                     ? '#include <Adafruit_BMP280.h>\nvoid setup() { }'
-                    : 'Örn. Pin tanımlarında const int yerine constexpr kullan.'
+                    : t('Örn. Pin tanımlarında const int yerine constexpr kullan.')
                 }
                 rows={9}
                 className={`${girdiSinifi} mt-1 font-mono leading-relaxed`}
@@ -141,13 +143,13 @@ export function CustomMarkdownSkillsView({
             </label>
 
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-gray-500">Kaydedince skills klasörüne .md dosyası olarak yazılır.</p>
+              <p className="text-xs text-gray-500">{t('Kaydedince skills klasörüne .md dosyası olarak yazılır.')}</p>
               <button
                 onClick={onSave}
                 disabled={!title.trim() || !content.trim() || saving}
                 className="rounded-lg bg-gradient-to-r from-[#0e7fc4] to-[#2aa8f2] px-4 py-1.5 text-xs font-semibold text-white hover:brightness-110 disabled:opacity-40"
               >
-                {saving ? 'Kaydediliyor…' : 'Kaydet'}
+                {saving ? t('Kaydediliyor…') : t('Kaydet')}
               </button>
             </div>
           </div>
@@ -157,7 +159,7 @@ export function CustomMarkdownSkillsView({
           <ul className="w-80 shrink-0 overflow-y-auto border-r border-white/[0.07]">
             {skills.length === 0 ? (
               <li className="p-6 text-xs leading-relaxed text-gray-500">
-                Henüz kuralınız yok. “Yeni kural” ile ekleyebilir ya da skills klasörüne doğrudan .md dosyası bırakabilirsiniz.
+                {t('Henüz kuralınız yok. “Yeni kural” ile ekleyebilir ya da skills klasörüne doğrudan .md dosyası bırakabilirsiniz.')}
               </li>
             ) : (
               skills.map((s) => {
@@ -176,9 +178,9 @@ export function CustomMarkdownSkillsView({
                             s.type === 'snippet' ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300' : 'border-cyan-400/30 bg-cyan-400/10 text-cyan-300'
                           }`}
                         >
-                          {s.type === 'snippet' ? 'Kod örneği' : 'Kural'}
+                          {s.type === 'snippet' ? t('Kod örneği') : t('Kural')}
                         </span>
-                        <span className="truncate">{AILELER.find((a) => a.id === s.boardFamily)?.ad ?? s.boardFamily}</span>
+                        <span className="truncate">{t(AILELER.find((a) => a.id === s.boardFamily)?.ad ?? s.boardFamily)}</span>
                       </p>
                     </button>
                   </li>
@@ -201,16 +203,16 @@ export function CustomMarkdownSkillsView({
                       className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 font-medium text-gray-100 hover:bg-white/10"
                     >
                       {kopyalandi ? <CheckIcon className="h-3.5 w-3.5 text-emerald-400" /> : <CopyIcon className="h-3.5 w-3.5 text-gray-400" />}
-                      {kopyalandi ? 'Kopyalandı' : 'Kopyala'}
+                      {kopyalandi ? t('Kopyalandı') : t('Kopyala')}
                     </button>
                     <button
                       onClick={() => {
-                        if (window.confirm(`“${selectedSkill.title}” silinsin mi? .md dosyası da kaldırılır.`)) onDelete(selectedSkill.id)
+                        if (window.confirm(t('“{ad}” silinsin mi? .md dosyası da kaldırılır.', { ad: selectedSkill.title }))) onDelete(selectedSkill.id)
                       }}
                       className="flex items-center gap-1.5 rounded-lg border border-rose-400/25 bg-rose-400/10 px-3 py-1.5 text-rose-300 hover:bg-rose-400/20"
                     >
                       <TrashIcon className="h-3.5 w-3.5" />
-                      Sil
+                      {t('Sil')}
                     </button>
                   </div>
                 </div>
@@ -219,7 +221,7 @@ export function CustomMarkdownSkillsView({
                 </pre>
               </>
             ) : (
-              <div className="flex h-full items-center justify-center text-xs text-gray-500">Soldan bir kural seçin.</div>
+              <div className="flex h-full items-center justify-center text-xs text-gray-500">{t('Soldan bir kural seçin.')}</div>
             )}
           </div>
         </div>

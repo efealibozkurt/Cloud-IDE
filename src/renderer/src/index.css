@@ -95,92 +95,382 @@ body,
 }
 
 /* ────────────────────────────────────────────────────────────────────────
-   AI Tarafından Eklenen/Düzenlenen Kod İçin Yeni Nesil Lazer & Işıltı (Shimmer)
+   AI Kod Yazım Animasyonu — Cloud Stream (Optik Satır Tarama & Işık İzi)
    ──────────────────────────────────────────────────────────────────────── */
 
-/* Aktif yazılan uç satır için parıldayan lazer hüzmesi (Cursor / Windsurf tarzı) */
-@keyframes ai-laser-pulse {
-  0%, 100% {
-    box-shadow: inset 0 0 14px rgba(56, 189, 248, 0.25), 0 0 16px rgba(14,127,196, 0.2);
-    border-left-color: #38bdf8;
-  }
-  50% {
-    box-shadow: inset 0 0 22px rgba(56, 189, 248, 0.4), 0 0 24px rgba(129, 140, 248, 0.35);
-    border-left-color: #818cf8;
-  }
+.ai-editor-host {
+  --ai-beam-core: #e0f2fe;
+  --ai-beam-mid: #38bdf8;
+  --ai-beam-accent: #0e7fc4;
+  --ai-beam-glow: rgba(56, 189, 248, 0.55);
+  --ai-beam-curtain: rgba(56, 189, 248, 0.14);
+  --ai-caret-halo: rgba(56, 189, 248, 0.22);
+  --ai-trail-0: rgba(56, 189, 248, 0.14);
+  --ai-trail-1: rgba(56, 189, 248, 0.095);
+  --ai-trail-2: rgba(14, 127, 196, 0.062);
+  --ai-trail-3: rgba(14, 127, 196, 0.036);
+  --ai-trail-4: rgba(14, 127, 196, 0.016);
+  --ai-block-bg: rgba(14, 127, 196, 0.05);
+  --ai-pending-bg: rgba(148, 163, 184, 0.055);
+  --ai-delete-bg: rgba(248, 113, 113, 0.14);
+  --ai-delete-accent: #f87171;
+  --ai-done-accent: #34d399;
+  --ai-done-bg-soft: rgba(52, 211, 153, 0.075);
+  --ai-done-bg-mid: rgba(56, 189, 248, 0.15);
+  --ai-done-bg-peak: rgba(224, 242, 254, 0.22);
+  --ai-hud-bg: rgba(17, 22, 30, 0.88);
+  --ai-hud-border: rgba(124, 196, 240, 0.24);
+  --ai-hud-shadow: 0 14px 34px -6px rgba(0, 0, 0, 0.72), 0 0 0 1px rgba(14, 127, 196, 0.12);
+  --ai-hud-text: #e5eef7;
+  --ai-hud-muted: #8ba3bc;
+  --ai-hud-btn-bg: rgba(255, 255, 255, 0.06);
+  --ai-hud-btn-hover: rgba(124, 196, 240, 0.16);
+  --ai-hud-done-bg: rgba(14, 26, 24, 0.9);
+  --ai-hud-done-border: rgba(52, 211, 153, 0.34);
 }
 
-.ai-code-active-line {
-  background: linear-gradient(
-    90deg,
-    rgba(56, 189, 248, 0.22) 0%,
-    rgba(14,127,196, 0.16) 25%,
-    rgba(14,127,196, 0.08) 60%,
-    transparent 100%
-  ) !important;
-  border-left: 3px solid #38bdf8 !important;
-  animation: ai-laser-pulse 1.2s ease-in-out infinite !important;
-  z-index: 10 !important;
+.ai-editor-host[data-editor-theme='vs'],
+.ai-editor-host[data-editor-theme='hc-light'] {
+  --ai-beam-core: #0369a1;
+  --ai-beam-mid: #0e7fc4;
+  --ai-beam-accent: #0284c7;
+  --ai-beam-glow: rgba(14, 127, 196, 0.45);
+  --ai-beam-curtain: rgba(14, 127, 196, 0.12);
+  --ai-caret-halo: rgba(14, 127, 196, 0.16);
+  --ai-trail-0: rgba(14, 127, 196, 0.14);
+  --ai-trail-1: rgba(14, 127, 196, 0.095);
+  --ai-trail-2: rgba(14, 127, 196, 0.06);
+  --ai-trail-3: rgba(14, 127, 196, 0.035);
+  --ai-trail-4: rgba(14, 127, 196, 0.015);
+  --ai-block-bg: rgba(14, 127, 196, 0.06);
+  --ai-pending-bg: rgba(100, 116, 139, 0.08);
+  --ai-delete-bg: rgba(239, 68, 68, 0.12);
+  --ai-delete-accent: #dc2626;
+  --ai-done-accent: #059669;
+  --ai-done-bg-soft: rgba(5, 150, 105, 0.085);
+  --ai-done-bg-mid: rgba(14, 127, 196, 0.14);
+  --ai-done-bg-peak: rgba(56, 189, 248, 0.2);
+  --ai-hud-bg: rgba(255, 255, 255, 0.92);
+  --ai-hud-border: rgba(14, 127, 196, 0.25);
+  --ai-hud-shadow: 0 12px 28px -6px rgba(15, 23, 42, 0.18), 0 0 0 1px rgba(14, 127, 196, 0.08);
+  --ai-hud-text: #0f172a;
+  --ai-hud-muted: #475569;
+  --ai-hud-btn-bg: rgba(15, 23, 42, 0.05);
+  --ai-hud-btn-hover: rgba(14, 127, 196, 0.12);
+  --ai-hud-done-bg: rgba(240, 253, 248, 0.94);
+  --ai-hud-done-border: rgba(5, 150, 105, 0.32);
 }
 
-/* Sol olukta (gutter) aktif satır için neon parıltı */
-.ai-code-active-margin {
-  background: linear-gradient(180deg, #38bdf8, #818cf8) !important;
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.85) !important;
+/* İnce gutter rayları (linesDecorationsClassName — satır numaralarını kapatmaz) */
+.ai-rail-active,
+.ai-rail-trail-1,
+.ai-rail-trail-2,
+.ai-rail-trail-3,
+.ai-rail-block,
+.ai-rail-done,
+.ai-rail-delete {
+  background: transparent !important;
 }
 
-/* Eklenen/değiştirilen tüm bloğu saran lüks koyu cam diff aurası */
-.ai-code-block-highlight {
-  background: linear-gradient(
-    90deg,
-    rgba(14,127,196, 0.08) 0%,
-    rgba(14,127,196, 0.04) 45%,
-    transparent 100%
-  ) !important;
-  border-left: 2px solid rgba(129, 140, 248, 0.55) !important;
-  transition: opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s ease !important;
+.ai-rail-active::after,
+.ai-rail-trail-1::after,
+.ai-rail-trail-2::after,
+.ai-rail-trail-3::after,
+.ai-rail-block::after,
+.ai-rail-done::after,
+.ai-rail-delete::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  left: 50%;
+  width: 3px;
+  transform: translateX(-50%);
+  border-radius: 99px;
+  pointer-events: none;
 }
 
-.ai-code-block-margin {
-  background: rgba(14,127,196, 0.35) !important;
+.ai-rail-active::after {
+  background: linear-gradient(180deg, var(--ai-beam-core), var(--ai-beam-mid));
+  box-shadow: 0 0 8px var(--ai-beam-glow);
 }
 
-/* Yazım tamamlandığında tüm bloğun üzerinden tek seferlik akan pürüzsüz ışık dalgası */
-@keyframes ai-shimmer-sweep {
+.ai-rail-trail-1::after {
+  background: rgba(56, 189, 248, 0.65);
+}
+
+.ai-rail-trail-2::after {
+  background: rgba(14, 127, 196, 0.42);
+}
+
+.ai-rail-trail-3::after {
+  background: rgba(14, 127, 196, 0.24);
+}
+
+.ai-rail-block::after {
+  background: rgba(14, 127, 196, 0.42);
+}
+
+.ai-rail-delete::after {
+  background: var(--ai-delete-accent);
+  box-shadow: 0 0 6px rgba(248, 113, 113, 0.55);
+}
+
+@keyframes ai-rail-settle {
   0% {
-    background-position: -200% 0;
+    background: var(--ai-beam-mid);
+    opacity: 1;
+  }
+  35% {
+    background: var(--ai-done-accent);
+    opacity: 0.95;
   }
   100% {
-    background-position: 200% 0;
+    background: var(--ai-done-accent);
+    opacity: 0;
   }
 }
 
-.ai-code-shimmer-done {
+.ai-rail-done::after {
+  background: var(--ai-done-accent);
+  animation: ai-rail-settle 1.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 4 basamaklı fosfor izli satır vurguları */
+.ai-stream-line-active {
+  background: linear-gradient(90deg, var(--ai-trail-0) 0%, rgba(14, 127, 196, 0.05) 58%, transparent 96%) !important;
+}
+
+.ai-stream-trail-1 {
+  background: linear-gradient(90deg, var(--ai-trail-1) 0%, rgba(14, 127, 196, 0.03) 50%, transparent 90%) !important;
+}
+
+.ai-stream-trail-2 {
+  background: linear-gradient(90deg, var(--ai-trail-2) 0%, rgba(14, 127, 196, 0.015) 45%, transparent 82%) !important;
+}
+
+.ai-stream-trail-3 {
+  background: linear-gradient(90deg, var(--ai-trail-3) 0%, transparent 72%) !important;
+}
+
+.ai-stream-trail-4 {
+  background: linear-gradient(90deg, var(--ai-trail-4) 0%, transparent 60%) !important;
+}
+
+.ai-stream-pending {
+  background: var(--ai-pending-bg) !important;
+}
+
+.ai-stream-deleting {
+  background: linear-gradient(90deg, var(--ai-delete-bg) 0%, rgba(248, 113, 113, 0.04) 55%, transparent 92%) !important;
+}
+
+.ai-stream-block {
+  background: linear-gradient(90deg, var(--ai-block-bg) 0%, rgba(14, 127, 196, 0.02) 48%, transparent 92%) !important;
+}
+
+@keyframes ai-done-sweep {
+  0% {
+    background-position: 180% 0;
+    opacity: 0.9;
+  }
+  28% {
+    background-position: 45% 0;
+    opacity: 1;
+  }
+  62% {
+    background-position: -85% 0;
+    opacity: 0.72;
+  }
+  100% {
+    background-position: -120% 0;
+    opacity: 0;
+  }
+}
+
+.ai-stream-done-fade {
+  background: linear-gradient(
+    105deg,
+    var(--ai-done-bg-soft) 0%,
+    var(--ai-done-bg-soft) 25%,
+    var(--ai-done-bg-mid) 42%,
+    var(--ai-done-bg-peak) 50%,
+    var(--ai-done-bg-mid) 58%,
+    var(--ai-done-bg-soft) 75%,
+    transparent 100%
+  ) !important;
+  background-size: 260% 100% !important;
+  animation: ai-done-sweep 1.65s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
+}
+
+/* GPU hızlandırmalı üst ilerleme çubuğu ve optik tarama ışını */
+.ai-stream-progress-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 25;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.ai-stream-progress-fill {
+  width: 100%;
+  height: 100%;
+  transform-origin: left center;
+  transform: scaleX(0);
+  will-change: transform;
+  background: linear-gradient(90deg, var(--ai-beam-accent), var(--ai-beam-mid), var(--ai-beam-core));
+  box-shadow: 0 0 10px var(--ai-beam-glow);
+  transition: transform 80ms linear;
+}
+
+.ai-stream-edge-sheen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  z-index: 15;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(14, 127, 196, 0.085) 0%, transparent 100%);
+}
+
+.ai-scan-beam {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1.5px;
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
   background: linear-gradient(
     90deg,
-    rgba(14,127,196, 0.06) 0%,
-    rgba(56, 189, 248, 0.18) 35%,
-    rgba(165, 180, 252, 0.25) 50%,
-    rgba(56, 189, 248, 0.18) 65%,
-    rgba(14,127,196, 0.06) 100%
-  ) !important;
-  background-size: 200% 100% !important;
-  animation: ai-shimmer-sweep 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
-  border-left: 2.5px solid #34d399 !important;
+    var(--ai-beam-core) 0%,
+    var(--ai-beam-mid) 36%,
+    rgba(14, 127, 196, 0.36) 74%,
+    transparent 100%
+  );
+  box-shadow: 0 0 12px var(--ai-beam-glow);
+  transition: transform 65ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease;
 }
 
-/* Yazım tamamlandığında eriyerek sönen sınıf */
-.ai-code-gradient-fadeout {
-  opacity: 0 !important;
+.ai-scan-beam::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 1px;
+  height: 28px;
+  pointer-events: none;
+  background: linear-gradient(0deg, var(--ai-beam-curtain) 0%, rgba(14, 127, 196, 0.03) 48%, transparent 100%);
 }
 
-/* Editör İçi Floating AI Review Çubuğu (Linear / Apple Dark Glass) */
+.ai-scan-caret {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 2.5px;
+  height: 18px;
+  border-radius: 99px;
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+  background: linear-gradient(180deg, var(--ai-beam-core), var(--ai-beam-mid));
+  box-shadow: 0 0 8px var(--ai-beam-glow), 0 0 18px rgba(14, 127, 196, 0.42);
+  transition: transform 32ms linear, opacity 120ms ease;
+}
+
+.ai-scan-caret::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 52px;
+  height: 52px;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  pointer-events: none;
+  background: radial-gradient(circle, var(--ai-caret-halo) 0%, transparent 70%);
+}
+
+/* Canlı yazım cam HUD kapsülü */
+@keyframes ai-hud-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes ai-hud-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ai-stream-hud {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  background: var(--ai-hud-bg);
+  border: 1px solid var(--ai-hud-border);
+  box-shadow: var(--ai-hud-shadow);
+  color: var(--ai-hud-text);
+  animation: ai-hud-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background-color 220ms ease, border-color 220ms ease;
+}
+
+.ai-stream-hud[data-durum='tamam'] {
+  background: var(--ai-hud-done-bg);
+  border-color: var(--ai-hud-done-border);
+}
+
+.ai-stream-hud-muted {
+  color: var(--ai-hud-muted);
+}
+
+.ai-stream-hud-btn {
+  background: var(--ai-hud-btn-bg);
+  color: var(--ai-hud-text);
+}
+
+.ai-stream-hud-btn:hover {
+  background: var(--ai-hud-btn-hover);
+}
+
+.ai-stream-hud-ring {
+  border: 1.5px solid rgba(56, 189, 248, 0.22);
+  border-top-color: var(--ai-beam-mid);
+  animation: ai-hud-spin 1.05s linear infinite;
+}
+
+/* Editör İçi Floating AI Review Çubuğu */
 .ai-diff-floating-bar {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  background: rgba(13, 15, 23, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(14,127,196, 0.12);
+  background: var(--ai-hud-bg);
+  border: 1px solid var(--ai-hud-border);
+  box-shadow: var(--ai-hud-shadow);
+  color: var(--ai-hud-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-rail-done::after,
+  .ai-stream-done-fade,
+  .ai-stream-hud,
+  .ai-stream-hud-ring {
+    animation: none !important;
+  }
+  .ai-scan-beam,
+  .ai-scan-caret,
+  .ai-stream-progress-fill {
+    transition: none !important;
+  }
 }
 
 

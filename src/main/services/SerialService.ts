@@ -10,6 +10,14 @@ const SATIR_SONU_EKLERI: Record<LineEnding, string> = {
   nlcr: '\n\r'
 }
 
+const MAKS_TAMPON = 1000
+
+export interface SeriKayit {
+  satir: string
+  zaman: number
+  port: string
+}
+
 interface Oturum {
   port: SerialPort
   yol: string
@@ -29,6 +37,8 @@ export class SerialService extends EventEmitter {
   private oturumlar = new Map<string, Oturum>()
   /** Açılış sırası: sonuncusu birincil port */
   private sira: string[] = []
+  /** Son gelen seri çıktı satırları (AI teşhis araçları için dairesel tampon) */
+  private tampon: SeriKayit[] = []
 
   /** Sistemdeki tüm seri portları listeler (serialport paketi üzerinden, arduino-cli'den bağımsız) */
   async listPorts(): Promise<SerialPortInfo[]> {
@@ -68,6 +78,60 @@ export class SerialService extends EventEmitter {
     })
   }
 
+  /** Dairesel tampondaki son seri çıktı satırlarını döner. */
+  sonSatirlar(secenekler?: { port?: string; limit?: number }): SeriKayit[] {
+    const limit = Math.min(300, Math.max(1, Math.floor(secenekler?.limit ?? 80)))
+    const port = secenekler?.port
+    const liste = port ? this.tampon.filter((k) => k.port === port) : this.tampon
+    return liste.slice(-limit).map((k) => ({ ...k }))
+  }
+
+  /** Tampondaki kayıtları port bazlı ya da tamamen temizler. */
+  tamponuTemizle(port?: string): void {
+    if (port) this.tampon = this.tampon.filter((k) => k.port !== port)
+    else this.tampon = []
+  }
+
+  /** Belirtilen süre boyunca (veya satır sınırına dek) canlı gelen seri çıktı satırlarını toplar. */
+  satirBekle(secenekler: {
+    port?: string
+    sureMs: number
+    enFazlaSatir?: number
+    signal?: AbortSignal
+  }): Promise<SeriKayit[]> {
+    const { port, signal } = secenekler
+    if (signal?.aborted) return Promise.resolve([])
+    const sureMs = Math.min(8000, Math.max(50, Math.floor(secenekler.sureMs)))
+    const enFazla = Math.min(200, Math.max(1, Math.floor(secenekler.enFazlaSatir ?? 80)))
+
+    return new Promise((resolve) => {
+      const toplanan: SeriKayit[] = []
+      let bitti = false
+      let zamanlayici: ReturnType<typeof setTimeout> | null = null
+
+      const bitir = (): void => {
+        if (bitti) return
+        bitti = true
+        this.off('data', dinleyici)
+        if (zamanlayici) clearTimeout(zamanlayici)
+        signal?.removeEventListener('abort', onAbort)
+        resolve(toplanan)
+      }
+
+      const onAbort = (): void => bitir()
+
+      const dinleyici = (satir: string, zaman: number, gelenPort: string): void => {
+        if (port && gelenPort !== port) return
+        toplanan.push({ satir, zaman, port: gelenPort })
+        if (toplanan.length >= enFazla) bitir()
+      }
+
+      this.on('data', dinleyici)
+      signal?.addEventListener('abort', onAbort, { once: true })
+      zamanlayici = setTimeout(bitir, sureMs)
+    })
+  }
+
   /** Belirtilen portu belirtilen baud hızıyla açar; aynı port zaten açıksa önce onu yeniden açar. Diğer portlara dokunmaz. */
   async open(port: string, baud: number): Promise<void> {
     if (this.oturumlar.has(port)) await this.close(port)
@@ -101,6 +165,10 @@ export class SerialService extends EventEmitter {
       oturum.yarimSatir = satirlar.pop() ?? ''
       const zamanDamgasi = Date.now()
       for (const satir of satirlar) {
+        this.tampon.push({ satir, zaman: zamanDamgasi, port: yol })
+        if (this.tampon.length > MAKS_TAMPON) {
+          this.tampon.splice(0, this.tampon.length - MAKS_TAMPON)
+        }
         this.emit('data', satir, zamanDamgasi, yol)
       }
     })

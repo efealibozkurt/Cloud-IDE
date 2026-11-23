@@ -4,6 +4,7 @@ import { fqbnSecenekleriyle, temelFqbn } from '@shared/boardFqbn'
 import { useAppState } from '../../state/AppStateContext'
 import { useToast } from '../../state/ToastContext'
 import { Tus } from '../common/Tus'
+import { useT } from '../../i18n'
 import {
   NOTLAR_DOSYA_ADI,
   NOTLAR_SABLONU,
@@ -26,6 +27,7 @@ function notYolu(klasor: string): string {
  * sürüm geçmişine ve .zip paketine kodla birlikte girer. Yazdıkça kendiliğinden kaydedilir.
  */
 function NotlarPanel(): ReactElement {
+  const t = useT()
   const { state } = useAppState()
   const { toastGoster } = useToast()
   const proje = state.sketch.activeSketchPath || state.sketch.info?.folderPath || null
@@ -106,7 +108,7 @@ function NotlarPanel(): ReactElement {
     const dosyalar: Array<{ dosya: string; icerik: string }> = []
     for (const f of bilgi.files) {
       if (!KAYNAK_TURLERI.has(f.kind)) continue
-      const acik = state.sketch.tabs.find((t) => t.path === f.path)
+      const acik = state.sketch.tabs.find((sekme) => sekme.path === f.path)
       try {
         dosyalar.push({ dosya: f.path, icerik: acik ? acik.content : await window.api.sketch.readFile(f.path) })
       } catch {
@@ -122,10 +124,10 @@ function NotlarPanel(): ReactElement {
       tamFqbn
     )
     degistir(metinRef.current.trim() ? `${metinRef.current.replace(/\s+$/, '')}\n\n${blok}\n` : `${blok}\n`)
-    toastGoster('Koddan çıkarılan bilgiler notlara eklendi', 'basari')
+    toastGoster(t('Koddan çıkarılan bilgiler notlara eklendi'), 'basari')
   }
 
-  if (!proje) return <p className="px-3 py-4 text-xs text-gray-500">Notlar için önce bir proje açın.</p>
+  if (!proje) return <p className="px-3 py-4 text-xs text-gray-500">{t('Notlar için önce bir proje açın.')}</p>
 
   const ilerleme = kutuIlerlemesi(metin)
   const satirlar = notSatirlariniAyir(metin)
@@ -138,11 +140,11 @@ function NotlarPanel(): ReactElement {
             {proje.split(/[\\/]/).filter(Boolean).pop()}
           </div>
           <div className="text-[11px] text-gray-500">
-            {durum === 'kaydediliyor' ? 'Kaydediliyor…' : durum === 'hata' ? 'Kaydedilemedi' : metin.trim() ? 'Kaydedildi' : 'Henüz not yok'}
-            {ilerleme.toplam > 0 && ` · ${ilerleme.yapilan}/${ilerleme.toplam} yapıldı`}
+            {durum === 'kaydediliyor' ? t('Kaydediliyor…') : durum === 'hata' ? t('Kaydedilemedi') : metin.trim() ? t('Kaydedildi') : t('Henüz not yok')}
+            {ilerleme.toplam > 0 && ` · ${t('{a}/{b} yapıldı', { a: ilerleme.yapilan, b: ilerleme.toplam })}`}
           </div>
         </div>
-        <div role="tablist" aria-label="Görünüm" className="flex shrink-0 gap-0.5 rounded-[5px] border border-panel-border bg-panel p-0.5">
+        <div role="tablist" aria-label={t('Görünüm')} className="flex shrink-0 gap-0.5 rounded-[5px] border border-panel-border bg-panel p-0.5">
           {[
             [false, 'Önizle'],
             [true, 'Düzenle']
@@ -154,7 +156,7 @@ function NotlarPanel(): ReactElement {
               onClick={() => setDuzenle(deger as boolean)}
               className={`rounded-[3px] px-2 py-0.5 text-[11px] ${duzenle === deger ? 'bg-panel-light text-gray-100' : 'text-gray-500 hover:text-gray-200'}`}
             >
-              {ad as string}
+              {t(ad as string)}
             </button>
           ))}
         </div>
@@ -168,19 +170,19 @@ function NotlarPanel(): ReactElement {
 
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
         {!yuklendi ? (
-          <p className="px-3 py-3 text-gray-500">Yükleniyor…</p>
+          <p className="px-3 py-3 text-gray-500">{t('Yükleniyor…')}</p>
         ) : duzenle ? (
           <textarea
             value={metin}
             onChange={(e) => degistir(e.target.value)}
             spellCheck={false}
-            placeholder={'Bağlantı notları, kullandığınız parçalar, yapılacaklar…\n\n- [ ] ile onay kutusu yazabilirsiniz.'}
-            aria-label="Proje notları"
+            placeholder={t('Bağlantı notları, kullandığınız parçalar, yapılacaklar…\n\n- [ ] ile onay kutusu yazabilirsiniz.')}
+            aria-label={t('Proje notları')}
             className="h-full w-full resize-none bg-transparent px-3 py-3 font-mono text-[12px] leading-relaxed text-gray-200 outline-none placeholder:text-gray-600"
           />
         ) : metin.trim() === '' ? (
           <div className="px-3 py-4">
-            <p className="leading-relaxed text-gray-500">Bu proje için not yok. Hangi parçayı nereye bağladığınızı ya da neyin kaldığını yazın; sonradan çok işe yarar.</p>
+            <p className="leading-relaxed text-gray-500">{t('Bu proje için not yok. Hangi parçayı nereye bağladığınızı ya da neyin kaldığını yazın; sonradan çok işe yarar.')}</p>
           </div>
         ) : (
           <div className="px-3 py-3 [overflow-wrap:anywhere]">
@@ -192,7 +194,7 @@ function NotlarPanel(): ReactElement {
                 return (
                   <label key={i} className="flex cursor-pointer items-start gap-2 py-0.5 text-gray-300 hover:text-gray-100">
                     <input type="checkbox" checked={s.isaretli} onChange={() => degistir(kutuyuDegistir(metinRef.current, s.satir))} className="mt-0.5 accent-accent" />
-                    <span className={`min-w-0 flex-1 ${s.isaretli ? 'text-gray-500 line-through' : ''}`}>{s.metin || <span className="text-gray-600">(boş)</span>}</span>
+                    <span className={`min-w-0 flex-1 ${s.isaretli ? 'text-gray-500 line-through' : ''}`}>{s.metin || <span className="text-gray-600">{t('(boş)')}</span>}</span>
                   </label>
                 )
               }
@@ -200,7 +202,7 @@ function NotlarPanel(): ReactElement {
                 return (
                   <div key={i} className="flex gap-2 py-0.5 text-gray-300">
                     <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-gray-600" />
-                    <span className="min-w-0 flex-1">{s.metin || <span className="text-gray-600">(boş)</span>}</span>
+                    <span className="min-w-0 flex-1">{s.metin || <span className="text-gray-600">{t('(boş)')}</span>}</span>
                   </div>
                 )
               }
@@ -218,14 +220,14 @@ function NotlarPanel(): ReactElement {
               setDuzenle(true)
             }}
           >
-            Şablonla başla
+            {t('Şablonla başla')}
           </Tus>
         )}
-        <Tus onClick={() => void koddanDoldur()} disabled={!yuklendi} title="Kodda kullanılan kütüphaneleri ve pinleri notlara ekler">
-          Koddan doldur
+        <Tus onClick={() => void koddanDoldur()} disabled={!yuklendi} title={t('Kodda kullanılan kütüphaneleri ve pinleri notlara ekler')}>
+          {t('Koddan doldur')}
         </Tus>
       </div>
-      <p className="shrink-0 px-3 pb-2 text-[10.5px] leading-snug text-gray-600">{NOTLAR_DOSYA_ADI} olarak proje klasöründe durur; sürüm geçmişine ve .zip paketine girer.</p>
+      <p className="shrink-0 px-3 pb-2 text-[10.5px] leading-snug text-gray-600">{NOTLAR_DOSYA_ADI} {t('olarak proje klasöründe durur; sürüm geçmişine ve .zip paketine girer.')}</p>
     </div>
   )
 }

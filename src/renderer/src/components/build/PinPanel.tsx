@@ -2,6 +2,7 @@ import { useMemo, type ReactElement } from 'react'
 import { OZELLIK_ADI, pinHaritasi, type HaritaPini, type PinOzellik } from '@shared/pinHaritasi'
 import { useAppState } from '../../state/AppStateContext'
 import type { PinDenetimSonucu } from '../../hooks/usePinSorunlari'
+import { useT } from '../../i18n'
 
 const TUR_RENGI = { error: 'text-red-400', warning: 'text-amber-400', note: 'text-sky-400' } as const
 const TUR_ETIKETI = { error: 'Hata', warning: 'Uyarı', note: 'Not' } as const
@@ -24,12 +25,13 @@ const OZELLIK_RENGI: Record<PinOzellik, string> = {
 const NOKTA_OZELLIKLERI: PinOzellik[] = ['pwm', 'adc', 'dac', 'kesme', 'i2c', 'spi', 'uart', 'dokunmatik']
 
 function PinCipi({ pin, kullanim }: { pin: HaritaPini; kullanim?: string[] }): ReactElement {
+  const t = useT()
   const flash = pin.ozellikler.includes('flash')
   const kullanildi = Boolean(kullanim)
   const ozet = [
-    ...pin.ozellikler.map((o) => OZELLIK_ADI[o]),
+    ...pin.ozellikler.map((o) => t(OZELLIK_ADI[o])),
     ...(pin.not ? [pin.not] : []),
-    ...(kullanim ? [`Kodda: ${kullanim.join(', ')}`] : [])
+    ...(kullanim ? [`${t('Kodda')}: ${kullanim.join(', ')}`] : [])
   ].join(' · ')
   return (
     <div
@@ -58,7 +60,8 @@ function dosyaAdi(yol: string): string {
  * Alt panelin "Pin denetimi" sekmesi: kodda kullanılan pinlerin özeti ve seçili karta göre bulunan sorunlar.
  * Sorun olmasa bile durum görünür, böylece denetimin çalıştığı anlaşılır.
  */
-function PinPanel({ sonuc }: { sonuc: PinDenetimSonucu }): ReactElement {
+function PinPanel({ sonuc, onOpenBaglanti }: { sonuc: PinDenetimSonucu; onOpenBaglanti?: () => void }): ReactElement {
+  const t = useT()
   const { state, requestReveal } = useAppState()
   const fqbn = state.arduinoCli.selectedFqbn
   const { sorunlar, ozet, hazir, dosyaSayisi } = sonuc
@@ -66,29 +69,38 @@ function PinPanel({ sonuc }: { sonuc: PinDenetimSonucu }): ReactElement {
   const kullanimHaritasi = useMemo(() => new Map(ozet.kullanimlar.map((k) => [k.pin, k.roller])), [ozet.kullanimlar])
 
   if (!state.sketch.info && state.sketch.workspaceSketches.length === 0) {
-    return <p className="p-3 text-xs text-gray-500">Pin denetimi için önce bir proje açın.</p>
+    return <p className="p-3 text-xs text-gray-500">{t('Pin denetimi için önce bir proje açın.')}</p>
   }
-  if (!hazir) return <p className="p-3 text-xs text-gray-500">Denetleniyor...</p>
+  if (!hazir) return <p className="p-3 text-xs text-gray-500">{t('Denetleniyor...')}</p>
 
   return (
     <div className="h-full overflow-y-auto overflow-x-hidden text-xs">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-panel-border px-3 py-2 text-gray-400">
         <span className="flex items-center gap-1.5">
           <span className={`h-1.5 w-1.5 rounded-full ${sorunlar.some((s) => s.tur === 'error') ? 'bg-red-400' : sorunlar.length ? 'bg-amber-400' : 'bg-[#3ddc84]'}`} aria-hidden="true" />
-          {sorunlar.length === 0 ? 'Sorun bulunamadı' : `${sorunlar.length} bulgu`}
+          {sorunlar.length === 0 ? t('Sorun bulunamadı') : t('{n} bulgu', { n: sorunlar.length })}
         </span>
-        <span>{dosyaSayisi} dosya tarandı</span>
+        <span>{t('{n} dosya tarandı', { n: dosyaSayisi })}</span>
         <span>
-          Kart:{' '}
+          {t('Kart')}:{' '}
           <span className="text-gray-200">
-            {fqbn ? (ozet.kartAdi ?? `${fqbn} (özel kural yok, yalnızca genel kontroller)`) : 'seçilmedi'}
+            {fqbn ? (ozet.kartAdi ?? `${fqbn} ${t('(özel kural yok, yalnızca genel kontroller)')}`) : t('seçilmedi')}
           </span>
         </span>
+        <div className="flex-1" />
+        {onOpenBaglanti && (
+          <button
+            onClick={onOpenBaglanti}
+            className="rounded border border-accent/40 bg-accent/10 px-2 py-0.5 text-[11px] text-[#7cc4f0] hover:bg-accent/20"
+          >
+            {t('Bağlantı kılavuzu')} →
+          </button>
+        )}
       </div>
 
       {!fqbn && (
         <p className="border-b border-panel-border px-3 py-2 text-amber-300/90">
-          Kart seçilmediği için kartın pin kuralları uygulanamıyor. Üst çubuktan bir kart seçin; Uno/Nano/Mega, ESP32 ve ESP8266 için ayrıntılı denetim yapılır.
+          {t('Kart seçilmediği için kartın pin kuralları uygulanamıyor. Üst çubuktan bir kart seçin; Uno/Nano/Mega, ESP32 ve ESP8266 için ayrıntılı denetim yapılır.')}
         </p>
       )}
 
@@ -98,7 +110,7 @@ function PinPanel({ sonuc }: { sonuc: PinDenetimSonucu }): ReactElement {
           onClick={() => void requestReveal(s.dosya, s.satir)}
           className="flex w-full items-start gap-2 border-b border-panel-border px-3 py-1.5 text-left hover:bg-panel-border/50"
         >
-          <span className={`w-9 shrink-0 font-semibold ${TUR_RENGI[s.tur]}`}>{TUR_ETIKETI[s.tur]}</span>
+          <span className={`w-9 shrink-0 font-semibold ${TUR_RENGI[s.tur]}`}>{t(TUR_ETIKETI[s.tur])}</span>
           <span className="min-w-0 flex-1">
             <span className="block text-gray-300 [overflow-wrap:anywhere]">{s.mesaj}</span>
             <span className="block truncate text-gray-500">
@@ -109,7 +121,7 @@ function PinPanel({ sonuc }: { sonuc: PinDenetimSonucu }): ReactElement {
       ))}
 
       <div className="px-3 pb-1 pt-3 text-[11px] font-medium uppercase tracking-wide text-gray-500">
-        Kart pin haritası{harita ? ` · ${harita.kartAdi}` : ''}
+        {t('Kart pin haritası')}{harita ? ` · ${harita.kartAdi}` : ''}
       </div>
       {harita ? (
         <div className="px-3 pb-3">
@@ -127,34 +139,33 @@ function PinPanel({ sonuc }: { sonuc: PinDenetimSonucu }): ReactElement {
             {NOKTA_OZELLIKLERI.filter((o) => harita.gruplar.some((g) => g.pinler.some((p) => p.ozellikler.includes(o)))).map((o) => (
               <span key={o} className="flex items-center gap-1">
                 <span className="h-1.5 w-1.5 rounded-full" style={{ background: OZELLIK_RENGI[o] }} />
-                {OZELLIK_ADI[o]}
+                {t(OZELLIK_ADI[o])}
               </span>
             ))}
             <span className="flex items-center gap-1">
-              <span className="font-mono text-[9px]">G</span> yalnızca giriş
+              <span className="font-mono text-[9px]">G</span> {t('yalnızca giriş')}
             </span>
             <span className="flex items-center gap-1">
-              <span className="text-[10px] text-amber-400">!</span> önyükleme pini
+              <span className="text-[10px] text-amber-400">!</span> {t('önyükleme pini')}
             </span>
             <span className="flex items-center gap-1">
-              <span className="h-2.5 w-2.5 rounded-[3px] border border-accent bg-accent/[0.14]" /> kodda kullanılıyor
+              <span className="h-2.5 w-2.5 rounded-[3px] border border-accent bg-accent/[0.14]" /> {t('kodda kullanılıyor')}
             </span>
           </div>
-          <p className="mt-1.5 text-[10.5px] text-gray-600">Ayrıntı için bir pinin üzerine gelin.</p>
+          <p className="mt-1.5 text-[10.5px] text-gray-600">{t('Ayrıntı için bir pinin üzerine gelin.')}</p>
         </div>
       ) : (
         <p className="px-3 pb-3 text-gray-500">
           {fqbn
-            ? 'Bu kart için pin haritası henüz yok. Haritalar Arduino Uno/Nano/Mega, ESP32 ve ESP8266 için hazır.'
-            : 'Pin haritasını görmek için üst çubuktan bir kart seçin.'}
+            ? t('Bu kart için pin haritası henüz yok. Haritalar Arduino Uno/Nano/Mega, ESP32 ve ESP8266 için hazır.')
+            : t('Pin haritasını görmek için üst çubuktan bir kart seçin.')}
         </p>
       )}
 
-      <div className="px-3 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wide text-gray-500">Kodda kullanılan pinler</div>
+      <div className="px-3 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wide text-gray-500">{t('Kodda kullanılan pinler')}</div>
       {ozet.kullanimlar.length === 0 ? (
         <p className="px-3 pb-3 text-gray-500">
-          Sayıya çözülebilen pin kullanımı bulunamadı (pinMode, digitalWrite, analogRead, Servo.attach vb.). Pin numarası değişkenle
-          hesaplanıyorsa denetlenemez.
+          {t('Sayıya çözülebilen pin kullanımı bulunamadı (pinMode, digitalWrite, analogRead, Servo.attach vb.). Pin numarası değişkenle hesaplanıyorsa denetlenemez.')}
         </p>
       ) : (
         <table className="mb-3 w-full table-fixed">

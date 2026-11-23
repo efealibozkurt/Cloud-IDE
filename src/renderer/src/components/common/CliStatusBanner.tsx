@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react'
 import { ARDUINO_CLI_DOWNLOAD_URL } from '@shared/types'
 import { useAppState } from '../../state/AppStateContext'
+import { useT } from '../../i18n'
 
 /**
  * arduino-cli bulunamadığında tüm sekmelerde görünen kalıcı uyarı şeridi.
@@ -8,6 +9,7 @@ import { useAppState } from '../../state/AppStateContext'
  * siteden indirmesi için açık bir yönlendirme sunar.
  */
 function CliStatusBanner(): ReactElement | null {
+  const t = useT()
   const { state, browseForCliPath, yenidenDenearduinoCli } = useAppState()
   const durum = state.arduinoCli.status
 
@@ -15,18 +17,18 @@ function CliStatusBanner(): ReactElement | null {
 
   return (
     <div className="flex shrink-0 items-center gap-3 border-b border-amber-800 bg-amber-950 px-3 py-1.5 text-xs text-amber-200">
-      <span className="flex-1">⚠ {durum.message ?? 'arduino-cli bulunamadı.'}</span>
+      <span className="flex-1">⚠ {durum.message ?? t('arduino-cli bulunamadı.')}</span>
       <button
         onClick={() => void browseForCliPath()}
         className="rounded border border-amber-700 bg-amber-900 px-2 py-1 hover:bg-amber-800"
       >
-        arduino-cli yolunu seç
+        {t('arduino-cli yolunu seç')}
       </button>
       <button
         onClick={() => void yenidenDenearduinoCli()}
         className="rounded border border-amber-700 bg-amber-900 px-2 py-1 hover:bg-amber-800"
       >
-        Yeniden dene
+        {t('Yeniden dene')}
       </button>
       <a
         href={ARDUINO_CLI_DOWNLOAD_URL}
@@ -36,7 +38,7 @@ function CliStatusBanner(): ReactElement | null {
         }}
         className="rounded border border-amber-700 bg-amber-900 px-2 py-1 hover:bg-amber-800"
       >
-        İndirme sayfası
+        {t('İndirme sayfası')}
       </a>
     </div>
   )

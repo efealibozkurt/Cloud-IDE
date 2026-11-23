@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactEle
 import type { BoardOption } from '@shared/types'
 import { kartGorseli, kartRengi } from '../../utils/boardImages'
 import BoardThumb from '../common/BoardThumb'
+import { useT } from '../../i18n'
 
 interface BoardPickerProps {
   boards: BoardOption[]
@@ -24,6 +25,7 @@ function oncelik(kart: BoardOption, secili: BoardOption | null): number {
  * Yüzlerce kart olabildiği için ekranda en fazla MAKS_SATIR satır çizilir; aramayla daraltılır.
  */
 function BoardPicker({ boards, value, disabled, onChange }: BoardPickerProps): ReactElement {
+  const t = useT()
   const [acik, setAcik] = useState(false)
   const [arama, setArama] = useState('')
   const [aktifIndeks, setAktifIndeks] = useState(0)
@@ -88,11 +90,11 @@ function BoardPicker({ boards, value, disabled, onChange }: BoardPickerProps): R
         onClick={() => setAcik((a) => !a)}
         aria-haspopup="listbox"
         aria-expanded={acik}
-        title="Kart seçici"
+        title={t('Kart seçici')}
         className="flex h-7 max-w-[240px] items-center gap-2 rounded border border-panel-border bg-panel pl-1 pr-2 text-xs text-gray-300 hover:enabled:bg-panel-border disabled:cursor-not-allowed disabled:text-gray-500"
       >
         <BoardThumb src={kartGorseli(secili)} renk={kartRengi(secili)} genislik={34} />
-        <span className="truncate">{secili ? secili.name : 'Kart seçilmedi'}</span>
+        <span className="truncate">{secili ? secili.name : t('Kart seçilmedi')}</span>
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="shrink-0 text-gray-500">
           <polyline points="6 9 12 15 18 9" />
         </svg>
@@ -106,8 +108,8 @@ function BoardPicker({ boards, value, disabled, onChange }: BoardPickerProps): R
               value={arama}
               onChange={(e) => setArama(e.target.value)}
               onKeyDown={tus}
-              placeholder="Kart ara: uno, esp32, pico…"
-              aria-label="Kart ara"
+              placeholder={t('Kart ara: uno, esp32, pico…')}
+              aria-label={t('Kart ara')}
               className="w-full rounded border border-panel-border bg-panel px-2.5 py-1.5 text-xs text-gray-100 outline-none placeholder:text-gray-600 focus:border-accent"
             />
           </div>
@@ -120,11 +122,11 @@ function BoardPicker({ boards, value, disabled, onChange }: BoardPickerProps): R
                   className="flex w-full items-center gap-3 px-3 py-1.5 text-left text-xs text-gray-400 hover:bg-white/[0.06]"
                 >
                   <BoardThumb src={null} genislik={44} />
-                  Kart seçilmedi
+                  {t('Kart seçilmedi')}
                 </button>
               </li>
             )}
-            {sonuc.gorunen.length === 0 && <li className="px-3 py-6 text-center text-xs text-gray-500">Eşleşen kart yok.</li>}
+            {sonuc.gorunen.length === 0 && <li className="px-3 py-6 text-center text-xs text-gray-500">{t('Eşleşen kart yok.')}</li>}
             {sonuc.gorunen.map((b, i) => {
               const aktif = i === aktifIndeks
               const secilmis = b.fqbn === value
@@ -140,20 +142,20 @@ function BoardPicker({ boards, value, disabled, onChange }: BoardPickerProps): R
                       <span className={`block truncate text-xs ${secilmis ? 'font-medium text-gray-50' : 'text-gray-200'}`}>{b.name}</span>
                       <span className="block truncate text-[11px] text-gray-500">{b.platformName}</span>
                     </span>
-                    {secilmis && <span className="text-xs text-accent-hover">Seçili</span>}
+                    {secilmis && <span className="text-xs text-accent-hover">{t('Seçili')}</span>}
                   </button>
                 </li>
               )
             })}
             {sonuc.toplam > sonuc.gorunen.length && (
               <li className="px-3 py-2 text-xs text-gray-500">
-                {sonuc.toplam - sonuc.gorunen.length} kart daha var. Aramayı daraltın.
+                {t('{n} kart daha var. Aramayı daraltın.', { n: sonuc.toplam - sonuc.gorunen.length })}
               </li>
             )}
           </ul>
 
           <p className="border-t border-panel-border px-3 py-1.5 text-[10.5px] text-gray-600">
-            Görseller: Wikimedia Commons (CC) ve resmi Deneyap deposu.
+            {t('Görseller: Wikimedia Commons (CC) ve resmi Deneyap deposu.')}
           </p>
         </div>
       )}

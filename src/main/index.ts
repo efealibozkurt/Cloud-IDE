@@ -4,6 +4,7 @@ import { pathToFileURL } from 'url'
 import { disAdresMi, mutlakYol } from './ipc/yolDogrulama'
 import { IPC_CHANNELS } from '@shared/types'
 import { ArduinoCliService } from './services/ArduinoCliService'
+import { KutuphaneSembolServisi } from './services/KutuphaneSembolServisi'
 import { SketchService } from './services/SketchService'
 import { HistoryService } from './services/HistoryService'
 import { historyIpcKaydet } from './ipc/historyIpc'
@@ -166,6 +167,7 @@ app.whenReady().then(async () => {
   const secretsService = new SecretsService()
   const customSkillService = new CustomSkillService(app.getPath('userData'))
   const arduinoCliService = new ArduinoCliService(app.getPath('userData'), settingsService)
+  const kutuphaneSembolServisi = new KutuphaneSembolServisi(arduinoCliService)
   const ragService = new RagService(arduinoCliService)
   const boardSkillEngine = new BoardSkillEngine(arduinoCliService, ragService, customSkillService, app.getPath('userData'))
   const compactionService = new ChatCompactionService(secretsService, settingsService)
@@ -181,6 +183,7 @@ app.whenReady().then(async () => {
     boardSkills: boardSkillEngine,
     deviceLock,
     sketchService,
+    serial: serialService,
     sketchbookDir: varsayilanSketchbookDizini(app.getPath('documents')),
     userDataDir: app.getPath('userData'),
     history: historyService
@@ -197,7 +200,11 @@ app.whenReady().then(async () => {
 
   const mainWindow = createWindow()
 
-  arduinoCliIpcKaydet(mainWindow, arduinoCliService, deviceLock, { history: historyService, settings: settingsService })
+  arduinoCliIpcKaydet(mainWindow, arduinoCliService, deviceLock, {
+    history: historyService,
+    settings: settingsService,
+    kutuphaneSembolleri: kutuphaneSembolServisi
+  })
   sketchIpcKaydet(mainWindow, app.getPath('documents'), sketchService, settingsService)
   serialIpcKaydet(mainWindow, serialService, deviceLock)
   settingsIpcKaydet(settingsService)

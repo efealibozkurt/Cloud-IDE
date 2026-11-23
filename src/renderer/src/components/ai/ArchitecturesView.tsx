@@ -2,6 +2,7 @@ import { useState, useEffect, type ReactElement } from 'react'
 import type { BoardProfileInfo, BoardModelVariant } from '@shared/types'
 import { kartGorseli, kartRengi } from '../../utils/boardImages'
 import BoardThumb from '../common/BoardThumb'
+import { useT } from '../../i18n'
 import { VoltageIcon, QuartzIcon, CpuIcon, MemoryIcon } from './skillsIcons'
 
 const girdiSinifi =
@@ -49,6 +50,7 @@ function EkleSatiri({
   onEkle: () => void
   placeholder: string
 }): ReactElement {
+  const t = useT()
   return (
     <div className="mt-2 flex gap-2">
       <input
@@ -61,7 +63,7 @@ function EkleSatiri({
         className={girdiSinifi}
       />
       <button onClick={onEkle} disabled={!deger.trim()} className={ikincilButon}>
-        Ekle
+        {t('Ekle')}
       </button>
     </div>
   )
@@ -82,6 +84,7 @@ export function ArchitecturesView({
   activeBoardName?: string
   onRefresh?: () => Promise<void>
 }): ReactElement {
+  const t = useT()
   const [selectedFamily, setSelectedFamily] = useState<string>(activeFamily || 'deneyap')
 
   const currentProfile = profiles.find((p) => p.family.toLowerCase() === selectedFamily.toLowerCase()) || profiles[0]
@@ -153,11 +156,11 @@ export function ArchitecturesView({
   const saveCurrentModel = async (updatedModel: BoardModelVariant): Promise<void> => {
     try {
       await window.api.skills.saveBoardModel(currentProfile.family, updatedModel)
-      showToast('Kaydedildi')
+      showToast(t('Kaydedildi'))
       if (onRefresh) await onRefresh()
     } catch (err) {
       console.error('Model kaydedilemedi:', err)
-      showToast('Kaydedilemedi')
+      showToast(t('Kaydedilemedi'))
     }
   }
 
@@ -278,33 +281,33 @@ export function ArchitecturesView({
     await window.api.skills.addBoardModel(currentProfile.family, newVariant)
     setSelectedModelId(newId)
     setIsAddingModel(false)
-    showToast(`'${newModelName.trim()}' eklendi`)
+    showToast(t("'{ad}' eklendi", { ad: newModelName.trim() }))
     if (onRefresh) await onRefresh()
   }
 
   const handleResetToDefault = async (): Promise<void> => {
-    if (!window.confirm(`'${currentModel.name}' modeli fabrika ayarlarına döndürülsün mü?`)) return
+    if (!window.confirm(t("'{ad}' modeli fabrika ayarlarına döndürülsün mü?", { ad: currentModel.name }))) return
     await window.api.skills.resetBoardModel(currentProfile.family, currentModel.id)
-    showToast('Varsayılana döndürüldü')
+    showToast(t('Varsayılana döndürüldü'))
     if (onRefresh) await onRefresh()
   }
 
   const handleDeleteCurrentModel = async (): Promise<void> => {
-    if (!window.confirm(`'${currentModel.name}' modeli silinsin mi?`)) return
+    if (!window.confirm(t("'{ad}' modeli silinsin mi?", { ad: currentModel.name }))) return
     await window.api.skills.deleteBoardModel(currentProfile.family, currentModel.id)
-    showToast('Model silindi')
+    showToast(t('Model silindi'))
     if (onRefresh) await onRefresh()
   }
 
   if (!currentProfile) {
-    return <div className="flex h-full items-center justify-center text-xs text-gray-500">Kart profili bulunamadı.</div>
+    return <div className="flex h-full items-center justify-center text-xs text-gray-500">{t('Kart profili bulunamadı.')}</div>
   }
 
   const ozellikler: Array<{ ad: string; deger: string; ikon: typeof VoltageIcon; stil: string; ikonStil: string }> = [
-    { ad: 'Mantık voltajı', deger: currentModel.voltage || currentProfile.voltage, ikon: VoltageIcon, stil: 'border-amber-400/20 bg-amber-400/[0.06]', ikonStil: 'text-amber-300 bg-amber-400/15' },
-    { ad: 'Saat hızı', deger: currentModel.clockSpeed || currentProfile.clockSpeed, ikon: QuartzIcon, stil: 'border-sky-400/20 bg-sky-400/[0.06]', ikonStil: 'text-sky-300 bg-sky-400/15' },
-    { ad: 'Mimari', deger: currentModel.architecture || currentProfile.architecture, ikon: CpuIcon, stil: 'border-cyan-400/20 bg-cyan-400/[0.06]', ikonStil: 'text-cyan-300 bg-cyan-400/15' },
-    { ad: 'Bellek', deger: currentModel.flashRam || currentProfile.flashRam, ikon: MemoryIcon, stil: 'border-emerald-400/20 bg-emerald-400/[0.06]', ikonStil: 'text-emerald-300 bg-emerald-400/15' }
+    { ad: t('Mantık voltajı'), deger: currentModel.voltage || currentProfile.voltage, ikon: VoltageIcon, stil: 'border-amber-400/20 bg-amber-400/[0.06]', ikonStil: 'text-amber-300 bg-amber-400/15' },
+    { ad: t('Saat hızı'), deger: currentModel.clockSpeed || currentProfile.clockSpeed, ikon: QuartzIcon, stil: 'border-sky-400/20 bg-sky-400/[0.06]', ikonStil: 'text-sky-300 bg-sky-400/15' },
+    { ad: t('Mimari'), deger: currentModel.architecture || currentProfile.architecture, ikon: CpuIcon, stil: 'border-cyan-400/20 bg-cyan-400/[0.06]', ikonStil: 'text-cyan-300 bg-cyan-400/15' },
+    { ad: t('Bellek'), deger: currentModel.flashRam || currentProfile.flashRam, ikon: MemoryIcon, stil: 'border-emerald-400/20 bg-emerald-400/[0.06]', ikonStil: 'text-emerald-300 bg-emerald-400/15' }
   ]
 
   const silinebilir = currentModel.isCustom && (currentProfile.models?.length || 0) > 1
@@ -319,7 +322,7 @@ export function ArchitecturesView({
           alt={currentModel.name}
         />
         <label className="text-xs text-gray-400">
-          Kart ailesi
+          {t('Kart ailesi')}
           <select
             value={currentProfile.family}
             onChange={(e) => setSelectedFamily(e.target.value)}
@@ -328,13 +331,13 @@ export function ArchitecturesView({
             {profiles.map((p) => (
               <option key={p.family} value={p.family}>
                 {p.name}
-                {p.family.toLowerCase() === activeFamily.toLowerCase() ? ' (seçili kart)' : ''}
+                {p.family.toLowerCase() === activeFamily.toLowerCase() ? ` (${t('seçili kart')})` : ''}
               </option>
             ))}
           </select>
         </label>
         <label className="text-xs text-gray-400">
-          Model
+          {t('Model')}
           <select
             value={currentModel.id}
             onChange={(e) => setSelectedModelId(e.target.value)}
@@ -350,31 +353,31 @@ export function ArchitecturesView({
         </label>
         <div className="ml-auto flex items-center gap-2">
           <button onClick={handleOpenAddModel} className={ikincilButon}>
-            Yeni model
+            {t('Yeni model')}
           </button>
-          <button onClick={handleResetToDefault} className={ikincilButon} title="Bu modeli fabrika ayarlarına döndürür">
-            Sıfırla
+          <button onClick={handleResetToDefault} className={ikincilButon} title={t('Bu modeli fabrika ayarlarına döndürür')}>
+            {t('Sıfırla')}
           </button>
           {silinebilir && (
             <button onClick={handleDeleteCurrentModel} className={`${ikincilButon} text-rose-300`}>
-              Sil
+              {t('Sil')}
             </button>
           )}
         </div>
         {activeBoardName && (
           <p className="basis-full text-xs text-gray-500">
-            Derleme için seçili kart: {activeBoardName}. Burada yaptığınız değişiklikler yapay zekânın kod yazarken kullandığı bilgiyi etkiler.
+            {t('Derleme için seçili kart: {ad}. Burada yaptığınız değişiklikler yapay zekânın kod yazarken kullandığı bilgiyi etkiler.', { ad: activeBoardName })}
           </p>
         )}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <Bolum
-          baslik="Özellikler"
+          baslik={t('Özellikler')}
           sag={
             isEditingSpecs ? undefined : (
               <button onClick={handleOpenEditSpecs} className={metinButonu}>
-                Düzenle
+                {t('Düzenle')}
               </button>
             )
           }
@@ -383,28 +386,28 @@ export function ArchitecturesView({
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <label className="text-xs text-gray-400">
-                  Mantık voltajı
+                  {t('Mantık voltajı')}
                   <input value={specVoltage} onChange={(e) => setSpecVoltage(e.target.value)} className={`${girdiSinifi} mt-1`} />
                 </label>
                 <label className="text-xs text-gray-400">
-                  Saat hızı
+                  {t('Saat hızı')}
                   <input value={specClock} onChange={(e) => setSpecClock(e.target.value)} className={`${girdiSinifi} mt-1`} />
                 </label>
                 <label className="text-xs text-gray-400">
-                  Mimari
+                  {t('Mimari')}
                   <input value={specArch} onChange={(e) => setSpecArch(e.target.value)} className={`${girdiSinifi} mt-1`} />
                 </label>
                 <label className="text-xs text-gray-400">
-                  Bellek
+                  {t('Bellek')}
                   <input value={specFlashRam} onChange={(e) => setSpecFlashRam(e.target.value)} className={`${girdiSinifi} mt-1`} />
                 </label>
               </div>
               <div className="flex justify-end gap-2">
                 <button onClick={() => setIsEditingSpecs(false)} className={ikincilButon}>
-                  Vazgeç
+                  {t('Vazgeç')}
                 </button>
                 <button onClick={() => void handleSaveSpecs()} className="rounded-md bg-gradient-to-r from-[#0e7fc4] to-[#2aa8f2] px-3.5 py-1 text-xs font-semibold text-white hover:brightness-110">
-                  Kaydet
+                  {t('Kaydet')}
                 </button>
               </div>
             </div>
@@ -431,12 +434,12 @@ export function ArchitecturesView({
         </Bolum>
 
         <Bolum
-          baslik="Pinler"
-          aciklama="Yapay zekâ kod yazarken yalnızca bu isimleri kullanır."
+          baslik={t('Pinler')}
+          aciklama={t('Yapay zekâ kod yazarken yalnızca bu isimleri kullanır.')}
           sag={
             isBatchPinMode ? undefined : (
               <button onClick={handleOpenBatchPin} className={metinButonu}>
-                Toplu düzenle
+                {t('Toplu düzenle')}
               </button>
             )
           }
@@ -447,22 +450,22 @@ export function ArchitecturesView({
                 value={batchPinText}
                 onChange={(e) => setBatchPinText(e.target.value)}
                 rows={4}
-                placeholder="Pinleri virgül veya satır ile ayırın"
+                placeholder={t('Pinleri virgül veya satır ile ayırın')}
                 className={`${girdiSinifi} font-mono`}
               />
               <div className="flex justify-end gap-2">
                 <button onClick={() => setIsBatchPinMode(false)} className={ikincilButon}>
-                  Vazgeç
+                  {t('Vazgeç')}
                 </button>
                 <button onClick={() => void handleSaveBatchPin()} className="rounded-md bg-gradient-to-r from-[#0e7fc4] to-[#2aa8f2] px-3.5 py-1 text-xs font-semibold text-white hover:brightness-110">
-                  Kaydet
+                  {t('Kaydet')}
                 </button>
               </div>
             </div>
           ) : (
             <>
               <ul className="flex flex-wrap gap-1.5">
-                {currentModel.pins.length === 0 && <li className="text-xs text-gray-500">Henüz pin tanımlı değil.</li>}
+                {currentModel.pins.length === 0 && <li className="text-xs text-gray-500">{t('Henüz pin tanımlı değil.')}</li>}
                 {currentModel.pins.map((pin, idx) => (
                   <li key={`${pin}-${idx}`} className="group flex items-center rounded-md border border-sky-400/25 bg-sky-400/[0.07] text-xs transition-colors hover:border-sky-300/50 hover:bg-sky-400/[0.12]">
                     {editingPinIdx === idx ? (
@@ -484,14 +487,14 @@ export function ArchitecturesView({
                             setEditingPinIdx(idx)
                             setEditingPinVal(pin)
                           }}
-                          title="Düzenlemek için tıklayın"
+                          title={t('Düzenlemek için tıklayın')}
                           className="px-2 py-1 font-mono text-sky-100 hover:text-white"
                         >
                           {pin}
                         </button>
                         <button
                           onClick={() => void handleDeletePin(idx)}
-                          aria-label={`${pin} pinini sil`}
+                          aria-label={t('{pin} pinini sil', { pin })}
                           className="hidden px-1.5 py-1 text-gray-500 hover:text-rose-300 group-hover:block"
                         >
                           ✕
@@ -501,15 +504,15 @@ export function ArchitecturesView({
                   </li>
                 ))}
               </ul>
-              <EkleSatiri deger={newPinInput} onDegisim={setNewPinInput} onEkle={() => void handleAddPin()} placeholder="Yeni pin, örn. GPIO4 ya da D_RGB" />
+              <EkleSatiri deger={newPinInput} onDegisim={setNewPinInput} onEkle={() => void handleAddPin()} placeholder={t('Yeni pin, örn. GPIO4 ya da D_RGB')} />
             </>
           )}
         </Bolum>
 
-        <Bolum baslik="Çevre birimleri" aciklama="Kartın dahili sensörleri ve donanımları.">
+        <Bolum baslik={t('Çevre birimleri')} aciklama={t('Kartın dahili sensörleri ve donanımları.')}>
           <>
             <ul className="space-y-1">
-              {(currentModel.features || []).length === 0 && <li className="text-xs text-gray-500">Henüz eklenmedi.</li>}
+              {(currentModel.features || []).length === 0 && <li className="text-xs text-gray-500">{t('Henüz eklenmedi.')}</li>}
               {(currentModel.features || []).map((f, i) => (
                 <li key={`${f}-${i}`} className="group flex items-start justify-between gap-3 text-[13px] text-gray-300">
                   <span className="flex items-start gap-2.5">
@@ -518,22 +521,22 @@ export function ArchitecturesView({
                   </span>
                   <button
                     onClick={() => void handleDeleteFeature(i)}
-                    aria-label="Çevre birimini sil"
+                    aria-label={t('Çevre birimini sil')}
                     className="hidden shrink-0 text-xs text-gray-500 hover:text-rose-300 group-hover:block"
                   >
-                    Sil
+                    {t('Sil')}
                   </button>
                 </li>
               ))}
             </ul>
-            <EkleSatiri deger={newFeatureInput} onDegisim={setNewFeatureInput} onEkle={() => void handleAddFeature()} placeholder="Örn. Dahili IMU (LSM6DSM)" />
+            <EkleSatiri deger={newFeatureInput} onDegisim={setNewFeatureInput} onEkle={() => void handleAddFeature()} placeholder={t('Örn. Dahili IMU (LSM6DSM)')} />
           </>
         </Bolum>
 
-        <Bolum baslik="Yapay zekâ kuralları" aciklama="Bu kart için kod yazarken her zaman uyulacak yönergeler.">
+        <Bolum baslik={t('Yapay zekâ kuralları')} aciklama={t('Bu kart için kod yazarken her zaman uyulacak yönergeler.')}>
           <>
             <ul className="space-y-1">
-              {(currentModel.rules || []).length === 0 && <li className="text-xs text-gray-500">Henüz kural yok.</li>}
+              {(currentModel.rules || []).length === 0 && <li className="text-xs text-gray-500">{t('Henüz kural yok.')}</li>}
               {(currentModel.rules || []).map((r, i) => (
                 <li key={`${r}-${i}`} className="group flex items-start justify-between gap-3 text-[13px] text-gray-300">
                   <span className="flex items-start gap-2.5">
@@ -542,15 +545,15 @@ export function ArchitecturesView({
                   </span>
                   <button
                     onClick={() => void handleDeleteRule(i)}
-                    aria-label="Kuralı sil"
+                    aria-label={t('Kuralı sil')}
                     className="hidden shrink-0 text-xs text-gray-500 hover:text-rose-300 group-hover:block"
                   >
-                    Sil
+                    {t('Sil')}
                   </button>
                 </li>
               ))}
             </ul>
-            <EkleSatiri deger={newRuleInput} onDegisim={setNewRuleInput} onEkle={() => void handleAddRule()} placeholder="Örn. Seri portu 115200 baud ile başlat" />
+            <EkleSatiri deger={newRuleInput} onDegisim={setNewRuleInput} onEkle={() => void handleAddRule()} placeholder={t('Örn. Seri portu 115200 baud ile başlat')} />
           </>
         </Bolum>
       </div>
@@ -563,51 +566,51 @@ export function ArchitecturesView({
 
       {isAddingModel && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 p-6">
-          <div role="dialog" aria-label="Yeni model" className="max-h-full w-full max-w-lg overflow-y-auto rounded border border-panel-border bg-panel-light p-5 shadow-xl">
-            <h3 className="text-[13px] font-medium text-gray-100">Yeni model</h3>
-            <p className="mt-0.5 text-xs text-gray-500">{currentProfile.name} ailesine eklenir. Boş bıraktığınız alanlar ailenin değerleriyle doldurulur.</p>
+          <div role="dialog" aria-label={t('Yeni model')} className="max-h-full w-full max-w-lg overflow-y-auto rounded border border-panel-border bg-panel-light p-5 shadow-xl">
+            <h3 className="text-[13px] font-medium text-gray-100">{t('Yeni model')}</h3>
+            <p className="mt-0.5 text-xs text-gray-500">{t('{ad} ailesine eklenir. Boş bıraktığınız alanlar ailenin değerleriyle doldurulur.', { ad: currentProfile.name })}</p>
 
             <div className="mt-4 grid grid-cols-2 gap-3">
               <label className="col-span-2 text-xs text-gray-400">
-                Model adı
-                <input autoFocus value={newModelName} onChange={(e) => setNewModelName(e.target.value)} placeholder="Örn. ESP32-S3 DevKit" className={`${girdiSinifi} mt-1`} />
+                {t('Model adı')}
+                <input autoFocus value={newModelName} onChange={(e) => setNewModelName(e.target.value)} placeholder={t('Örn. ESP32-S3 DevKit')} className={`${girdiSinifi} mt-1`} />
               </label>
               <label className="text-xs text-gray-400">
-                Mimari
+                {t('Mimari')}
                 <input value={newModelArch} onChange={(e) => setNewModelArch(e.target.value)} className={`${girdiSinifi} mt-1`} />
               </label>
               <label className="text-xs text-gray-400">
-                Mantık voltajı
+                {t('Mantık voltajı')}
                 <input value={newModelVoltage} onChange={(e) => setNewModelVoltage(e.target.value)} className={`${girdiSinifi} mt-1`} />
               </label>
               <label className="text-xs text-gray-400">
-                Saat hızı
+                {t('Saat hızı')}
                 <input value={newModelClock} onChange={(e) => setNewModelClock(e.target.value)} className={`${girdiSinifi} mt-1`} />
               </label>
               <label className="text-xs text-gray-400">
-                Bellek
+                {t('Bellek')}
                 <input value={newModelFlashRam} onChange={(e) => setNewModelFlashRam(e.target.value)} className={`${girdiSinifi} mt-1`} />
               </label>
               <label className="col-span-2 text-xs text-gray-400">
-                Pinler (virgül veya satır ile ayırın)
+                {t('Pinler (virgül veya satır ile ayırın)')}
                 <textarea value={newModelPinsText} onChange={(e) => setNewModelPinsText(e.target.value)} rows={3} className={`${girdiSinifi} mt-1 font-mono`} />
               </label>
               <label className="col-span-2 text-xs text-gray-400">
-                Çevre birimleri (her satıra bir tane)
+                {t('Çevre birimleri (her satıra bir tane)')}
                 <textarea value={newModelFeaturesText} onChange={(e) => setNewModelFeaturesText(e.target.value)} rows={3} className={`${girdiSinifi} mt-1`} />
               </label>
             </div>
 
             <div className="mt-4 flex justify-end gap-2">
               <button onClick={() => setIsAddingModel(false)} className={ikincilButon}>
-                Vazgeç
+                {t('Vazgeç')}
               </button>
               <button
                 onClick={() => void handleSaveNewModel()}
                 disabled={!newModelName.trim()}
                 className="rounded-md bg-gradient-to-r from-[#0e7fc4] to-[#2aa8f2] px-3.5 py-1 text-xs font-semibold text-white hover:brightness-110 disabled:opacity-40"
               >
-                Modeli ekle
+                {t('Modeli ekle')}
               </button>
             </div>
           </div>

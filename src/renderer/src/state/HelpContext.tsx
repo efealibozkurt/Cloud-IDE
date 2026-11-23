@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import HelpModal from '../components/help/HelpModal'
 import TurRehberi, { TUR_GORULDU_ANAHTARI } from '../components/help/TurRehberi'
 import SorunBildirModal from '../components/help/SorunBildirModal'
+import IlkKurulumSihirbazi, { KURULUM_TAMAM_ANAHTARI } from '../components/help/IlkKurulumSihirbazi'
 import type { YardimKonuId } from '../components/help/yardimKonulari'
 
 interface YardimBaglami {
@@ -11,6 +12,8 @@ interface YardimBaglami {
   turuBaslat: () => void
   /** "Sorun bildir" penceresini açar (rapor hazırlar; hiçbir şey kendiliğinden gönderilmez) */
   sorunBildirAc: () => void
+  /** İlk kurulum sihirbazını açar (kart ve yapay zekâ ayarı); Yardım'dan yeniden çalıştırılabilir */
+  kurulumAc: (ilkAcilis?: boolean) => void
 }
 
 const Baglam = createContext<YardimBaglami | null>(null)
@@ -21,6 +24,7 @@ export function YardimProvider({ children, surum }: { children: ReactNode; surum
   const [konu, setKonu] = useState<YardimKonuId | undefined>(undefined)
   const [turAcik, setTurAcik] = useState(false)
   const [sorunAcik, setSorunAcik] = useState(false)
+  const [kurulum, setKurulum] = useState<{ ilkAcilis: boolean } | null>(null)
 
   const yardimAc = useCallback((k?: YardimKonuId) => {
     setKonu(k)
@@ -46,7 +50,12 @@ export function YardimProvider({ children, surum }: { children: ReactNode; surum
 
   const sorunBildirAc = useCallback(() => setSorunAcik(true), [])
 
-  const deger = useMemo(() => ({ yardimAc, turuBaslat, sorunBildirAc }), [yardimAc, turuBaslat, sorunBildirAc])
+  const kurulumAc = useCallback((ilkAcilis = false) => {
+    setAcik(false)
+    setKurulum({ ilkAcilis })
+  }, [])
+
+  const deger = useMemo(() => ({ yardimAc, turuBaslat, sorunBildirAc, kurulumAc }), [yardimAc, turuBaslat, sorunBildirAc, kurulumAc])
 
   return (
     <Baglam.Provider value={deger}>
@@ -54,6 +63,15 @@ export function YardimProvider({ children, surum }: { children: ReactNode; surum
       {acik && <HelpModal baslangicKonusu={konu} surum={surum} onClose={() => setAcik(false)} />}
       {turAcik && <TurRehberi onBitti={() => setTurAcik(false)} />}
       {sorunAcik && <SorunBildirModal onClose={() => setSorunAcik(false)} />}
+      {kurulum && (
+        <IlkKurulumSihirbazi
+          ilkAcilis={kurulum.ilkAcilis}
+          onBitti={(tur) => {
+            setKurulum(null)
+            if (tur) setTurAcik(true)
+          }}
+        />
+      )}
     </Baglam.Provider>
   )
 }
@@ -64,20 +82,26 @@ export function useYardim(): YardimBaglami {
   return b
 }
 
-/** Turu hiç görmemiş kullanıcılar için, uygulama hazır olunca (açılış ekranı ve karşılama notu kapandıktan sonra) turu bir kez başlatır. */
+/**
+ * Turu hiç görmemiş kullanıcılar için, uygulama hazır olunca (açılış ekranı ve karşılama notu kapandıktan sonra)
+ * önce ilk kurulum sihirbazını (kart + yapay zekâ), o bitince turu bir kez başlatır.
+ * Turu daha önce görmüş (mevcut) kullanıcılara sihirbaz kendiliğinden çıkmaz.
+ */
 export function TurOtomatikBaslat({ hazir }: { hazir: boolean }): null {
-  const { turuBaslat } = useYardim()
+  const { turuBaslat, kurulumAc } = useYardim()
   useEffect(() => {
     if (!hazir) return
     let goruldu = false
+    let kurulumTamam = false
     try {
       goruldu = localStorage.getItem(TUR_GORULDU_ANAHTARI) === '1'
+      kurulumTamam = localStorage.getItem(KURULUM_TAMAM_ANAHTARI) === '1'
     } catch {
       goruldu = true // depolama yoksa her açılışta rahatsız etme
     }
     if (goruldu) return
-    const z = setTimeout(turuBaslat, 700)
+    const z = setTimeout(() => (kurulumTamam ? turuBaslat() : kurulumAc(true)), 700)
     return () => clearTimeout(z)
-  }, [hazir, turuBaslat])
+  }, [hazir, turuBaslat, kurulumAc])
   return null
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactElement } from 'react'
 import { surumAdiBul } from '@shared/surumAdlari'
 import beyazCloudIde from '../../assets/beyaz_cloud_ide.png'
+import { useT } from '../../i18n'
 
 /** Kapanış geçişi (ms) — aşağıdaki `duration-500` sınıfıyla eşleşmeli */
 const KAPANIS_SURESI_MS = 500
@@ -30,6 +31,7 @@ const ADIMLAR = [
  * geçişle kapanır.
  */
 function SplashScreen({ hazir, onTamamlandi, surum }: SplashScreenProps): ReactElement {
+  const t = useT()
   const [adim, setAdim] = useState(0)
   const [kapaniyor, setKapaniyor] = useState(false)
 
@@ -64,7 +66,7 @@ function SplashScreen({ hazir, onTamamlandi, surum }: SplashScreenProps): ReactE
   return (
     <div
       role="status"
-      aria-label="Cloud IDE başlatılıyor"
+      aria-label={t('Cloud IDE başlatılıyor')}
       className={`fixed inset-0 z-[60] flex items-center justify-center overflow-hidden bg-panel transition-opacity duration-500 ease-out ${
         kapaniyor ? 'opacity-0' : 'opacity-100'
       }`}
@@ -90,8 +92,8 @@ function SplashScreen({ hazir, onTamamlandi, surum }: SplashScreenProps): ReactE
                   }`}
                   aria-hidden="true"
                 />
-                <span className={bitti ? 'text-gray-500' : 'text-gray-200'}>{metin}</span>
-                {bitti && <span className="ml-auto text-[10.5px] text-gray-600">tamam</span>}
+                <span className={bitti ? 'text-gray-500' : 'text-gray-200'}>{t(metin)}</span>
+                {bitti && <span className="ml-auto text-[10.5px] text-gray-600">{t('tamam')}</span>}
               </li>
             )
           })}
@@ -109,7 +111,8 @@ function SplashScreen({ hazir, onTamamlandi, surum }: SplashScreenProps): ReactE
       </div>
 
       <p className="absolute bottom-7 text-[11.5px] text-gray-600">
-        Efe Ali Bozkurt tarafından geliştirildi{surum ? `, v${surum} ${surumAdiBul(surum).ad} (beta)` : ''}
+        {t('Efe Ali Bozkurt tarafından geliştirildi')}
+        {surum ? `, v${surum} ${surumAdiBul(surum).ad} (beta)` : ''}
       </p>
     </div>
   )

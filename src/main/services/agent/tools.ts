@@ -1,9 +1,13 @@
 import { readFile } from 'fs/promises'
-import { basename, dirname, relative, resolve } from 'path'
-import type { AgentDiffPreview, AgentEvent, AgentPermissionMode, AgentPlanItem, CompileResult } from '@shared/types'
+import { basename, dirname, join, relative, resolve } from 'path'
+import { BAGLANTI_DOSYA_ADI, baglantiKilavuzuDogrula } from '@shared/baglantiKilavuzu'
+import { pinleriDenetle, pinOzetiCikar, type PinKaynakDosya } from '@shared/pinCheck'
+import { BOOTLOADER_DESENI, seriCiktiAnalizEt } from '@shared/seriTeshis'
+import type { AgentDiffPreview, AgentEvent, AgentPermissionMode, AgentPlanItem, CompileResult, LineEnding } from '@shared/types'
 import type { ArduinoCliService } from '../ArduinoCliService'
 import type { DeviceLock } from '../DeviceLock'
 import type { RagKind } from '../RagService'
+import type { SerialService } from '../SerialService'
 import type { BoardContext, BoardSkillEngine } from '../BoardSkillEngine'
 import type { AgentWorkspace } from './AgentWorkspace'
 import { sketchAdiTemizle } from './AgentWorkspace'
@@ -197,6 +201,105 @@ export const TOOL_DEFS: ToolDef[] = [
       },
       required: ['question']
     }
+  },
+  {
+    name: 'read_serial',
+    description:
+      'Seri monitör tamponundaki son çıktıları okur ve isteğe bağlı olarak canlı veri dinler (wait_ms). Donanım çökmesi (Guru Meditation, WDT, Brownout) veya baud uyuşmazlığı belirtilerini otomatik analiz eder.',
+    parameters: {
+      type: 'object',
+      properties: {
+        port: { type: 'string', description: 'Opsiyonel seri port yolu (örn. "COM3"); verilmezse birincil/tüm açık portlar okunur' },
+        lines: { type: 'integer', description: 'Okunacak son satır sayısı (1–200, varsayılan 60)' },
+        wait_ms: { type: 'integer', description: 'Canlı gelen yeni satırları beklemek için süre (0–8000 ms, varsayılan 0)' },
+        hide_bootloader: { type: 'boolean', description: 'true ise ESP önyükleyici teknik satırlarını gizler' }
+      }
+    }
+  },
+  {
+    name: 'send_serial',
+    description:
+      'Açık seri porta metin/komut gönderir ve yanıt bekler. Kullanıcıdan onay isteyebilir; yalnızca test veya kullanıcı istediğinde kullan.',
+    parameters: {
+      type: 'object',
+      properties: {
+        data: { type: 'string', description: 'Gönderilecek metin veya komut (en fazla 500 karakter)' },
+        line_ending: { type: 'string', enum: ['none', 'nl', 'cr', 'nlcr'], description: 'Satır sonu eki (varsayılan: nl)' },
+        port: { type: 'string', description: 'Opsiyonel port yolu (varsayılan: birincil açık port)' },
+        wait_ms: { type: 'integer', description: 'Gönderim sonrası yanıt bekleme süresi (0–5000 ms, varsayılan 800)' }
+      },
+      required: ['data']
+    }
+  },
+  {
+    name: 'check_pins',
+    description:
+      'Aktif sketch kodunu seçili kartın pin haritası ve kurallarına göre (PWM, kesme, ADC2/Wi-Fi, flash pinleri, çakışmalar) statik olarak denetler.',
+    parameters: {
+      type: 'object',
+      properties: {
+        sketch: { type: 'string', description: 'Opsiyonel sketch klasörü yolu/adı (varsayılan: aktif sketch)' },
+        fqbn: { type: 'string', description: 'Opsiyonel kart FQBN (varsayılan: seçili kart)' }
+      }
+    }
+  },
+  {
+    name: 'save_wiring_guide',
+    description:
+      'Projenin etkileşimli Bağlantı Kılavuzu sekmesi için devre bileşenlerini, kablo renk kodlu pin bağlantılarını ve 3.3V/5V güvenlik uyarılarını BAGLANTI.json olarak kaydeder.',
+    parameters: {
+      type: 'object',
+      properties: {
+        ozet: { type: 'string', description: 'Devrenin tek cümlelik Türkçe özeti' },
+        kart_adi: { type: 'string', description: 'Opsiyonel kart adı (örn. "Arduino Uno", "ESP32")' },
+        mantik_voltaj: { type: 'string', enum: ['5V', '3.3V'], description: 'Kartın mantık seviyesi (5V veya 3.3V)' },
+        bilesenler: {
+          type: 'array',
+          description: 'Kullanılan donanım bileşenleri',
+          items: {
+            type: 'object',
+            properties: {
+              ad: { type: 'string' },
+              tur: { type: 'string' },
+              voltaj: { type: 'string' },
+              ek_parcalar: { type: 'array', items: { type: 'string' } },
+              aciklama: { type: 'string' }
+            },
+            required: ['ad', 'tur']
+          }
+        },
+        baglantilar: {
+          type: 'array',
+          description: 'Tek tek kablo bağlantıları',
+          items: {
+            type: 'object',
+            properties: {
+              bilesen: { type: 'string' },
+              bilesen_pini: { type: 'string' },
+              kart_pini: { type: 'string' },
+              kart_pin_no: { type: 'integer' },
+              renk: { type: 'string', enum: ['kirmizi', 'siyah', 'mavi', 'sari', 'yesil', 'turuncu', 'beyaz', 'gri'] },
+              not: { type: 'string' }
+            },
+            required: ['bilesen', 'bilesen_pini', 'kart_pini']
+          }
+        },
+        uyarilar: {
+          type: 'array',
+          description: 'Önemli güvenlik ve güç uyarıları',
+          items: {
+            type: 'object',
+            properties: {
+              seviye: { type: 'string', enum: ['dikkat', 'bilgi'] },
+              mesaj: { type: 'string' }
+            },
+            required: ['mesaj']
+          }
+        },
+        sketch: { type: 'string', description: 'Opsiyonel sketch klasörü yolu/adı (varsayılan: aktif sketch)' }
+      },
+      required: ['ozet', 'baglantilar']
+    }
   }
 ]
 
@@ -210,7 +313,9 @@ export const TEXT_MODE_TOOL_NAMES = [
   'compile',
   'search_docs',
   'search_libraries',
-  'install_library'
+  'install_library',
+  'read_serial',
+  'check_pins'
 ]
 
 // ────────────────────────────────────────────────────────────────────────
@@ -236,6 +341,7 @@ export interface ToolContext {
   ws: AgentWorkspace
   arduino: ArduinoCliService
   kilit: DeviceLock
+  serial?: SerialService
   boardSkills: BoardSkillEngine
   board?: BoardContext
   permission: AgentPermissionMode
@@ -337,6 +443,14 @@ export async function aracCalistir(ctx: ToolContext, ad: string, args: Record<st
         return updatePlan(ctx, args)
       case 'ask_user':
         return await askUser(ctx, args)
+      case 'read_serial':
+        return await readSerialTool(ctx, args)
+      case 'send_serial':
+        return await sendSerialTool(ctx, args)
+      case 'check_pins':
+        return await checkPinsTool(ctx, args)
+      case 'save_wiring_guide':
+        return await saveWiringGuideTool(ctx, args)
       default:
         return {
           ok: false,
@@ -878,6 +992,238 @@ async function askUser(ctx: ToolContext, a: Record<string, unknown>): Promise<To
   return { ok: true, label: 'Kullanıcı yanıtladı', detail: r.answer.slice(0, 80), output: `Kullanıcı yanıtı: ${r.answer}` }
 }
 
+// ── seri port / pin denetimi / bağlantı kılavuzu ──
+
+function sketchKlasoruCoz(ctx: ToolContext, sketchArg?: unknown): string {
+  let klasor: string | null = null
+  if (sketchArg) {
+    klasor = ctx.ws.yolCoz(str(sketchArg))
+    if (!ctx.ws.sketchMi(klasor)) klasor = dirname(klasor)
+  } else {
+    klasor = ctx.ws.getAktifSketch()
+  }
+  if (!klasor || !ctx.ws.sketchMi(klasor)) {
+    throw new Error('Geçerli bir sketch bulunamadı. sketch parametresi verin veya bir proje açın.')
+  }
+  return klasor
+}
+
+async function readSerialTool(ctx: ToolContext, a: Record<string, unknown>): Promise<ToolOutcome> {
+  if (!ctx.serial) {
+    return { ok: false, label: 'Seri port okunamadı', output: 'HATA: Seri port servisine erişilemiyor.' }
+  }
+  const aciklar = ctx.serial.acikPortlar()
+  const istenenPort = str(a.port).trim() || undefined
+  const limit = Math.min(200, Math.max(1, Math.floor(Number(a.lines ?? 60) || 60)))
+  const waitMs = Math.min(8000, Math.max(0, Math.floor(Number(a.wait_ms ?? 0) || 0)))
+  const gizleBootloader = Boolean(a.hide_bootloader)
+
+  let canliSayi = 0
+  let canliNotu = ''
+  if (waitMs > 0) {
+    const beklePort = istenenPort ?? ctx.serial.aktifPort() ?? undefined
+    if (beklePort && ctx.serial.isOpen(beklePort)) {
+      const gelen = await ctx.serial.satirBekle({
+        port: beklePort,
+        sureMs: waitMs,
+        enFazlaSatir: limit,
+        signal: ctx.signal
+      })
+      canliSayi = gelen.length
+    } else {
+      canliNotu = 'Not: Canlı dinleme için açık seri port bulunamadı; yalnızca tampondaki eski satırlar kontrol edildi.'
+    }
+  }
+
+  let kayitlar = ctx.serial.sonSatirlar({ port: istenenPort, limit })
+  if (gizleBootloader) {
+    kayitlar = kayitlar.filter((k) => !BOOTLOADER_DESENI.test(k.satir))
+  }
+
+  if (kayitlar.length === 0 && aciklar.length === 0) {
+    return {
+      ok: true,
+      label: 'Seri port kapalı',
+      output:
+        'Açık seri port yok ve tampondaki seri çıktı boş. Kullanıcıdan üst çubuktan portu seçip Seri Monitör\'den "Bağlan"a tıklamasını iste.'
+    }
+  }
+
+  const satirlar: string[] = []
+  satirlar.push(
+    `Açık portlar: ${aciklar.length ? aciklar.map((p) => `${p.port} @ ${p.baud}`).join(', ') : '(yok)'}`
+  )
+  if (canliNotu) satirlar.push(canliNotu)
+  else if (waitMs > 0) satirlar.push(`Canlı beklemede (${waitMs} ms) gelen yeni satır: ${canliSayi}`)
+
+  if (kayitlar.length === 0) {
+    satirlar.push('\nSeri tampondan okunacak yeni çıktı yok.')
+  } else {
+    satirlar.push(`\nSERİ ÇIKTI (son ${kayitlar.length} satır):`)
+    for (const k of kayitlar) {
+      const saat = new Date(k.zaman).toLocaleTimeString('tr-TR', { hour12: false })
+      satirlar.push(`[${saat} ${k.port}] ${k.satir}`)
+    }
+    const ipuclari = seriCiktiAnalizEt(kayitlar.map((k) => k.satir))
+    if (ipuclari.length > 0) {
+      satirlar.push('\nOTOMATİK TEŞHİS İPUÇLARI:')
+      for (const ip of ipuclari) satirlar.push(`- ${ip}`)
+    }
+  }
+
+  return {
+    ok: true,
+    label: `Seri çıktı okundu (${kayitlar.length} satır)`,
+    detail: aciklar[0]?.port,
+    output: kisalt(satirlar.join('\n'), ctx.maksSonucKarakter)
+  }
+}
+
+async function sendSerialTool(ctx: ToolContext, a: Record<string, unknown>): Promise<ToolOutcome> {
+  if (!ctx.serial) {
+    return { ok: false, label: 'Seri gönderim başarısız', output: 'HATA: Seri port servisine erişilemiyor.' }
+  }
+  const veri = str(a.data)
+  if (!veri) throw new Error('data boş olamaz')
+  if (veri.length > 500) throw new Error('data en fazla 500 karakter olabilir')
+
+  const hedefPort = str(a.port).trim() || ctx.serial.aktifPort()
+  if (!hedefPort || !ctx.serial.isOpen(hedefPort)) {
+    return {
+      ok: false,
+      label: 'Seri port açık değil',
+      output: 'HATA: Açık seri port bulunamadı. Önce kullanıcının Seri Monitör üzerinden bir porta bağlanması gerekir.'
+    }
+  }
+
+  const hamSonu = str(a.line_ending) || 'nl'
+  const satirSonu: LineEnding =
+    hamSonu === 'none' || hamSonu === 'nl' || hamSonu === 'cr' || hamSonu === 'nlcr' ? hamSonu : 'nl'
+
+  const ret = await onayAl(
+    ctx,
+    'yikici',
+    'send_serial',
+    `Seri porta veri gönderilecek (${hedefPort}): "${veri.slice(0, 80)}"`
+  )
+  if (ret) return { ok: false, label: 'Seri gönderim reddedildi', output: ret }
+
+  const waitMs = Math.min(5000, Math.max(0, Math.floor(Number(a.wait_ms ?? 800) || 0)))
+  const bekleme =
+    waitMs > 0
+      ? ctx.serial.satirBekle({ port: hedefPort, sureMs: waitMs, enFazlaSatir: 60, signal: ctx.signal })
+      : Promise.resolve([])
+
+  await ctx.serial.write(veri, satirSonu, hedefPort)
+  const yanitlar = await bekleme
+
+  const cikti = [
+    `${hedefPort} portuna gönderildi (${satirSonu}): "${veri}"`,
+    yanitlar.length > 0
+      ? `\nGELEN YANIT (${yanitlar.length} satır):\n${yanitlar.map((y) => y.satir).join('\n')}`
+      : waitMs > 0
+        ? `\n${waitMs} ms içinde seri yanıt alınmadı.`
+        : ''
+  ].join('\n')
+
+  return {
+    ok: true,
+    label: `Seri gönderildi: ${hedefPort}`,
+    detail: yanitlar.length > 0 ? `${yanitlar.length} yanıt` : undefined,
+    output: kisalt(cikti, ctx.maksSonucKarakter)
+  }
+}
+
+async function checkPinsTool(ctx: ToolContext, a: Record<string, unknown>): Promise<ToolOutcome> {
+  const klasor = sketchKlasoruCoz(ctx, a.sketch)
+  const ozet = await ctx.ws.sketchOzeti(klasor)
+  const kaynaklar: PinKaynakDosya[] = []
+  for (const f of ozet.files) {
+    if (!ctx.ws.kaynakDosyaMi(f.path)) continue
+    const icerik = await ctx.ws.oku(f.path).catch(() => null)
+    if (icerik !== null) kaynaklar.push({ dosya: f.name, icerik })
+  }
+  const fqbn = str(a.fqbn).trim() || ctx.board?.fqbn || null
+  const pinOzeti = pinOzetiCikar(kaynaklar, fqbn)
+  const sorunlar = pinleriDenetle(kaynaklar, fqbn)
+
+  const satirlar: string[] = [
+    `Sketch: ${ozet.name} (${kaynaklar.length} kaynak dosya)`,
+    `Kart: ${pinOzeti.kartAdi ?? (fqbn || '(seçilmedi — yalnızca genel çakışma kuralları)')}`,
+    ''
+  ]
+  if (pinOzeti.kullanimlar.length === 0) {
+    satirlar.push('Sayıya çözülebilen sabit pin kullanımı bulunamadı.')
+  } else {
+    satirlar.push('KULLANILAN PİNLER:')
+    for (const k of pinOzeti.kullanimlar) {
+      satirlar.push(`- Pin ${k.pin}: ${k.roller.join(', ')} (${k.dosya}:${k.satir})`)
+    }
+  }
+  satirlar.push('')
+  if (sorunlar.length === 0) {
+    satirlar.push('SONUÇ: Pin denetiminde hata veya uyarı bulunamadı.')
+  } else {
+    satirlar.push(`BULGULAR (${sorunlar.length}):`)
+    for (const s of sorunlar) {
+      const tur = s.tur === 'error' ? 'HATA' : s.tur === 'warning' ? 'UYARI' : 'NOT'
+      satirlar.push(`- [${tur}] ${s.dosya}:${s.satir} (Pin ${s.pin}) — ${s.mesaj}`)
+    }
+  }
+
+  return {
+    ok: true,
+    label: `Pin denetimi: ${ozet.name}`,
+    detail: sorunlar.length > 0 ? `${sorunlar.length} bulgu` : 'sorunsuz',
+    output: kisalt(satirlar.join('\n'), ctx.maksSonucKarakter)
+  }
+}
+
+async function saveWiringGuideTool(ctx: ToolContext, a: Record<string, unknown>): Promise<ToolOutcome> {
+  const klasor = sketchKlasoruCoz(ctx, a.sketch)
+  const hedefYol = join(klasor, BAGLANTI_DOSYA_ADI)
+
+  let oncekiTamamlananlar: string[] = []
+  try {
+    const ham = await readFile(hedefYol, 'utf8')
+    const eski = baglantiKilavuzuDogrula(JSON.parse(ham), ctx.board?.name, ctx.board?.fqbn)
+    if (eski?.tamamlananlar) oncekiTamamlananlar = eski.tamamlananlar
+  } catch {
+    // mevcut BAGLANTI.json yoksa yok say
+  }
+
+  const kartAdi = str(a.kart_adi).trim() || ctx.board?.name || 'Seçili kart'
+  const kilavuz = baglantiKilavuzuDogrula(
+    {
+      ...a,
+      kartAdi,
+      fqbn: ctx.board?.fqbn,
+      kaynak: 'ai',
+      guncellemeZamani: Date.now()
+    },
+    kartAdi,
+    ctx.board?.fqbn
+  )
+  if (!kilavuz) {
+    throw new Error('Geçerli en az bir bağlantı hattı (bilesen, bilesen_pini, kart_pini) veya bileşen belirtmelisin.')
+  }
+
+  if (oncekiTamamlananlar.length > 0) {
+    const gecerliIdler = new Set(kilavuz.baglantilar.map((b) => b.id))
+    const korunan = oncekiTamamlananlar.filter((id) => gecerliIdler.has(id))
+    if (korunan.length > 0) kilavuz.tamamlananlar = korunan
+  }
+
+  await ctx.ws.yaz(hedefYol, JSON.stringify(kilavuz, null, 2))
+
+  return {
+    ok: true,
+    label: `Bağlantı kılavuzu kaydedildi (${kilavuz.baglantilar.length} hat)`,
+    detail: `${kilavuz.bilesenler.length} bileşen`,
+    output: `OK: ${dosyaGoreli(ctx.ws, hedefYol)} kaydedildi (${kilavuz.bilesenler.length} bileşen, ${kilavuz.baglantilar.length} bağlantı, ${kilavuz.uyarilar.length} uyarı). Alt paneldeki "Bağlantı Kılavuzu" sekmesinde canlı olarak görüntüleniyor.`
+  }
+}
+
 /** UI etiketi (tool_start için, sonuç gelmeden önce gösterilir) */
 export function aracEtiketi(ad: string, a: Record<string, unknown>): string {
   const p = typeof a.path === 'string' ? a.path : ''
@@ -917,6 +1263,14 @@ export function aracEtiketi(ad: string, a: Record<string, unknown>): string {
       return 'Plan güncelleniyor'
     case 'ask_user':
       return 'Kullanıcıya soruluyor'
+    case 'read_serial':
+      return 'Seri çıktı okunuyor'
+    case 'send_serial':
+      return `Seri porta gönderiliyor${a.port ? ': ' + str(a.port) : ''}`
+    case 'check_pins':
+      return 'Pinler denetleniyor'
+    case 'save_wiring_guide':
+      return 'Bağlantı kılavuzu kaydediliyor'
     default:
       return ad
   }

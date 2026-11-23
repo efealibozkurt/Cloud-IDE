@@ -3,12 +3,32 @@ import { temelFqbn } from '@shared/boardFqbn'
 import { usbCipiBul } from '@shared/usbCipleri'
 import { useAppState } from '../../state/AppStateContext'
 import { Tus } from './Tus'
+import { useT } from '../../i18n'
 
 interface Oneri {
   port: string
   /** Kesin tanınan kart (kart paketi kurulu); yoksa yalnızca çip bilgisi gösterilir */
   kart?: { name: string; fqbn: string }
   cip?: { ad: string; aciklama: string }
+}
+
+/** {ad} biçimindeki yer tutucuları kalın metinle değiştirir */
+function Yerlestir(metin: string, degerler: Record<string, string>): ReactElement {
+  const parcalar = metin.split(/(\{\w+\})/)
+  return (
+    <>
+      {parcalar.map((p, i) => {
+        const m = /^\{(\w+)\}$/.exec(p)
+        return m && m[1] in degerler ? (
+          <span key={i} className="font-medium text-gray-100">
+            {degerler[m[1]]}
+          </span>
+        ) : (
+          <span key={i}>{p}</span>
+        )
+      })}
+    </>
+  )
 }
 
 /**
@@ -18,6 +38,7 @@ interface Oneri {
  * Hiçbir şeyi kendiliğinden değiştirmez; yalnızca port seçili değilse portu seçer.
  */
 function KartTanimaBandi(): ReactElement | null {
+  const t = useT()
   const { state, selectFqbn, selectPort } = useAppState()
   const { ports, selectedFqbn, selectedPort } = state.arduinoCli
   const [oneri, setOneri] = useState<Oneri | null>(null)
@@ -82,12 +103,12 @@ function KartTanimaBandi(): ReactElement | null {
       <div className="min-w-0 flex-1 text-gray-300">
         {oneri.kart ? (
           <>
-            <span className="font-medium text-gray-100">{oneri.port}</span> portunda <span className="font-medium text-gray-100">{oneri.kart.name}</span> bulundu.
-            {selectedFqbn && ' Seçili kart farklı.'}
+            {Yerlestir(t('{port} portunda {kart} bulundu.'), { port: oneri.port, kart: oneri.kart.name })}
+            {selectedFqbn && ` ${t('Seçili kart farklı.')}`}
           </>
         ) : (
           <>
-            <span className="font-medium text-gray-100">{oneri.port}</span> portuna <span className="font-medium text-gray-100">{oneri.cip?.ad}</span> olan bir kart bağlandı.{' '}
+            {Yerlestir(t('{port} portuna {cip} olan bir kart bağlandı.'), { port: oneri.port, cip: oneri.cip?.ad ?? '' })}{' '}
             <span className="text-gray-400">{oneri.cip?.aciklama}</span>
           </>
         )}
@@ -101,10 +122,10 @@ function KartTanimaBandi(): ReactElement | null {
             setOneri(null)
           }}
         >
-          Bu kartı kullan
+          {t('Bu kartı kullan')}
         </Tus>
       )}
-      <Tus onClick={kapat}>Kapat</Tus>
+      <Tus onClick={kapat}>{t('Kapat')}</Tus>
     </div>
   )
 }

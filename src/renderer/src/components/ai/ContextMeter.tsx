@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react'
 import { ADJUSTABLE_CONTEXT_PRESETS, type AIProviderId } from '@shared/types'
+import { useT } from '../../i18n'
 
 export interface ContextMeterVerisi {
   /** Sistem istemi + kart profili için tahmini token */
@@ -51,6 +52,7 @@ function ContextMeter({
   onOzetle,
   onLimitDegistir
 }: ContextMeterProps): ReactElement {
+  const t = useT()
   const [acik, setAcik] = useState(false)
   const kapsayiciRef = useRef<HTMLDivElement>(null)
 
@@ -77,9 +79,9 @@ function ContextMeter({
   const onek = gercekKullanim ? '' : '~'
 
   const satirlar: Array<{ ad: string; ayrinti?: string; token: number }> = [
-    { ad: 'Sohbet geçmişi', ayrinti: `${veri.mesajSayisi} mesaj${veri.ozetlendi ? ', eskiler özetlendi' : ''}`, token: veri.mesajTokens },
-    { ad: 'Açık dosyalar', ayrinti: veri.aktifDosyaAdi ?? 'Dosya açık değil', token: veri.kodTokens },
-    { ad: 'Sistem ve kart bilgisi', token: veri.sistemTokens }
+    { ad: t('Sohbet geçmişi'), ayrinti: `${t('{n} mesaj', { n: veri.mesajSayisi })}${veri.ozetlendi ? `, ${t('eskiler özetlendi')}` : ''}`, token: veri.mesajTokens },
+    { ad: t('Açık dosyalar'), ayrinti: veri.aktifDosyaAdi ?? t('Dosya açık değil'), token: veri.kodTokens },
+    { ad: t('Sistem ve kart bilgisi'), token: veri.sistemTokens }
   ]
 
   return (
@@ -88,11 +90,11 @@ function ContextMeter({
         type="button"
         onClick={() => setAcik((a) => !a)}
         aria-expanded={acik}
-        title="Bağlam kullanımı"
+        title={t('Bağlam kullanımı')}
         className="block w-full px-3 pb-1.5 pt-1 text-left hover:bg-white/[0.03]"
       >
         <div className="flex items-baseline justify-between text-[11px] text-gray-400">
-          <span>Bağlam</span>
+          <span>{t('Bağlam')}</span>
           <span className={uyari ? 'text-amber-300' : ''}>
             {onek}
             {formatToken(veri.toplamTokens)} / {formatToken(veri.limitTokens)}
@@ -122,7 +124,7 @@ function ContextMeter({
 
           <div className="mt-2 flex items-baseline justify-between border-t border-panel-border pt-2 text-gray-400">
             <span>
-              Model penceresi
+              {t('Model penceresi')}
               {limitDuzenlenebilir && (
                 <select
                   value={veri.limitTokens}
@@ -141,7 +143,7 @@ function ContextMeter({
           </div>
 
           <p className="mt-2 leading-relaxed text-gray-500">
-            Doluluk %{UYARI_ESIGI}’i geçince eski mesajlar kısa bir özetle değiştirilir.
+            {t('Doluluk %{n} değerini geçince eski mesajlar kısa bir özetle değiştirilir.', { n: UYARI_ESIGI })}
           </p>
 
           {bildirim && <p className="mt-2 text-gray-300">{bildirim}</p>}
@@ -150,10 +152,10 @@ function ContextMeter({
             type="button"
             onClick={onOzetle}
             disabled={ozetleniyor || mesgul || veri.mesajSayisi <= 4}
-            title={veri.mesajSayisi <= 4 ? 'Sohbet henüz kısa' : undefined}
+            title={veri.mesajSayisi <= 4 ? t('Sohbet henüz kısa') : undefined}
             className="mt-2 w-full rounded border border-panel-border px-3 py-1.5 text-gray-200 hover:bg-white/5 disabled:cursor-not-allowed disabled:text-gray-600 disabled:hover:bg-transparent"
           >
-            {ozetleniyor ? 'Özetleniyor…' : 'Geçmişi özetle'}
+            {ozetleniyor ? t('Özetleniyor…') : t('Geçmişi özetle')}
           </button>
         </div>
       )}

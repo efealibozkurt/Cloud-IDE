@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react'
 import { useAgent } from '../../state/AgentContext'
 import cloudIcon from '../../assets/icon.png'
+import { useT } from '../../i18n'
 
 interface CloudAiDugmesiProps {
   aktif: boolean
@@ -13,6 +14,7 @@ interface CloudAiDugmesiProps {
  * onay beklerken kehribar bir nokta.
  */
 function CloudAiDugmesi({ aktif, onClick }: CloudAiDugmesiProps): ReactElement {
+  const t = useT()
   const agent = useAgent()
   const calisiyor = agent.calisiyor
   const onayBekliyor = Boolean(agent.calisma?.onay)
@@ -22,7 +24,7 @@ function CloudAiDugmesi({ aktif, onClick }: CloudAiDugmesiProps): ReactElement {
       <button
         onClick={onClick}
         aria-pressed={aktif}
-        title={onayBekliyor ? 'Cloud AI onayınızı bekliyor' : calisiyor ? 'Cloud AI çalışıyor — paneli aç/kapat' : 'Cloud AI asistanını aç/kapat'}
+        title={onayBekliyor ? t('Cloud AI onayınızı bekliyor') : calisiyor ? t('Cloud AI çalışıyor — paneli aç/kapat') : t('Cloud AI asistanını aç/kapat')}
         className="cloudai-ic group relative flex h-[30px] items-center gap-2 pl-2 pr-3 text-[12.5px] font-semibold tracking-wide text-gray-100 outline-none transition-colors hover:text-white focus-visible:ring-1 focus-visible:ring-[#7cc4f0]"
       >
         <img
@@ -34,12 +36,12 @@ function CloudAiDugmesi({ aktif, onClick }: CloudAiDugmesiProps): ReactElement {
         />
         <span>Cloud AI</span>
         {onayBekliyor ? (
-          <span className="flex items-center gap-1 text-[10.5px] font-medium text-amber-300" aria-label="Onay bekliyor">
+          <span className="flex items-center gap-1 text-[10.5px] font-medium text-amber-300" aria-label={t('Onay bekliyor')}>
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
-            onay
+            {t('onay')}
           </span>
         ) : calisiyor ? (
-          <span className="flex items-center gap-[3px]" aria-label="Çalışıyor">
+          <span className="flex items-center gap-[3px]" aria-label={t('Çalışıyor')}>
             {[0, 1, 2].map((i) => (
               <span
                 key={i}

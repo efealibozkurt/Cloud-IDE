@@ -8,6 +8,7 @@ import { useAppState } from '../../state/AppStateContext'
 import { useKutuphaneGuncellemeleri } from '../../hooks/useKutuphaneGuncellemeleri'
 import { YardimDugmesi } from '../common/YardimDugmesi'
 import type { YardimKonuId } from '../help/yardimKonulari'
+import { useT } from '../../i18n'
 
 export type SidebarTab = 'dosyalar' | 'notlar' | 'gecmis' | 'kartlar' | 'kutuphaneler'
 
@@ -49,6 +50,7 @@ function Sidebar({ activeTab, onTabChange }: SidebarProps): ReactElement {
     }
   }, [acik])
 
+  const t = useT()
   const { state } = useAppState()
   const { guncellemeler } = useKutuphaneGuncellemeleri(Boolean(state.arduinoCli.status?.found))
   const rozetSayisi: Partial<Record<SidebarTab, number>> = { kutuphaneler: guncellemeler.length }
@@ -66,7 +68,7 @@ function Sidebar({ activeTab, onTabChange }: SidebarProps): ReactElement {
 
   return (
     <aside className="flex shrink-0 border-r border-panel-border bg-panel-light">
-      <nav aria-label="Yan çubuk" data-tur="yancubuk" className="flex w-12 shrink-0 flex-col items-center gap-0.5 border-r border-panel-border bg-panel py-1.5">
+      <nav aria-label={t('Yan çubuk')} data-tur="yancubuk" className="flex w-12 shrink-0 flex-col items-center gap-0.5 border-r border-panel-border bg-panel py-1.5">
         {TABS.map((tab) => {
           const secili = tab.id === activeTab && acik
           const Ikon = tab.ikon
@@ -74,7 +76,7 @@ function Sidebar({ activeTab, onTabChange }: SidebarProps): ReactElement {
             <div key={tab.id} className="group relative">
               <button
                 onClick={() => sekmeTiklandi(tab.id)}
-                aria-label={tab.ipucu}
+                aria-label={t(tab.ipucu)}
                 aria-pressed={secili}
                 className={`relative flex h-11 w-12 items-center justify-center transition-colors ${
                   secili ? 'text-white' : 'text-gray-500 hover:text-gray-200'
@@ -85,7 +87,7 @@ function Sidebar({ activeTab, onTabChange }: SidebarProps): ReactElement {
                 {(rozetSayisi[tab.id] ?? 0) > 0 && (
                   <span
                     className="absolute right-1.5 top-1.5 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-accent px-1 text-[9px] font-semibold leading-none text-white"
-                    aria-label={`${rozetSayisi[tab.id]} güncelleme var`}
+                    aria-label={t('{n} güncelleme var', { n: rozetSayisi[tab.id] ?? 0 })}
                   >
                     {rozetSayisi[tab.id]}
                   </span>
@@ -95,7 +97,7 @@ function Sidebar({ activeTab, onTabChange }: SidebarProps): ReactElement {
                 role="tooltip"
                 className="pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-[4px] border border-panel-border bg-panel-light px-2 py-1 text-xs text-gray-200 opacity-0 shadow-lg transition-opacity delay-300 group-hover:opacity-100"
               >
-                {tab.ipucu}
+                {t(tab.ipucu)}
               </span>
             </div>
           )
@@ -105,13 +107,13 @@ function Sidebar({ activeTab, onTabChange }: SidebarProps): ReactElement {
       {acik && (
         <div className="flex w-72 flex-col bg-panel-light">
           <div className="flex h-9 shrink-0 items-center justify-between border-b border-panel-border px-3">
-            <h2 className="text-[13px] font-medium text-gray-100">{aktif.baslik}</h2>
+            <h2 className="text-[13px] font-medium text-gray-100">{t(aktif.baslik)}</h2>
             <span className="flex items-center gap-0.5">
             <YardimDugmesi konu={YARDIM_KONUSU[activeTab]} />
             <button
               onClick={() => setAcik(false)}
-              aria-label="Paneli daralt"
-              title="Paneli daralt"
+              aria-label={t('Paneli daralt')}
+              title={t('Paneli daralt')}
               className="flex h-6 w-6 items-center justify-center rounded-[4px] text-gray-500 hover:bg-white/[0.08] hover:text-gray-200"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

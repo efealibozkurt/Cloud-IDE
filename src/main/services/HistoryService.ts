@@ -30,11 +30,12 @@ import type {
  */
 
 const GECERLI_UZANTILAR = new Set(['.ino', '.h', '.hpp', '.cpp', '.c'])
-/** Kaynak olmayan ama projeyle birlikte sürümlenen tek dosya: proje notları */
+/** Kaynak olmayan ama projeyle birlikte sürümlenen dosyalar */
 const NOTLAR_DOSYASI = 'NOTLAR.md'
+const BAGLANTI_DOSYASI = 'BAGLANTI.json'
 
 function surumluDosyaMi(ad: string): boolean {
-  return ad === NOTLAR_DOSYASI || GECERLI_UZANTILAR.has(extname(ad).toLowerCase())
+  return ad === NOTLAR_DOSYASI || ad === BAGLANTI_DOSYASI || GECERLI_UZANTILAR.has(extname(ad).toLowerCase())
 }
 const MAKS_DOSYA_BAYT = 512 * 1024
 const ID_DESENI = /^[a-z0-9]{8,40}$/

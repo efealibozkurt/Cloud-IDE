@@ -10,10 +10,13 @@ import AgentPanel from './components/ai/AgentPanel'
 import SettingsModal from './components/settings/SettingsModal'
 import SplashScreen from './components/splash/SplashScreen'
 import { TurOtomatikBaslat, YardimProvider } from './state/HelpContext'
+import DilSecimi from './components/common/DilSecimi'
+import { dilSecilmisMi } from './i18n'
 import DeveloperMessageModal, { DEVELOPER_MESSAGE_STORAGE_KEY } from './components/common/DeveloperMessageModal'
 import { ToastProvider } from './state/ToastContext'
 import { AppStateProvider, useAppState } from './state/AppStateContext'
 import { AgentProvider } from './state/AgentContext'
+import { cevir } from './i18n'
 
 /**
  * Uygulamanın kök bileşeni. Global sağlayıcıları (Toast, AppState) kurar;
@@ -59,6 +62,7 @@ function AppShell(): ReactElement {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [developerMessageOpen, setDeveloperMessageOpen] = useState(false)
   const [splashGorunur, setSplashGorunur] = useState(true)
+  const [dilSecimiAcik, setDilSecimiAcik] = useState(() => !dilSecilmisMi())
   const [asgariSureTamam, setAsgariSureTamam] = useState(false)
   const oncekiIslemRef = useRef<string | null>(null)
 
@@ -154,14 +158,14 @@ function AppShell(): ReactElement {
         window.api.window.replyCloseRequest(true)
         return
       }
-      const devamEt = window.confirm('Kaydedilmemiş değişiklikler var. Kaydetmeden çıkılsın mı?')
+      const devamEt = window.confirm(cevir('Kaydedilmemiş değişiklikler var. Kaydetmeden çıkılsın mı?'))
       window.api.window.replyCloseRequest(devamEt)
     })
   }, [hasUnsavedChanges])
 
   return (
     <YardimProvider surum={appVersion}>
-    <TurOtomatikBaslat hazir={!splashGorunur && !developerMessageOpen && state.ready} />
+    <TurOtomatikBaslat hazir={!splashGorunur && !developerMessageOpen && !dilSecimiAcik && state.ready} />
     <div className="flex h-screen w-screen flex-col overflow-hidden">
       <TopBar
         appVersion={appVersion}
@@ -193,6 +197,7 @@ function AppShell(): ReactElement {
       {aiModeOrigin && <AIModeScreen origin={aiModeOrigin} onClose={() => setAiModeOrigin(null)} />}
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
       {developerMessageOpen && <DeveloperMessageModal onClose={() => setDeveloperMessageOpen(false)} />}
+      {dilSecimiAcik && <DilSecimi onSecildi={() => setDilSecimiAcik(false)} />}
       {splashGorunur && (
         <SplashScreen hazir={state.ready && asgariSureTamam} onTamamlandi={handleSplashTamamlandi} surum={appVersion === '0.0.0' ? undefined : appVersion} />
       )}

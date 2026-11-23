@@ -3,12 +3,14 @@ import { useAppState } from '../../state/AppStateContext'
 import CodeEditor from '../editor/CodeEditor'
 import cloudIcon from '../../assets/icon.png'
 import { ayniDosyaMi } from '../../utils/paths'
+import { useT } from '../../i18n'
 
 /**
  * Orta bölge: sketch açıksa Monaco tabanlı sekmeli editörü, açık değilse
  * yeni sketch oluştur/aç kısayollarını içeren bir karşılama ekranı gösterir.
  */
 function EditorArea(): ReactElement {
+  const t = useT()
   const { state, setActiveTab, updateTabContent, closeTab, newSketch, openSketchDialog, closeSketch, clearReveal } =
     useAppState()
   const { tabs, activeTabPath } = state.sketch
@@ -31,20 +33,20 @@ function EditorArea(): ReactElement {
             </div>
           </div>
           <p className="text-xs text-gray-400 font-sans">
-            Gömülü sistemler için modern AI destekli IDE
+            {t('Gömülü sistemler için modern AI destekli IDE')}
           </p>
           <div className="flex gap-2.5">
             <button
               onClick={() => void newSketch()}
               className="rounded-lg border border-panel-border bg-panel-light px-4 py-2 text-xs font-medium text-gray-200 shadow-sm transition-all hover:border-[#7cc4f0]/40 hover:bg-panel-border hover:text-white"
             >
-              Yeni Sketch (Ctrl+N)
+              {t('Yeni Sketch (Ctrl+N)')}
             </button>
             <button
               onClick={() => void openSketchDialog()}
               className="rounded-lg border border-panel-border bg-panel-light px-4 py-2 text-xs font-medium text-gray-200 shadow-sm transition-all hover:border-[#7cc4f0]/40 hover:bg-panel-border hover:text-white"
             >
-              Sketch Aç (Ctrl+O)
+              {t('Sketch Aç (Ctrl+O)')}
             </button>
           </div>
         </div>
@@ -68,18 +70,18 @@ function EditorArea(): ReactElement {
             >
               <span
                 className={`max-w-[180px] truncate ${sekme.readOnly ? 'italic text-gray-500' : ''}`}
-                title={sekme.readOnly ? `${sekme.name} · salt okunur (sketch dışı dosya)` : sekme.name}
+                title={sekme.readOnly ? `${sekme.name} · ${t('salt okunur (sketch dışı dosya)')}` : sekme.name}
               >
                 {sekme.name}
               </span>
-              {sekme.readOnly && <span className="text-[10px] text-gray-600">(salt okunur)</span>}
+              {sekme.readOnly && <span className="text-[10px] text-gray-600">({t('salt okunur')})</span>}
               {kirli && <span className="text-accent">●</span>}
               <button
                 onClick={(e) => {
                   e.stopPropagation()
                   closeTab(sekme.path)
                 }}
-                title="Kapat (Ctrl+W)"
+                title={t('Kapat (Ctrl+W)')}
                 className="ml-1 text-gray-500 opacity-0 hover:text-gray-200 focus:opacity-100 group-hover:opacity-100"
               >
                 ×
@@ -90,17 +92,17 @@ function EditorArea(): ReactElement {
         <div className="flex-1" />
         <button
           onClick={closeSketch}
-          title="Sketch'i kapat"
+          title={t("Sketch'i kapat")}
           className="mr-2 shrink-0 rounded px-2 py-1 text-[11px] text-gray-500 hover:bg-panel-border hover:text-red-300"
         >
-          Sketch'i Kapat
+          {t("Sketch'i Kapat")}
         </button>
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col">
         {aktifSekme?.readOnly && (
           <div className="shrink-0 border-b border-amber-800 bg-amber-950 px-3 py-1 text-[11px] text-amber-200">
-            Bu dosya sketch klasörünüzün dışında (kütüphane/çekirdek dosyası) — salt okunur olarak açıldı.
+            {t('Bu dosya sketch klasörünüzün dışında (kütüphane/çekirdek dosyası) — salt okunur olarak açıldı.')}
           </div>
         )}
         {aktifSekme ? (
@@ -120,7 +122,7 @@ function EditorArea(): ReactElement {
           </div>
         ) : (
           <div className="flex min-h-0 flex-1 items-center justify-center text-sm text-gray-600">
-            <p>Düzenlemek için sol panelden bir dosya seçin.</p>
+            <p>{t('Düzenlemek için sol panelden bir dosya seçin.')}</p>
           </div>
         )}
       </div>

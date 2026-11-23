@@ -12,6 +12,7 @@ import { surumAdiBul } from '@shared/surumAdlari'
 import { useAppState } from '../../state/AppStateContext'
 import { useToast } from '../../state/ToastContext'
 import { useYardim } from '../../state/HelpContext'
+import { useI18n, DILLER, type Dil } from '../../i18n'
 import { useGuncelleme } from '../../hooks/useGuncelleme'
 import { AyarBolumu, AyarSatiri, Anahtar, BIRINCIL_DUGME, GIRIS, KUCUK_DUGME, SECICI } from './AyarBilesenleri'
 
@@ -69,6 +70,7 @@ function ilkSekme(): Sekme {
  * (bkz. SecretsService.ts) — yalnızca "ayarlı mı" bilgisi gösterilir.
  */
 function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
+  const { t, dil, setDil } = useI18n()
   const { state, setEditorFontSize, setEditorTheme, setSelectedAiProvider, setSelectedAiModel, setCustomContextLimit, saveApiKey, clearApiKey } = useAppState()
   const { toastGoster } = useToast()
   const { yardimAc, turuBaslat, sorunBildirAc } = useYardim()
@@ -168,10 +170,10 @@ function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
       if (deger) yeni[secilenSaglayici] = deger
       else delete yeni[secilenSaglayici]
       await window.api.settings.set('aiBaseUrls', yeni)
-      toastGoster('Sunucu adresi kaydedildi', 'basari')
+      toastGoster(t('Sunucu adresi kaydedildi'), 'basari')
       await modelleriYukle(secilenSaglayici)
     } catch {
-      toastGoster('Geçersiz adres: http:// ya da https:// ile başlamalı', 'hata')
+      toastGoster(t('Geçersiz adres: http:// ya da https:// ile başlamalı'), 'hata')
     }
   }
 
@@ -179,20 +181,20 @@ function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
     anahtar: K,
     deger: NonNullable<typeof ayarlar[K]>
   ): void => {
-    void window.api.settings.set(anahtar, deger).catch(() => toastGoster('Ayar kaydedilemedi', 'hata'))
+    void window.api.settings.set(anahtar, deger).catch(() => toastGoster(t('Ayar kaydedilemedi'), 'hata'))
   }
 
   const guncellemeMetni =
     guncelleme.durum === 'denetleniyor'
-      ? 'Denetleniyor…'
+      ? t('Denetleniyor…')
       : guncelleme.durum === 'guncel'
-        ? 'Cloud IDE güncel.'
+        ? t('Cloud IDE güncel.')
         : guncelleme.durum === 'var'
-          ? `Yeni sürüm var: ${guncelleme.surum} (üst çubuktan kurabilirsiniz)`
+          ? t('Yeni sürüm var: {surum} (üst çubuktan kurabilirsiniz)', { surum: guncelleme.surum ?? '' })
           : guncelleme.durum === 'indiriliyor'
-            ? `İndiriliyor %${guncelleme.yuzde ?? 0}`
+            ? t('İndiriliyor %{yuzde}', { yuzde: guncelleme.yuzde ?? 0 })
             : guncelleme.durum === 'hazir'
-              ? 'Güncelleme kurulmaya hazır.'
+              ? t('Güncelleme kurulmaya hazır.')
               : guncelleme.mesaj ?? ''
 
   return (
@@ -202,9 +204,9 @@ function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div role="dialog" aria-modal="true" aria-label="Uygulama ayarları" className="flex h-[min(620px,90vh)] w-full max-w-3xl overflow-hidden rounded-lg border border-panel-border bg-panel-light shadow-2xl">
-        <nav role="tablist" aria-label="Ayar konuları" aria-orientation="vertical" className="flex w-52 shrink-0 flex-col border-r border-panel-border bg-panel">
-          <div className="px-4 pb-2 pt-4 text-sm font-semibold text-gray-100">Ayarlar</div>
+      <div role="dialog" aria-modal="true" aria-label={t('Uygulama ayarları')} className="flex h-[min(620px,90vh)] w-full max-w-3xl overflow-hidden rounded-lg border border-panel-border bg-panel-light shadow-2xl">
+        <nav role="tablist" aria-label={t('Ayar konuları')} aria-orientation="vertical" className="flex w-52 shrink-0 flex-col border-r border-panel-border bg-panel">
+          <div className="px-4 pb-2 pt-4 text-sm font-semibold text-gray-100">{t('Ayarlar')}</div>
           <div className="flex-1 overflow-y-auto py-1">
             {SEKMELER.map((s) => {
               const secili = s.id === sekme
@@ -217,8 +219,8 @@ function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
                   className={`relative block w-full px-4 py-2 text-left transition-colors ${secili ? 'bg-white/[0.07]' : 'hover:bg-white/[0.04]'}`}
                 >
                   {secili && <span className="absolute inset-y-1.5 left-0 w-0.5 bg-accent" />}
-                  <span className={`block text-[13px] ${secili ? 'font-medium text-gray-100' : 'text-gray-300'}`}>{s.ad}</span>
-                  <span className="mt-0.5 block text-[11px] leading-snug text-gray-500">{s.ozet}</span>
+                  <span className={`block text-[13px] ${secili ? 'font-medium text-gray-100' : 'text-gray-300'}`}>{t(s.ad)}</span>
+                  <span className="mt-0.5 block text-[11px] leading-snug text-gray-500">{t(s.ozet)}</span>
                 </button>
               )
             })}
@@ -227,26 +229,35 @@ function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
 
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex h-12 shrink-0 items-center justify-between border-b border-panel-border px-5">
-            <h2 className="text-sm font-semibold text-gray-100">{SEKMELER.find((s) => s.id === sekme)?.ad}</h2>
-            <button onClick={onClose} title="Kapat (Esc)" aria-label="Kapat" className="flex h-7 w-7 items-center justify-center rounded text-gray-500 hover:bg-panel-border hover:text-gray-200">
+            <h2 className="text-sm font-semibold text-gray-100">{t(SEKMELER.find((s) => s.id === sekme)?.ad ?? '')}</h2>
+            <button onClick={onClose} title={t('Kapat (Esc)')} aria-label={t('Kapat')} className="flex h-7 w-7 items-center justify-center rounded text-gray-500 hover:bg-panel-border hover:text-gray-200">
               <CloseIcon />
             </button>
           </div>
 
           <div role="tabpanel" className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
             {sekme === 'genel' && (
-              <AyarBolumu baslik="Editör" aciklama="Değişiklikler hemen uygulanır.">
-                <AyarSatiri baslik="Yazı boyutu" aciklama="Kod editöründeki yazı boyutu.">
+              <AyarBolumu baslik={t('Editör')} aciklama={t('Değişiklikler hemen uygulanır.')}>
+                <AyarSatiri baslik={t('Yazı boyutu')} aciklama={t('Kod editöründeki yazı boyutu.')}>
                   <div className="flex items-center gap-3">
-                    <input type="range" min={10} max={24} step={1} value={ayarlar.editorFontSize} onChange={(e) => setEditorFontSize(Number(e.target.value))} aria-label="Yazı boyutu" className="w-36 accent-accent" />
+                    <input type="range" min={10} max={24} step={1} value={ayarlar.editorFontSize} onChange={(e) => setEditorFontSize(Number(e.target.value))} aria-label={t('Yazı boyutu')} className="w-36 accent-accent" />
                     <span className="w-10 text-right font-mono text-xs text-gray-300">{ayarlar.editorFontSize}px</span>
                   </div>
                 </AyarSatiri>
-                <AyarSatiri baslik="Tema" aciklama="Editörün renk düzeni.">
-                  <select value={ayarlar.editorTheme} onChange={(e) => setEditorTheme(e.target.value as (typeof EDITOR_TEMALARI)[number]['id'])} aria-label="Tema" className={`${SECICI} w-44`}>
+                <AyarSatiri baslik={t('Tema')} aciklama={t('Editörün renk düzeni.')}>
+                  <select value={ayarlar.editorTheme} onChange={(e) => setEditorTheme(e.target.value as (typeof EDITOR_TEMALARI)[number]['id'])} aria-label={t('Tema')} className={`${SECICI} w-44`}>
                     {EDITOR_TEMALARI.map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.label}
+                      </option>
+                    ))}
+                  </select>
+                </AyarSatiri>
+                <AyarSatiri baslik={t('Dil')} aciklama={t('Arayüz dili. Henüz çevrilmemiş metinler Türkçe kalır.')}>
+                  <select value={dil} onChange={(e) => setDil(e.target.value as Dil)} aria-label={t('Arayüz dili')} className={`${SECICI} w-44`}>
+                    {DILLER.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.ad}
                       </option>
                     ))}
                   </select>
@@ -256,9 +267,9 @@ function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
 
             {sekme === 'ai' && (
               <>
-                <AyarBolumu baslik="Sağlayıcı ve model" aciklama="Cloud AI’ın kullanacağı yapay zekâ servisi.">
-                  <AyarSatiri baslik="Sağlayıcı">
-                    <select value={secilenSaglayici} onChange={(e) => saglayiciDegisti(e.target.value as AIProviderId)} aria-label="Sağlayıcı" className={`${SECICI} w-56`}>
+                <AyarBolumu baslik={t('Sağlayıcı ve model')} aciklama={t('Cloud AI’ın kullanacağı yapay zekâ servisi.')}>
+                  <AyarSatiri baslik={t('Sağlayıcı')}>
+                    <select value={secilenSaglayici} onChange={(e) => saglayiciDegisti(e.target.value as AIProviderId)} aria-label={t('Sağlayıcı')} className={`${SECICI} w-56`}>
                       {AI_PROVIDERS.map((p) => (
                         <option key={p.id} value={p.id}>
                           {p.name}
@@ -267,8 +278,8 @@ function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
                       ))}
                     </select>
                   </AyarSatiri>
-                  <AyarSatiri baslik="Model" aciklama={modellerYukleniyor ? 'Modeller listeleniyor…' : modeller.length === 0 ? 'Model listesi alınamadı. Anahtarı ya da sunucu adresini kontrol edin.' : undefined}>
-                    <select disabled={modellerYukleniyor || modeller.length === 0} value={aktifModel} onChange={(e) => void setSelectedAiModel(secilenSaglayici, e.target.value)} aria-label="Model" className={`${SECICI} w-56`}>
+                  <AyarSatiri baslik={t('Model')} aciklama={modellerYukleniyor ? t('Modeller listeleniyor…') : modeller.length === 0 ? t('Model listesi alınamadı. Anahtarı ya da sunucu adresini kontrol edin.') : undefined}>
+                    <select disabled={modellerYukleniyor || modeller.length === 0} value={aktifModel} onChange={(e) => void setSelectedAiModel(secilenSaglayici, e.target.value)} aria-label={t('Model')} className={`${SECICI} w-56`}>
                       {modeller.map((m) => (
                         <option key={m} value={m}>
                           {m}
@@ -277,32 +288,32 @@ function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
                     </select>
                   </AyarSatiri>
                   <AyarSatiri
-                    baslik="Bağlam sınırı"
-                    aciklama={baglamOzellestirilebilir ? 'Modelin aynı anda hatırlayabildiği miktar. Sunucudaki ayarla uyumlu seçin.' : 'Seçili model için bilinen değer.'}
+                    baslik={t('Bağlam sınırı')}
+                    aciklama={baglamOzellestirilebilir ? t('Modelin aynı anda hatırlayabildiği miktar. Sunucudaki ayarla uyumlu seçin.') : t('Seçili model için bilinen değer.')}
                   >
                     {baglamOzellestirilebilir ? (
                       <select
                         value={getModelContextLimit(secilenSaglayici, aktifModel, ayarlar.customContextLimits)}
                         onChange={(e) => void setCustomContextLimit(secilenSaglayici, Number(e.target.value))}
-                        aria-label="Bağlam sınırı"
+                        aria-label={t('Bağlam sınırı')}
                         className={`${SECICI} w-56 font-mono`}
                       >
                         {ADJUSTABLE_CONTEXT_PRESETS.map((p) => (
                           <option key={p.value} value={p.value}>
-                            {p.label} ({p.value.toLocaleString('tr-TR')})
+                            {p.label} ({p.value.toLocaleString(dil === 'en' ? 'en-US' : 'tr-TR')})
                           </option>
                         ))}
                       </select>
                     ) : (
-                      <span className="font-mono text-xs text-gray-300">{getModelContextLimit(secilenSaglayici, aktifModel, ayarlar.customContextLimits).toLocaleString('tr-TR')} token</span>
+                      <span className="font-mono text-xs text-gray-300">{getModelContextLimit(secilenSaglayici, aktifModel, ayarlar.customContextLimits).toLocaleString(dil === 'en' ? 'en-US' : 'tr-TR')} token</span>
                     )}
                   </AyarSatiri>
                 </AyarBolumu>
 
-                <AyarBolumu baslik="API anahtarı" aciklama="Anahtar yalnızca bu bilgisayarda, işletim sistemi düzeyinde şifrelenerek saklanır; hiçbir harici sunucuya gönderilmez.">
+                <AyarBolumu baslik={t('API anahtarı')} aciklama={t('Anahtar yalnızca bu bilgisayarda, işletim sistemi düzeyinde şifrelenerek saklanır; hiçbir harici sunucuya gönderilmez.')}>
                   <AyarSatiri
-                    baslik={saglayiciAyarliMi ? 'Anahtar kayıtlı' : 'Anahtar girilmedi'}
-                    aciklama={bilgi?.aciklama}
+                    baslik={saglayiciAyarliMi ? t('Anahtar kayıtlı') : t('Anahtar girilmedi')}
+                    aciklama={bilgi?.aciklama ? t(bilgi.aciklama) : undefined}
                     alt={
                       <div className="flex gap-2">
                         <input
@@ -312,17 +323,17 @@ function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') void anahtarKaydet()
                           }}
-                          placeholder={saglayiciAyarliMi ? 'Yeni anahtar girerseniz üzerine yazılır' : bilgi?.placeholder}
+                          placeholder={saglayiciAyarliMi ? t('Yeni anahtar girerseniz üzerine yazılır') : bilgi?.placeholder ? t(bilgi.placeholder) : undefined}
                           autoComplete="off"
-                          aria-label="API anahtarı"
+                          aria-label={t('API anahtarı')}
                           className={`${GIRIS} min-w-0 flex-1`}
                         />
                         <button onClick={() => void anahtarKaydet()} disabled={!anahtarGirdisi.trim() || kaydediliyor} className={BIRINCIL_DUGME}>
-                          Kaydet
+                          {t('Kaydet')}
                         </button>
                         {saglayiciAyarliMi && (
                           <button onClick={() => void clearApiKey(secilenSaglayici)} className={`${KUCUK_DUGME} text-red-300 hover:enabled:bg-red-950/60`}>
-                            Kaldır
+                            {t('Kaldır')}
                           </button>
                         )}
                       </div>
@@ -330,17 +341,17 @@ function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
                   >
                     {saglayiciAyarliMi && (
                       <span className="flex items-center gap-1.5 text-[11.5px] text-emerald-400">
-                        <CheckIcon /> kayıtlı
+                        <CheckIcon /> {t('kayıtlı')}
                       </span>
                     )}
                   </AyarSatiri>
                 </AyarBolumu>
 
                 {yerel && (
-                  <AyarBolumu baslik="Yerel sunucu" aciklama="Ollama ya da LM Studio başka bir bilgisayarda ya da farklı portta çalışıyorsa adresi girin.">
+                  <AyarBolumu baslik={t('Yerel sunucu')} aciklama={t('Ollama ya da LM Studio başka bir bilgisayarda ya da farklı portta çalışıyorsa adresi girin.')}>
                     <AyarSatiri
-                      baslik="Sunucu adresi"
-                      aciklama={`Boş bırakırsanız ${VARSAYILAN_ADRES[secilenSaglayici]} kullanılır.`}
+                      baslik={t('Sunucu adresi')}
+                      aciklama={t('Boş bırakırsanız {adres} kullanılır.', { adres: VARSAYILAN_ADRES[secilenSaglayici] ?? '' })}
                       alt={
                         <div className="flex gap-2">
                           <input
@@ -350,16 +361,16 @@ function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
                               if (e.key === 'Enter') void adresKaydet()
                             }}
                             placeholder={VARSAYILAN_ADRES[secilenSaglayici]}
-                            aria-label="Sunucu adresi"
+                            aria-label={t('Sunucu adresi')}
                             className={`${GIRIS} min-w-0 flex-1 font-mono`}
                           />
                           <button onClick={() => void adresKaydet()} className={BIRINCIL_DUGME}>
-                            Kaydet
+                            {t('Kaydet')}
                           </button>
                         </div>
                       }
                     />
-                    <AyarSatiri baslik="Araç çağırma biçimi" aciklama="Yerel modellerin dosya okuma/yazma gibi araçları nasıl kullanacağı. Emin değilseniz Otomatik’te bırakın.">
+                    <AyarSatiri baslik={t('Araç çağırma biçimi')} aciklama={t('Yerel modellerin dosya okuma/yazma gibi araçları nasıl kullanacağı. Emin değilseniz Otomatik’te bırakın.')}>
                       <select
                         value={aracModu}
                         onChange={(e) => {
@@ -367,12 +378,12 @@ function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
                           setAracModu(m)
                           ayarYaz('localToolMode', m)
                         }}
-                        aria-label="Araç çağırma biçimi"
+                        aria-label={t('Araç çağırma biçimi')}
                         className={`${SECICI} w-48`}
                       >
                         {(Object.keys(ARAC_MODU_ADLARI) as LocalToolMode[]).map((m) => (
                           <option key={m} value={m}>
-                            {ARAC_MODU_ADLARI[m]}
+                            {t(ARAC_MODU_ADLARI[m])}
                           </option>
                         ))}
                       </select>
@@ -380,11 +391,11 @@ function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
                   </AyarBolumu>
                 )}
 
-                <AyarBolumu baslik="Davranış">
-                  <AyarSatiri baslik="Değişiklikten sonra otomatik derle" aciklama="Cloud AI dosya değiştirince derler, hata çıkarsa kendisi düzeltmeyi dener.">
+                <AyarBolumu baslik={t('Davranış')}>
+                  <AyarSatiri baslik={t('Değişiklikten sonra otomatik derle')} aciklama={t('Cloud AI dosya değiştirince derler, hata çıkarsa kendisi düzeltmeyi dener.')}>
                     <Anahtar
                       acik={otoDerleme}
-                      etiket="Otomatik derle"
+                      etiket={t('Otomatik derle')}
                       onDegis={(v) => {
                         setOtoDerleme(v)
                         ayarYaz('agentAutoCompile', v)
@@ -396,18 +407,18 @@ function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
             )}
 
             {sekme === 'gecmis' && (
-              <AyarBolumu baslik="Otomatik anlık görüntüler" aciklama="Projenin eski hallerine dönebilmek için kendiliğinden alınan kayıtlar. Elle kaydettikleriniz ve etiketledikleriniz hiçbir zaman silinmez.">
-                <AyarSatiri baslik="Otomatik anlık görüntü al" aciklama="Kaydetmeden önce ve yapay zekâ dosyalara dokunmadan önce projenin mevcut hali saklanır.">
+              <AyarBolumu baslik={t('Otomatik anlık görüntüler')} aciklama={t('Projenin eski hallerine dönebilmek için kendiliğinden alınan kayıtlar. Elle kaydettikleriniz ve etiketledikleriniz hiçbir zaman silinmez.')}>
+                <AyarSatiri baslik={t('Otomatik anlık görüntü al')} aciklama={t('Kaydetmeden önce ve yapay zekâ dosyalara dokunmadan önce projenin mevcut hali saklanır.')}>
                   <Anahtar
                     acik={gecmisOtomatik}
-                    etiket="Otomatik anlık görüntü"
+                    etiket={t('Otomatik anlık görüntü')}
                     onDegis={(v) => {
                       setGecmisOtomatik(v)
                       ayarYaz('historyAutoSnapshot', v)
                     }}
                   />
                 </AyarSatiri>
-                <AyarSatiri baslik="Saklanacak otomatik kayıt sayısı" aciklama="Sınır aşılınca en eski otomatik kayıtlar silinir.">
+                <AyarSatiri baslik={t('Saklanacak otomatik kayıt sayısı')} aciklama={t('Sınır aşılınca en eski otomatik kayıtlar silinir.')}>
                   <div className="flex items-center gap-3">
                     <input
                       type="range"
@@ -418,7 +429,7 @@ function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
                       onChange={(e) => setGecmisLimit(Number(e.target.value))}
                       onMouseUp={() => ayarYaz('historyMaxAuto', gecmisLimit)}
                       onKeyUp={() => ayarYaz('historyMaxAuto', gecmisLimit)}
-                      aria-label="Saklanacak otomatik kayıt sayısı"
+                      aria-label={t('Saklanacak otomatik kayıt sayısı')}
                       className="w-36 accent-accent"
                     />
                     <span className="w-8 text-right font-mono text-xs text-gray-300">{gecmisLimit}</span>
@@ -428,24 +439,24 @@ function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
             )}
 
             {sekme === 'guncelleme' && (
-              <AyarBolumu baslik="Uygulama güncellemesi" aciklama="Yalnızca GitHub’daki sürümler sayfasına bakılır; hiçbir kullanım verisi gönderilmez. Güncelleme, siz onaylamadan indirilmez ya da kurulmaz.">
-                <AyarSatiri baslik="Yeni sürümü arka planda denetle" aciklama="Açılışta ve sonra altı saatte bir.">
+              <AyarBolumu baslik={t('Uygulama güncellemesi')} aciklama={t('Yalnızca GitHub’daki sürümler sayfasına bakılır; hiçbir kullanım verisi gönderilmez. Güncelleme, siz onaylamadan indirilmez ya da kurulmaz.')}>
+                <AyarSatiri baslik={t('Yeni sürümü arka planda denetle')} aciklama={t('Açılışta ve sonra altı saatte bir.')}>
                   <Anahtar
                     acik={guncellemeDenetimi}
-                    etiket="Güncelleme denetimi"
+                    etiket={t('Güncelleme denetimi')}
                     onDegis={(v) => {
                       setGuncellemeDenetimi(v)
                       ayarYaz('autoUpdateCheck', v)
                     }}
                   />
                 </AyarSatiri>
-                <AyarSatiri baslik="Şimdi denetle" aciklama={guncellemeMetni || undefined}>
+                <AyarSatiri baslik={t('Şimdi denetle')} aciklama={guncellemeMetni || undefined}>
                   <button
                     onClick={() => void window.api.updater.check()}
                     disabled={guncelleme.durum === 'denetleniyor' || guncelleme.durum === 'indiriliyor' || guncelleme.durum === 'desteklenmiyor'}
                     className={KUCUK_DUGME}
                   >
-                    Denetle
+                    {t('Denetle')}
                   </button>
                 </AyarSatiri>
               </AyarBolumu>
@@ -453,22 +464,22 @@ function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
 
             {sekme === 'hakkinda' && (
               <>
-                <AyarBolumu baslik="Cloud IDE">
-                  <AyarSatiri baslik="Sürüm" aciklama={surum ? `Kod adı: ${surumAdiBul(surum).ad} · beta` : undefined}>
+                <AyarBolumu baslik={t('Cloud IDE')}>
+                  <AyarSatiri baslik={t('Sürüm')} aciklama={surum ? t('Kod adı: {ad} · beta', { ad: surumAdiBul(surum).ad }) : undefined}>
                     <span className="font-mono text-xs text-gray-200">{surum ? `v${surum}` : '…'}</span>
                   </AyarSatiri>
-                  <AyarSatiri baslik="Lisans" aciklama="Açık kaynak; kaynak koduna GitHub’dan ulaşabilirsiniz.">
+                  <AyarSatiri baslik={t('Lisans')} aciklama={t('Açık kaynak; kaynak koduna GitHub’dan ulaşabilirsiniz.')}>
                     <span className="font-mono text-xs text-gray-200">GPL-3.0</span>
                   </AyarSatiri>
-                  <AyarSatiri baslik="Geliştirici" aciklama="Efe Ali Bozkurt" />
+                  <AyarSatiri baslik={t('Geliştirici')} aciklama={t('Efe Ali Bozkurt')} />
                 </AyarBolumu>
-                <AyarBolumu baslik="Yardım">
-                  <AyarSatiri baslik="Yardım ve rehber" aciklama="Kullanım kılavuzu, kısayollar ve sorun giderme (F1).">
+                <AyarBolumu baslik={t('Yardım')}>
+                  <AyarSatiri baslik={t('Yardım ve rehber')} aciklama={t('Kullanım kılavuzu, kısayollar ve sorun giderme (F1).')}>
                     <button onClick={() => yardimAc()} className={KUCUK_DUGME}>
-                      Aç
+                      {t('Aç')}
                     </button>
                   </AyarSatiri>
-                  <AyarSatiri baslik="Sorun bildir" aciklama="Sistem ve derleme bilgisinden, kişisel bilgiler temizlenmiş bir rapor hazırlar. Göndermeden önce siz gözden geçirirsiniz.">
+                  <AyarSatiri baslik={t('Sorun bildir')} aciklama={t('Sistem ve derleme bilgisinden, kişisel bilgiler temizlenmiş bir rapor hazırlar. Göndermeden önce siz gözden geçirirsiniz.')}>
                     <button
                       onClick={() => {
                         onClose()
@@ -476,10 +487,10 @@ function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
                       }}
                       className={KUCUK_DUGME}
                     >
-                      Rapor hazırla
+                      {t('Rapor hazırla')}
                     </button>
                   </AyarSatiri>
-                  <AyarSatiri baslik="Başlangıç turu" aciklama="Önemli yerleri adım adım gösteren kısa tur.">
+                  <AyarSatiri baslik={t('Başlangıç turu')} aciklama={t('Önemli yerleri adım adım gösteren kısa tur.')}>
                     <button
                       onClick={() => {
                         onClose()
@@ -487,7 +498,7 @@ function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
                       }}
                       className={KUCUK_DUGME}
                     >
-                      Turu izle
+                      {t('Turu izle')}
                     </button>
                   </AyarSatiri>
                 </AyarBolumu>

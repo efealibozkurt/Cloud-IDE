@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } 
 import type { PlatformSearchResult } from '@shared/types'
 import { useAppState } from '../../state/AppStateContext'
 import { useToast } from '../../state/ToastContext'
+import { useT } from '../../i18n'
 import { kartRengi, platformGorseli } from '../../utils/boardImages'
 import BoardThumb from '../common/BoardThumb'
 import SegmentKontrol from '../common/SegmentKontrol'
@@ -15,6 +16,7 @@ type SekmeTuru = 'tumu' | 'kurulu'
  * - Kurulu: Yalnızca bilgisayarda kurulu kart çekirdeklerini ve modellerini listeleme, güncelleme ve kaldırma
  */
 function BoardManager(): ReactElement {
+  const t = useT()
   const { state, refreshPlatforms } = useAppState()
   const { toastGoster } = useToast()
 
@@ -102,9 +104,9 @@ function BoardManager(): ReactElement {
     try {
       await window.api.arduinoCli.updateIndex()
       await Promise.all([aramaYap(sorgu), refreshPlatforms()])
-      toastGoster('İndeks güncellendi', 'basari')
+      toastGoster(t('İndeks güncellendi'), 'basari')
     } catch (hata) {
-      toastGoster(hata instanceof Error ? hata.message : 'İndeks güncellenemedi', 'hata')
+      toastGoster(hata instanceof Error ? hata.message : t('İndeks güncellenemedi'), 'hata')
     } finally {
       setIndeksGuncelleniyor(false)
     }
@@ -120,22 +122,22 @@ function BoardManager(): ReactElement {
     try {
       await window.api.arduinoCli.installCore(hedef, operationId)
       await Promise.all([aramaYap(sorgu), refreshPlatforms()])
-      toastGoster(`${id} kuruldu`, 'basari')
+      toastGoster(t('{id} kuruldu', { id }), 'basari')
     } catch (hata) {
-      toastGoster(hata instanceof Error ? hata.message : `${id} kurulamadı`, 'hata')
+      toastGoster(hata instanceof Error ? hata.message : t('{id} kurulamadı', { id }), 'hata')
     } finally {
       setKuruluyorId(null)
     }
   }
 
   const kaldir = async (id: string): Promise<void> => {
-    if (!window.confirm(`${id} platformu kaldırılsın mı?`)) return
+    if (!window.confirm(t('{id} platformu kaldırılsın mı?', { id }))) return
     try {
       await window.api.arduinoCli.uninstallCore(id)
       await Promise.all([aramaYap(sorgu), refreshPlatforms()])
-      toastGoster(`${id} kaldırıldı`, 'basari')
+      toastGoster(t('{id} kaldırıldı', { id }), 'basari')
     } catch (hata) {
-      toastGoster(hata instanceof Error ? hata.message : `${id} kaldırılamadı`, 'hata')
+      toastGoster(hata instanceof Error ? hata.message : t('{id} kaldırılamadı', { id }), 'hata')
     }
   }
 
@@ -145,9 +147,9 @@ function BoardManager(): ReactElement {
     try {
       await window.api.arduinoCli.addBoardManagerUrl(url)
       setYeniUrl('')
-      toastGoster('URL eklendi; İndeksi Güncelle ile yeni kartları çekebilirsiniz', 'basari')
+      toastGoster(t('URL eklendi; İndeksi Güncelle ile yeni kartları çekebilirsiniz'), 'basari')
     } catch (hata) {
-      toastGoster(hata instanceof Error ? hata.message : 'URL eklenemedi', 'hata')
+      toastGoster(hata instanceof Error ? hata.message : t('URL eklenemedi'), 'hata')
     }
   }
 
@@ -155,7 +157,7 @@ function BoardManager(): ReactElement {
     try {
       await window.api.arduinoCli.removeBoardManagerUrl(url)
     } catch (hata) {
-      toastGoster(hata instanceof Error ? hata.message : 'URL kaldırılamadı', 'hata')
+      toastGoster(hata instanceof Error ? hata.message : t('URL kaldırılamadı'), 'hata')
     }
   }
 
@@ -164,7 +166,7 @@ function BoardManager(): ReactElement {
   }
 
   if (!cliHazir) {
-    return <p className="p-3 text-xs text-gray-500">arduino-cli hazır olmadan Kart Yöneticisi kullanılamaz.</p>
+    return <p className="p-3 text-xs text-gray-500">{t('arduino-cli hazır olmadan Kart Yöneticisi kullanılamaz.')}</p>
   }
 
   return (
@@ -191,7 +193,7 @@ function BoardManager(): ReactElement {
               value={sorgu}
               onChange={(e) => setSorgu(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && void aramaYap(sorgu)}
-              placeholder="Kart veya çekirdek ara (Uno, ESP32...)"
+              placeholder={t('Kart veya çekirdek ara (Uno, ESP32...)')}
               className="h-7 flex-1 rounded-[5px] border border-panel-border bg-panel px-2.5 text-gray-200 outline-none placeholder:text-gray-600 focus:border-accent"
             />
             <button
@@ -207,10 +209,10 @@ function BoardManager(): ReactElement {
               disabled={indeksGuncelleniyor}
               className="h-7 rounded-[5px] border border-panel-border px-3 text-gray-100 whitespace-nowrap hover:enabled:bg-white/10 disabled:opacity-50"
             >
-              {indeksGuncelleniyor ? 'İndeks güncelleniyor...' : 'İndeksi Güncelle'}
+              {indeksGuncelleniyor ? t('İndeks güncelleniyor...') : t('İndeksi Güncelle')}
             </button>
             <button onClick={() => setUrlPaneliAcik((a) => !a)} className="text-gray-400 hover:text-gray-200">
-              Ek URL'ler {urlPaneliAcik ? '▲' : '▼'}
+              {t("Ek URL'ler")} {urlPaneliAcik ? '▲' : '▼'}
             </button>
           </div>
 
@@ -249,12 +251,12 @@ function BoardManager(): ReactElement {
           <input
             value={kuruluArama}
             onChange={(e) => setKuruluArama(e.target.value)}
-            placeholder="Kurulu kart/model süz (Uno, ESP32, Deneyap)..."
+            placeholder={t('Kurulu kart/model süz (Uno, ESP32, Deneyap)...')}
             className="h-7 flex-1 rounded-[5px] border border-panel-border bg-panel px-2.5 text-gray-200 outline-none placeholder:text-gray-600 focus:border-accent"
           />
           <button
             onClick={() => void refreshPlatforms()}
-            title="Kurulu kartları yenile"
+            title={t('Kurulu kartları yenile')}
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[5px] border border-panel-border text-gray-400 hover:bg-white/[0.06] hover:text-gray-100"
           >
             <RefreshIcon className="h-4 w-4" />
@@ -267,15 +269,15 @@ function BoardManager(): ReactElement {
         {aktifSekme === 'tumu' ? (
           /* ──── TÜM KART KATALOĞU ──── */
           <>
-            {yukleniyor && <p className="p-3 text-gray-500">Kart kataloğu taranıyor...</p>}
-            {!yukleniyor && gorunenListe.length === 0 && <p className="p-3 text-gray-500">Sonuç bulunamadı.</p>}
+            {yukleniyor && <p className="p-3 text-gray-500">{t('Kart kataloğu taranıyor...')}</p>}
+            {!yukleniyor && gorunenListe.length === 0 && <p className="p-3 text-gray-500">{t('Sonuç bulunamadı.')}</p>}
             {gorunenListe.map((p) => (
               <div key={p.id} className="border-b border-panel-border/70 px-3 py-3 transition-colors hover:bg-white/[0.03]">
                 <div className="flex items-baseline justify-between gap-2">
                   <div className="min-w-0 truncate text-[13px] font-medium text-gray-100" title={p.name}>
                     {p.name}
                   </div>
-                  {p.installed && <Led metin={`v${p.installedVersion}`} baslik="Bu kart platformu bilgisayarınızda kurulu" />}
+                  {p.installed && <Led metin={`v${p.installedVersion}`} baslik={t('Bu kart platformu bilgisayarınızda kurulu')} />}
                 </div>
                 <div className="mt-0.5 truncate font-mono text-[10.5px] text-gray-500" title={p.id}>
                   {p.id}
@@ -289,16 +291,16 @@ function BoardManager(): ReactElement {
                   >
                     {p.availableVersions.map((v) => (
                       <option key={v} value={v}>
-                        v{v} {v === p.latestVersion ? '(en son)' : ''}
+                        v{v} {v === p.latestVersion ? t('(en son)') : ''}
                       </option>
                     ))}
                   </select>
                   <Tus tur="birincil" onClick={() => void kur(p.id)} disabled={kuruluyorId !== null}>
-                    {p.installed ? 'Güncelle' : 'Kur'}
+                    {p.installed ? t('Güncelle') : t('Kur')}
                   </Tus>
                   {p.installed && (
                     <Tus tur="tehlike" onClick={() => void kaldir(p.id)} disabled={kuruluyorId !== null}>
-                      Kaldır
+                      {t('Kaldır')}
                     </Tus>
                   )}
                 </EylemSatiri>
@@ -311,7 +313,7 @@ function BoardManager(): ReactElement {
           <>
             {state.arduinoCli.platforms.length === 0 && (
               <div className="p-4 text-center">
-                <p className="text-xs text-gray-400">Henüz kurulu bir kart platformu bulunamadı.</p>
+                <p className="text-xs text-gray-400">{t('Henüz kurulu bir kart platformu bulunamadı.')}</p>
                 <button
                   onClick={() => setAktifSekme('tumu')}
                   className="mt-2 rounded bg-accent/20 px-3 py-1 text-xs text-accent-hover hover:bg-accent/30"
@@ -321,7 +323,7 @@ function BoardManager(): ReactElement {
               </div>
             )}
             {state.arduinoCli.platforms.length > 0 && filtrelenmisKuruluPlatformlar.length === 0 && (
-              <p className="p-3 text-gray-500">"{kuruluArama}" ile eşleşen kurulu kart bulunamadı.</p>
+              <p className="p-3 text-gray-500">{t('"{q}" ile eşleşen kurulu kart bulunamadı.', { q: kuruluArama })}</p>
             )}
             {filtrelenmisKuruluPlatformlar.map((platform) => {
               const katalogEslesmesi = katalogMap.get(platform.id)
@@ -364,7 +366,7 @@ function BoardManager(): ReactElement {
                         <span>{kartlar.length} kart</span>
                         {kartlar.length > 4 && (
                           <button onClick={() => toggleKartlar(platform.id)} className="text-gray-400 hover:text-gray-100 hover:underline">
-                            {genisletilmis ? 'Daha az göster' : `+${kartlar.length - 4} kart daha`}
+                            {genisletilmis ? t('Daha az göster') : t('+{n} kart daha', { n: kartlar.length - 4 })}
                           </button>
                         )}
                       </div>
@@ -388,23 +390,23 @@ function BoardManager(): ReactElement {
                         >
                           {katalogEslesmesi.availableVersions.map((v) => (
                             <option key={v} value={v}>
-                              v{v} {v === katalogEslesmesi.latestVersion ? '(en son)' : ''}
+                              v{v} {v === katalogEslesmesi.latestVersion ? t('(en son)') : ''}
                             </option>
                           ))}
                         </select>
-                        <Tus tur="ikincil" title="Seçili sürüme geç" onClick={() => void kur(platform.id)} disabled={kuruluyorId !== null}>
-                          Değiştir
+                        <Tus tur="ikincil" title={t('Seçili sürüme geç')} onClick={() => void kur(platform.id)} disabled={kuruluyorId !== null}>
+                          {t('Değiştir')}
                         </Tus>
                       </>
                     ) : (
-                      <span className="min-w-0 flex-1 truncate text-[11px] text-gray-500">Yerel platform</span>
+                      <span className="min-w-0 flex-1 truncate text-[11px] text-gray-500">{t('Yerel platform')}</span>
                     )}
                     <Tus tur="tehlike" onClick={() => void kaldir(platform.id)} disabled={kuruluyorId !== null}>
-                      Kaldır
+                      {t('Kaldır')}
                     </Tus>
                   </EylemSatiri>
 
-                  {kuruluyorId === platform.id && <KurulumGunlugu baslik="İşlem yapılıyor…" gunluk={kurulumLogu} />}
+                  {kuruluyorId === platform.id && <KurulumGunlugu baslik={t('İşlem yapılıyor…')} gunluk={kurulumLogu} />}
                 </div>
               )
             })}

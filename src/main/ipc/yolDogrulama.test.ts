@@ -9,17 +9,20 @@ describe('yolDogrulama', () => {
     expect(() => mutlakYol('')).toThrow()
   })
 
-  it('yazma yalnızca kaynak uzantılarına ve NOTLAR.md dosyasına izin verir', () => {
+  it('yazma yalnızca kaynak uzantılarına, NOTLAR.md ve BAGLANTI.json dosyalarına izin verir', () => {
     expect(yazilabilirDosya('C:\\p\\p.ino')).toBe('C:\\p\\p.ino')
     expect(yazilabilirDosya('C:\\p\\NOTLAR.md')).toBe('C:\\p\\NOTLAR.md')
+    expect(yazilabilirDosya('C:\\p\\BAGLANTI.json')).toBe('C:\\p\\BAGLANTI.json')
     expect(() => yazilabilirDosya('C:\\Windows\\sistem.dll')).toThrow()
     expect(() => yazilabilirDosya('C:\\p\\baska.md')).toThrow()
+    expect(() => yazilabilirDosya('C:\\p\\diger.json')).toThrow()
     expect(() => yazilabilirDosya('C:\\p\\a.bat')).toThrow()
   })
 
-  it('okuma kütüphane başlıklarını ve notları kabul eder, ikili dosyaları reddeder', () => {
+  it('okuma kütüphane başlıklarını, notları ve BAGLANTI.json dosyasını kabul eder, rastgele json ve ikili dosyaları reddeder', () => {
     expect(okunabilirDosya('C:\\lib\\x.h')).toBeTruthy()
     expect(okunabilirDosya('C:\\p\\NOTLAR.md')).toBeTruthy()
+    expect(okunabilirDosya('C:\\p\\BAGLANTI.json')).toBe('C:\\p\\BAGLANTI.json')
     expect(() => okunabilirDosya('C:\\Users\\a\\.ssh\\id_rsa')).toThrow()
     expect(() => okunabilirDosya('C:\\x\\secrets.json')).toThrow()
   })

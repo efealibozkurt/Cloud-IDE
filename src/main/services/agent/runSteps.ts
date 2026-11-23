@@ -13,7 +13,8 @@ export const YAZMA_ARACLARI = new Set([
   'delete_file',
   'rename_file',
   'delete_sketch',
-  'rename_sketch'
+  'rename_sketch',
+  'save_wiring_guide'
 ])
 
 /** Aynı çağrı bu sayıya ulaşınca (compile hariç) reddedilir: model aynı şeyi döngüye alıyor demektir. */

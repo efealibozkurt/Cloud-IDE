@@ -2,7 +2,9 @@ import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useSta
 import type { LibraryInfo, LibrarySearchResult } from '@shared/types'
 import { useAppState } from '../../state/AppStateContext'
 import { useToast } from '../../state/ToastContext'
+import { useT } from '../../i18n'
 import { useKutuphaneGuncellemeleri } from '../../hooks/useKutuphaneGuncellemeleri'
+import { kutuphaneSembolleriniYenile } from '../editor/arduinoIntelliSense'
 import SegmentKontrol from '../common/SegmentKontrol'
 import { EylemSatiri, KurulumGunlugu, Led, SECICI_SINIFI, Tus } from '../common/Tus'
 
@@ -32,6 +34,7 @@ interface LibraryCardProps {
 /** "N kütüphane güncellenebilir" bandı: ayrıntıyı açar, tek tek ya da toplu güncelleme yapar. */
 function GuncellemeBandi({ onBitti, etkin }: { onBitti: () => void; etkin: boolean }): ReactElement | null {
   const { guncellemeler, yenile } = useKutuphaneGuncellemeleri(etkin)
+  const t = useT()
   const { toastGoster } = useToast()
   const [acik, setAcik] = useState(false)
   const [calisan, setCalisan] = useState<string | null>(null)
@@ -46,11 +49,11 @@ function GuncellemeBandi({ onBitti, etkin }: { onBitti: () => void; etkin: boole
         await window.api.arduinoCli.installLibrary(g.name, g.latest, crypto.randomUUID())
         basarili++
       } catch (hata) {
-        toastGoster(hata instanceof Error ? hata.message : `“${g.name}” güncellenemedi`, 'hata')
+        toastGoster(hata instanceof Error ? hata.message : t('“{name}” güncellenemedi', { name: g.name }), 'hata')
       }
     }
     setCalisan(null)
-    if (basarili > 0) toastGoster(`${basarili} kütüphane güncellendi`, 'basari')
+    if (basarili > 0) toastGoster(t('{n} kütüphane güncellendi', { n: basarili }), 'basari')
     await yenile()
     onBitti()
   }
@@ -60,11 +63,11 @@ function GuncellemeBandi({ onBitti, etkin }: { onBitti: () => void; etkin: boole
       <div className="flex items-center justify-between gap-2">
         <button onClick={() => setAcik((a) => !a)} className="flex min-w-0 items-center gap-1.5 text-left text-gray-200" aria-expanded={acik}>
           <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true" />
-          <span className="truncate">{guncellemeler.length} kütüphane güncellenebilir</span>
+          <span className="truncate">{t('{n} kütüphane güncellenebilir', { n: guncellemeler.length })}</span>
           <span className="text-gray-500">{acik ? '▴' : '▾'}</span>
         </button>
         <Tus tur="birincil" onClick={() => void guncelle(guncellemeler)} disabled={calisan !== null}>
-          {calisan ? 'Güncelleniyor…' : 'Tümünü güncelle'}
+          {calisan ? t('Güncelleniyor…') : t('Tümünü güncelle')}
         </Tus>
       </div>
       {acik && (
@@ -79,14 +82,14 @@ function GuncellemeBandi({ onBitti, etkin }: { onBitti: () => void; etkin: boole
                   {g.installed} → {g.latest}
                 </span>
                 <Tus onClick={() => void guncelle([g])} disabled={calisan !== null}>
-                  {calisan === g.name ? '…' : 'Güncelle'}
+                  {calisan === g.name ? '…' : t('Güncelle')}
                 </Tus>
               </span>
             </li>
           ))}
         </ul>
       )}
-      {acik && <p className="mt-2 text-[10.5px] leading-snug text-gray-600">Güncelleme kütüphanenin yeni sürümünü kurar; kodunuzda kullandığınız işlevler değişmiş olabilir, güncellemeden sonra derleyip deneyin.</p>}
+      {acik && <p className="mt-2 text-[10.5px] leading-snug text-gray-600">{t('Güncelleme kütüphanenin yeni sürümünü kurar; kodunuzda kullandığınız işlevler değişmiş olabilir, güncellemeden sonra derleyip deneyin.')}</p>}
     </div>
   )
 }
@@ -101,6 +104,7 @@ const LibraryCard = memo(function LibraryCard({
   kurulumLogu
 }: LibraryCardProps): ReactElement {
   const kuruluyorBu = kuruluyorAd === lib.name
+  const t = useT()
 
   return (
     <div className="border-b border-panel-border/70 px-3 py-3 transition-colors hover:bg-white/[0.03]">
@@ -108,7 +112,7 @@ const LibraryCard = memo(function LibraryCard({
         <div className="min-w-0 truncate text-[13px] font-medium text-gray-100" title={lib.name}>
           {lib.name}
         </div>
-        {lib.installed && <Led metin={`v${lib.installedVersion}`} baslik="Bu kütüphane bilgisayarınızda kurulu" />}
+        {lib.installed && <Led metin={`v${lib.installedVersion}`} baslik={t('Bu kütüphane bilgisayarınızda kurulu')} />}
       </div>
       {lib.author && (
         <div className="mt-0.5 truncate text-[11px] text-gray-500" title={`Yazar: ${lib.author}`}>
@@ -121,21 +125,21 @@ const LibraryCard = memo(function LibraryCard({
         <select value={seciliSurum} onChange={(e) => onSurumSec(e.target.value)} className={SECICI_SINIFI}>
           {lib.availableVersions.map((v) => (
             <option key={v} value={v}>
-              v{v} {v === lib.latestVersion ? '(en son)' : ''}
+              v{v} {v === lib.latestVersion ? t('(en son)') : ''}
             </option>
           ))}
         </select>
         <Tus tur="birincil" onClick={() => onKur(lib.name)} disabled={kuruluyorAd !== null}>
-          {lib.installed ? 'Güncelle' : 'Kur'}
+          {lib.installed ? t('Güncelle') : t('Kur')}
         </Tus>
         {lib.installed && (
           <Tus tur="tehlike" onClick={() => onKaldir(lib.name)} disabled={kuruluyorAd !== null}>
-            Kaldır
+            {t('Kaldır')}
           </Tus>
         )}
       </EylemSatiri>
 
-      {kuruluyorBu && <KurulumGunlugu baslik="Kuruluyor…" gunluk={kurulumLogu} />}
+      {kuruluyorBu && <KurulumGunlugu baslik={t('Kuruluyor…')} gunluk={kurulumLogu} />}
     </div>
   )
 })
@@ -164,6 +168,7 @@ const InstalledLibraryCard = memo(function InstalledLibraryCard({
   const yazar = lib.author || katalogBilgisi?.author
   const aciklama = lib.sentence || katalogBilgisi?.sentence
   const kuruluyorBu = kuruluyorAd === lib.name
+  const t = useT()
 
   return (
     <div className="border-b border-panel-border/70 px-3 py-3 transition-colors hover:bg-white/[0.03]">
@@ -173,8 +178,8 @@ const InstalledLibraryCard = memo(function InstalledLibraryCard({
         </span>
         <Led metin={`v${lib.version}`} />
       </div>
-      <div className="mt-0.5 truncate text-[11px] text-gray-500" title={yazar ? `Yazar: ${yazar}` : undefined}>
-        {yazar ? temizAuthor(yazar) : 'Yazar belirtilmemiş'}
+      <div className="mt-0.5 truncate text-[11px] text-gray-500" title={yazar ? `${t('Yazar')}: ${yazar}` : undefined}>
+        {yazar ? temizAuthor(yazar) : t('Yazar belirtilmemiş')}
       </div>
       {aciklama && <p className="mt-1.5 line-clamp-2 text-[11.5px] leading-relaxed text-gray-400">{aciklama}</p>}
 
@@ -184,25 +189,25 @@ const InstalledLibraryCard = memo(function InstalledLibraryCard({
             <select value={seciliSurum} onChange={(e) => onSurumSec(e.target.value)} className={SECICI_SINIFI}>
               {katalogBilgisi.availableVersions.map((v) => (
                 <option key={v} value={v}>
-                  v{v} {v === katalogBilgisi.latestVersion ? '(en son)' : ''}
+                  v{v} {v === katalogBilgisi.latestVersion ? t('(en son)') : ''}
                 </option>
               ))}
             </select>
-            <Tus tur="ikincil" title="Seçili sürüme geç" onClick={() => onKur(lib.name)} disabled={kuruluyorAd !== null}>
-              Değiştir
+            <Tus tur="ikincil" title={t('Seçili sürüme geç')} onClick={() => onKur(lib.name)} disabled={kuruluyorAd !== null}>
+              {t('Değiştir')}
             </Tus>
           </>
         ) : (
           <span className="min-w-0 flex-1 truncate text-[11px] text-gray-500" title={lib.installDir}>
-            {lib.installDir ? 'Yerel kütüphane' : ''}
+            {lib.installDir ? t('Yerel kütüphane') : ''}
           </span>
         )}
         <Tus tur="tehlike" onClick={() => onKaldir(lib.name)} disabled={kuruluyorAd !== null}>
-          Kaldır
+          {t('Kaldır')}
         </Tus>
       </EylemSatiri>
 
-      {kuruluyorBu && <KurulumGunlugu baslik="İşlem yapılıyor…" gunluk={kurulumLogu} />}
+      {kuruluyorBu && <KurulumGunlugu baslik={t('İşlem yapılıyor…')} gunluk={kurulumLogu} />}
     </div>
   )
 })
@@ -212,6 +217,7 @@ const InstalledLibraryCard = memo(function InstalledLibraryCard({
 // ─────────────────────────────────────────────────────────────────────────────
 
 function LibraryManager(): ReactElement {
+  const t = useT()
   const { state } = useAppState()
   const { toastGoster } = useToast()
 
@@ -369,28 +375,30 @@ function LibraryManager(): ReactElement {
     setKurulumLogu('')
     try {
       await window.api.arduinoCli.installLibrary(name, surum, operationId)
+      void kutuphaneSembolleriniYenile(true)
       await Promise.all([aramaYap(sorgu), kurululariYukle(true)])
-      toastGoster(`${name} kuruldu`, 'basari')
+      toastGoster(t('{name} kuruldu', { name }), 'basari')
     } catch (hata) {
-      toastGoster(hata instanceof Error ? hata.message : `${name} kurulamadı`, 'hata')
+      toastGoster(hata instanceof Error ? hata.message : t('{name} kurulamadı', { name }), 'hata')
     } finally {
       setKuruluyorAd(null)
     }
-  }, [secilenSurumler, sorgu, aramaYap, kurululariYukle, toastGoster])
+  }, [secilenSurumler, sorgu, aramaYap, kurululariYukle, toastGoster, t])
 
   const kaldir = useCallback(async (name: string): Promise<void> => {
-    if (!window.confirm(`${name} kütüphanesi kaldırılsın mı?`)) return
+    if (!window.confirm(t('{name} kütüphanesi kaldırılsın mı?', { name }))) return
     try {
       await window.api.arduinoCli.uninstallLibrary(name)
+      void kutuphaneSembolleriniYenile(true)
       await Promise.all([aramaYap(sorgu), kurululariYukle(true)])
-      toastGoster(`${name} kaldırıldı`, 'basari')
+      toastGoster(t('{name} kaldırıldı', { name }), 'basari')
     } catch (hata) {
-      toastGoster(hata instanceof Error ? hata.message : `${name} kaldırılamadı`, 'hata')
+      toastGoster(hata instanceof Error ? hata.message : t('{name} kaldırılamadı', { name }), 'hata')
     }
-  }, [sorgu, aramaYap, kurululariYukle, toastGoster])
+  }, [sorgu, aramaYap, kurululariYukle, toastGoster, t])
 
   if (!cliHazir) {
-    return <p className="p-3 text-xs text-gray-500">arduino-cli hazır olmadan Kütüphane Yöneticisi kullanılamaz.</p>
+    return <p className="p-3 text-xs text-gray-500">{t('arduino-cli hazır olmadan Kütüphane Yöneticisi kullanılamaz.')}</p>
   }
 
   return (
@@ -398,8 +406,8 @@ function LibraryManager(): ReactElement {
       <div className="shrink-0 border-b border-white/[0.06] p-2">
         <SegmentKontrol
           secenekler={[
-            { id: 'tumu', ad: 'Katalog' },
-            { id: 'kurulu', ad: 'Kurulu', sayi: kuruluKutuphaneler.length }
+            { id: 'tumu', ad: t('Katalog') },
+            { id: 'kurulu', ad: t('Kurulu'), sayi: kuruluKutuphaneler.length }
           ]}
           deger={aktifSekme}
           onDegis={(id) => {
@@ -425,13 +433,13 @@ function LibraryManager(): ReactElement {
               value={sorgu}
               onChange={(e) => handleSorguDegisti(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleHemenAra()}
-              placeholder="Kütüphane veya yazar ara..."
+              placeholder={t('Kütüphane veya yazar ara...')}
               className="h-7 w-full rounded-[5px] border border-panel-border bg-panel pl-8 pr-7 text-xs text-gray-200 outline-none placeholder:text-gray-600 focus:border-accent"
             />
             {sorgu && !yukleniyor && (
               <button
                 onClick={handleAramaTemizle}
-                title="Aramayı Temizle"
+                title={t('Aramayı Temizle')}
                 className="absolute right-2 text-gray-400 hover:text-gray-200 p-0.5 rounded"
               >
                 <XIcon className="h-3.5 w-3.5" />
@@ -448,7 +456,7 @@ function LibraryManager(): ReactElement {
             disabled={yukleniyor}
             className="h-7 rounded-[5px] border border-panel-border px-3 text-gray-200 hover:bg-white/[0.06] disabled:opacity-50 shrink-0 font-medium"
           >
-            Ara
+            {t('Ara')}
           </button>
         </div>
       ) : (
@@ -461,13 +469,13 @@ function LibraryManager(): ReactElement {
                 setKuruluArama(e.target.value)
                 setGorunenKuruluSayisi(SAYFA_BOYUTU)
               }}
-              placeholder="Kurulu kütüphanelerde süz (isim, yazar)..."
+              placeholder={t('Kurulu kütüphanelerde süz (isim, yazar)...')}
               className="h-7 w-full rounded-[5px] border border-panel-border bg-panel pl-8 pr-7 text-xs text-gray-200 outline-none placeholder:text-gray-600 focus:border-accent"
             />
             {kuruluArama && (
               <button
                 onClick={() => setKuruluArama('')}
-                title="Süzgeci Temizle"
+                title={t('Süzgeci Temizle')}
                 className="absolute right-2 text-gray-400 hover:text-gray-200 p-0.5 rounded"
               >
                 <XIcon className="h-3.5 w-3.5" />
@@ -476,7 +484,7 @@ function LibraryManager(): ReactElement {
           </div>
           <button
             onClick={() => void kurululariYukle(true)}
-            title="Kurulu kütüphaneleri yeniden tara"
+            title={t('Kurulu kütüphaneleri yeniden tara')}
             disabled={kurulularYukleniyor}
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[5px] border border-panel-border text-gray-400 hover:bg-white/[0.06] hover:text-gray-100 disabled:opacity-50 shrink-0"
           >
@@ -489,11 +497,11 @@ function LibraryManager(): ReactElement {
       {aktifSekme === 'tumu' && sonuclar.length > 0 && (
         <div className="px-2.5 py-1 text-[10.5px] text-gray-400 bg-panel/30 border-b border-panel-border/40 flex justify-between items-center shrink-0">
           <span>
-            <strong className="text-gray-200">{sonuclar.length.toLocaleString('tr-TR')}</strong> kütüphane bulundu
+            <strong className="text-gray-200">{sonuclar.length.toLocaleString('tr-TR')}</strong> {t('kütüphane bulundu')}
           </span>
           {gorunenKatalogSayisi < sonuclar.length && (
             <span className="text-[10px] text-gray-500">
-              İlk {Math.min(gorunenKatalogSayisi, sonuclar.length)} gösteriliyor
+              {t('İlk {n} gösteriliyor', { n: Math.min(gorunenKatalogSayisi, sonuclar.length) })}
             </span>
           )}
         </div>
@@ -507,11 +515,11 @@ function LibraryManager(): ReactElement {
             {yukleniyor && sonuclar.length === 0 && (
               <div className="p-4 flex items-center justify-center gap-2 text-gray-400">
                 <SpinnerIcon className="h-4 w-4 animate-spin text-accent" />
-                <span>Katalog taranıyor...</span>
+                <span>{t('Katalog taranıyor...')}</span>
               </div>
             )}
             {!yukleniyor && sonuclar.length === 0 && (
-              <p className="p-4 text-center text-gray-500">Sonuç bulunamadı.</p>
+              <p className="p-4 text-center text-gray-500">{t('Sonuç bulunamadı.')}</p>
             )}
 
             {goruntulenenSonuclar.map((lib) => (
@@ -538,7 +546,7 @@ function LibraryManager(): ReactElement {
                   }
                   className="rounded border border-panel-border bg-panel px-3 py-1 text-[11px] text-accent-hover hover:bg-panel-border/80 transition-colors"
                 >
-                  Daha Fazla Göster (+{Math.min(SAYFA_BOYUTU, sonuclar.length - gorunenKatalogSayisi)})
+                  {t('Daha Fazla Göster')} (+{Math.min(SAYFA_BOYUTU, sonuclar.length - gorunenKatalogSayisi)})
                 </button>
               </div>
             )}
@@ -549,22 +557,22 @@ function LibraryManager(): ReactElement {
             {kurulularYukleniyor && kuruluKutuphaneler.length === 0 && (
               <div className="p-4 flex items-center justify-center gap-2 text-gray-400">
                 <SpinnerIcon className="h-4 w-4 animate-spin text-emerald-400" />
-                <span>Kurulu kütüphaneler taranıyor...</span>
+                <span>{t('Kurulu kütüphaneler taranıyor...')}</span>
               </div>
             )}
             {!kurulularYukleniyor && kuruluKutuphaneler.length === 0 && (
               <div className="p-4 text-center">
-                <p className="text-xs text-gray-400">Henüz kurulu bir kütüphane bulunamadı.</p>
+                <p className="text-xs text-gray-400">{t('Henüz kurulu bir kütüphane bulunamadı.')}</p>
                 <button
                   onClick={() => setAktifSekme('tumu')}
                   className="mt-2 rounded bg-accent/20 px-3 py-1 text-xs text-accent-hover hover:bg-accent/30"
                 >
-                  Katalogda Kütüphane Ara
+                  {t('Katalogda Kütüphane Ara')}
                 </button>
               </div>
             )}
             {!kurulularYukleniyor && kuruluKutuphaneler.length > 0 && filtrelenmisKurulular.length === 0 && (
-              <p className="p-4 text-center text-gray-500">"{kuruluArama}" ile eşleşen kurulu kütüphane bulunamadı.</p>
+              <p className="p-4 text-center text-gray-500">{t('"{q}" ile eşleşen kurulu kütüphane bulunamadı.', { q: kuruluArama })}</p>
             )}
 
             {goruntulenenKurulular.map((lib) => {
@@ -594,7 +602,7 @@ function LibraryManager(): ReactElement {
                   }
                   className="rounded border border-panel-border bg-panel px-3 py-1 text-[11px] text-accent-hover hover:bg-panel-border/80 transition-colors"
                 >
-                  Daha Fazla Göster (+{Math.min(SAYFA_BOYUTU, filtrelenmisKurulular.length - gorunenKuruluSayisi)})
+                  {t('Daha Fazla Göster')} (+{Math.min(SAYFA_BOYUTU, filtrelenmisKurulular.length - gorunenKuruluSayisi)})
                 </button>
               </div>
             )}

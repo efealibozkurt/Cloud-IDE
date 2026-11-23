@@ -3,6 +3,7 @@ import { ArduinoOperationEvent, ArduinoOperationKind, CompileResult, IPC_CHANNEL
 import { ArduinoCliService, OperationCancelledError } from '../services/ArduinoCliService'
 import { DeviceLock } from '../services/DeviceLock'
 import type { HistoryService } from '../services/HistoryService'
+import type { KutuphaneSembolServisi } from '../services/KutuphaneSembolServisi'
 import type { SettingsService } from '../services/SettingsService'
 import { derlemeyiGecmiseIsle } from '../services/derlemeGecmisi'
 import { bayraksizMetin, httpAdresi, istegeBagliBayraksiz, mutlakYol } from './yolDogrulama'
@@ -54,7 +55,7 @@ export function arduinoCliIpcKaydet(
   mainWindow: BrowserWindow,
   service: ArduinoCliService,
   deviceLock: DeviceLock,
-  gecmis?: { history: HistoryService; settings: SettingsService }
+  gecmis?: { history: HistoryService; settings: SettingsService; kutuphaneSembolleri?: KutuphaneSembolServisi }
 ): void {
   const C = IPC_CHANNELS.arduinoCli
 
@@ -114,24 +115,37 @@ export function arduinoCliIpcKaydet(
   ipcMain.handle(C.listAllBoards, () => service.listAllBoards())
 
   ipcMain.handle(C.listLibraries, (_e, force?: boolean) => service.listLibraries(force))
+  ipcMain.handle(C.getLibrarySymbols, (_e, force?: unknown) =>
+    gecmis?.kutuphaneSembolleri
+      ? gecmis.kutuphaneSembolleri.sembolleriGetir(force === true)
+      : { olusturulmaZamani: Date.now(), kutuphaneler: [] }
+  )
   ipcMain.handle(C.searchLibraries, (_e, query: unknown) => service.searchLibraries(bayraksizMetin(query, 'Arama')))
 
   ipcMain.handle(C.installLibrary, (e, name: unknown, version: unknown, operationId: string) =>
-    islemOlaylariIleCalistir(e.sender, 'installLibrary', operationId, () =>
-      service.installLibrary(bayraksizMetin(name, 'Kütüphane adı'), istegeBagliBayraksiz(version, 'Sürüm'), operationId, (satir) =>
-        e.sender.send(C.onOperationEvent, {
-          operationId,
-          kind: 'installLibrary',
-          phase: 'log',
-          message: satir
-        } satisfies ArduinoOperationEvent)
+    islemOlaylariIleCalistir(e.sender, 'installLibrary', operationId, async () => {
+      await service.installLibrary(
+        bayraksizMetin(name, 'Kütüphane adı'),
+        istegeBagliBayraksiz(version, 'Sürüm'),
+        operationId,
+        (satir) =>
+          e.sender.send(C.onOperationEvent, {
+            operationId,
+            kind: 'installLibrary',
+            phase: 'log',
+            message: satir
+          } satisfies ArduinoOperationEvent)
       )
-    )
+      gecmis?.kutuphaneSembolleri?.onbellegiTemizle()
+    })
   )
   ipcMain.handle(C.getBoardOptions, (_e, fqbn: unknown) => service.kartSecenekleri(bayraksizMetin(fqbn, 'Kart kimliği')))
   ipcMain.handle(C.listUpdatableLibraries, (_e, force?: boolean) => service.guncellenebilirKutuphaneler(force === true))
   ipcMain.handle(C.suggestLibrary, (_e, header: unknown) => service.kutuphaneOner(bayraksizMetin(header, 'Başlık')))
-  ipcMain.handle(C.uninstallLibrary, (_e, name: unknown) => service.uninstallLibrary(bayraksizMetin(name, 'Kütüphane adı')))
+  ipcMain.handle(C.uninstallLibrary, async (_e, name: unknown) => {
+    await service.uninstallLibrary(bayraksizMetin(name, 'Kütüphane adı'))
+    gecmis?.kutuphaneSembolleri?.onbellegiTemizle()
+  })
 
   ipcMain.handle(C.listExamples, () => service.listExamples())
 

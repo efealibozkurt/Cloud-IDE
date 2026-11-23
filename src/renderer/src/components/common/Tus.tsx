@@ -1,3 +1,4 @@
+import { useT } from '../../i18n'
 import type { ButtonHTMLAttributes, ReactElement, ReactNode } from 'react'
 
 type TusTuru = 'birincil' | 'ikincil' | 'tehlike'
@@ -41,6 +42,7 @@ export function Led({ metin, baslik }: { metin: string; baslik?: string }): Reac
 
 /** arduino-cli işlemi sürerken gösterilen kısa günlük kutusu. */
 export function KurulumGunlugu({ baslik, gunluk }: { baslik: string; gunluk: string }): ReactElement {
+  const t = useT()
   return (
     <div className="mt-2.5 rounded-[5px] border border-panel-border bg-panel p-2">
       <div className="mb-1 flex items-center gap-1.5 text-[11px] text-gray-300">
@@ -48,7 +50,7 @@ export function KurulumGunlugu({ baslik, gunluk }: { baslik: string; gunluk: str
         {baslik}
       </div>
       <pre className="max-h-24 overflow-y-auto whitespace-pre-wrap font-mono text-[10px] text-gray-500">
-        {gunluk || 'arduino-cli işleminin bitmesi bekleniyor…'}
+        {gunluk || t('arduino-cli işleminin bitmesi bekleniyor…')}
       </pre>
     </div>
   )

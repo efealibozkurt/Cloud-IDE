@@ -32,7 +32,9 @@ const CALISMA_KURALLARI = `ÇALIŞMA ŞEKLİN:
 6. Çok adımlı işlerde update_plan ile kısa bir görev listesi tut ve ilerledikçe işaretle.
 7. İş bitince kullanıcıya KISA bir özet ver: ne yaptın, hangi dosyalar/sketch'ler, pin bağlantıları, varsa dikkat edilecekler. Kodu özette tekrar etme.
 8. Yalnızca gerçekten belirsiz ve kritik bir bilgi eksikse (ör. hangi pinler bağlı) ask_user ile sor; aksi halde makul varsayım yap ve varsayımı belirt.
-9. Sadece soru soruluyorsa (kod değişikliği istenmediyse) araç kullanmadan doğrudan cevapla.`
+9. Donanım / çalışma zamanı sorunlarında read_serial ile kartın seri çıktısını okuyabilir, check_pins ile pin kurallarını doğrulayabilirsin (send_serial yalnızca kullanıcı istediğinde veya test gerektiğinde çağrılır).
+10. Kullanıcı devre/kablolama/bağlantı kılavuzu istediğinde veya yeni bir donanım projesi için etkileşimli bağlantı şeması istendiğinde save_wiring_guide ile kılavuzu kaydet.
+11. Sadece soru soruluyorsa (kod değişikliği istenmediyse) araç kullanmadan doğrudan cevapla.`
 
 const COKLU_PROJE = `ÇOKLU CİHAZ / PROJE KURALI (ÇOK ÖNEMLİ):
 Arduino'da aynı klasörde iki .ino dosyası derlenemez (setup/loop çakışır). Bu yüzden:

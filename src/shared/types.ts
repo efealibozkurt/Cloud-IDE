@@ -46,6 +46,7 @@ export const IPC_CHANNELS = {
     listPorts: 'arduinoCli:listPorts',
     listAllBoards: 'arduinoCli:listAllBoards',
     listLibraries: 'arduinoCli:listLibraries',
+    getLibrarySymbols: 'arduinoCli:getLibrarySymbols',
     searchLibraries: 'arduinoCli:searchLibraries',
     installLibrary: 'arduinoCli:installLibrary',
     suggestLibrary: 'arduinoCli:suggestLibrary',
@@ -245,6 +246,34 @@ export interface LibrarySearchResult {
   sentence?: string
   installed: boolean
   installedVersion: string | null
+}
+
+/** Kütüphane başlık dosyasından çıkarılan tekil fonksiyon, metot veya yapıcı sembolü */
+export interface KutuphaneUyeSembolu {
+  ad: string
+  sinif?: string
+  donusTipi: string
+  parametreler: string
+  imza: string
+  kurucu?: boolean
+}
+
+/** Kurulu tek bir Arduino kütüphanesinin çevrimdışı IntelliSense sembol kaydı */
+export interface KutuphaneSembolKaydi {
+  kutuphane: string
+  surum: string
+  aciklama?: string
+  basliklar: string[]
+  siniflar: string[]
+  uyeler: KutuphaneUyeSembolu[]
+  sabitler: string[]
+  anahtarKelimeler: string[]
+}
+
+/** Tüm kurulu kütüphanelerden derlenmiş çevrimdışı sembol indeksi */
+export interface KutuphaneSembolIndeksi {
+  olusturulmaZamani: number
+  kutuphaneler: KutuphaneSembolKaydi[]
 }
 
 /** Bir kütüphane/çekirdek "examples" klasöründeki tek bir örnek sketch */
@@ -600,6 +629,8 @@ export interface ArduinoCliAPI {
   listPorts: () => Promise<DetectedPort[]>
   listAllBoards: () => Promise<BoardOption[]>
   listLibraries: (force?: boolean) => Promise<LibraryInfo[]>
+  /** Kurulu kütüphanelerin başlıklarından çıkarılan çevrimdışı IntelliSense sembollerini döner */
+  getLibrarySymbols: (force?: boolean) => Promise<KutuphaneSembolIndeksi>
   searchLibraries: (query: string) => Promise<LibrarySearchResult[]>
   installLibrary: (name: string, version: string | undefined, operationId: string) => Promise<void>
   /** Kartın ayarlanabilir seçenekleri (işlemci, bölüm şeması, yükleme hızı…); kart paketi kuruluysa dolu döner */
