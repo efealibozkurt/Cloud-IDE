@@ -17,7 +17,7 @@
   <img src="https://img.shields.io/github/last-commit/efealibozkurt/Cloud-IDE?style=flat-square&color=06b6d4" alt="Last commit" />
   <img src="https://img.shields.io/github/repo-size/efealibozkurt/Cloud-IDE?style=flat-square&color=f97316" alt="Repo size" />
   <img src="https://img.shields.io/badge/lisans-GPL--3.0-3b82f6?style=flat-square" alt="Lisans" />
-  <img src="https://img.shields.io/badge/versiyon-v0.1.5%20Stratus--BETA-0e7fc4?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/versiyon-v0.1.6%20Stratus--BETA-0e7fc4?style=flat-square" alt="Version" />
   <img src="https://img.shields.io/badge/durum-Açık_Beta-eab308?style=flat-square" alt="Status" />
 </p>
 
@@ -178,7 +178,7 @@ Cloud-IDE/
 
 ## 🗺️ Yol Haritası
 
-**Şu anki durum: v0.1.5 "Stratus" (Beta)**
+**Şu anki durum: v0.1.6 "Stratus" (Beta)**
 Editör, derleme/yükleme, Cloud AI agent'ı, pin denetimi, sürüm geçmişi, şablonlar, notlar ve tek tıkla sorun bildirme bu sürümde.
 
 **Sırada**
