@@ -1,5 +1,6 @@
 import { DiffEditor } from '@monaco-editor/react'
-import { useEffect, useState, type ReactElement } from 'react'
+import type * as monaco from 'monaco-editor'
+import { useEffect, useRef, useState, type ReactElement } from 'react'
 import { useAppState } from '../../state/AppStateContext'
 import { useT } from '../../i18n'
 import { DEFAULT_EDITOR_THEME, type HistoryDiffFile } from '@shared/types'
@@ -27,6 +28,25 @@ function HistoryDiffModal({ baslik, dosyalar, onKapat }: HistoryDiffModalProps):
   const [secili, setSecili] = useState(dosyalar[0]?.ad ?? '')
   const dosya = dosyalar.find((d) => d.ad === secili) ?? dosyalar[0]
   const tema = state.settings?.editorTheme ?? DEFAULT_EDITOR_THEME
+
+  /**
+   * @monaco-editor/react, DiffEditor kapanırken önce metin modellerini sonra editörü yok eder; Monaco bu
+   * sırada "TextModel got disposed before DiffEditorWidget model got reset" hatası fırlatır. Bu yüzden
+   * modelleri kütüphaneye bıraktırmıyoruz (keepCurrent*Model) ve editör kapandıktan sonra kendimiz temizliyoruz.
+   */
+  const modellerRef = useRef<monaco.editor.IDiffEditorModel | null>(null)
+  useEffect(
+    () => () => {
+      const modeller = modellerRef.current
+      modellerRef.current = null
+      // Kütüphanenin kendi temizliği (editor.dispose) bitsin diye bir sonraki görev döngüsüne bırakılır
+      setTimeout(() => {
+        modeller?.original.dispose()
+        modeller?.modified.dispose()
+      }, 0)
+    },
+    []
+  )
 
   useEffect(() => {
     const tus = (e: KeyboardEvent): void => {
@@ -77,6 +97,11 @@ function HistoryDiffModal({ baslik, dosyalar, onKapat }: HistoryDiffModalProps):
                 modified={dosya.yeni}
                 language={dilAl(dosya.ad)}
                 theme={tema}
+                keepCurrentOriginalModel
+                keepCurrentModifiedModel
+                onMount={(editor) => {
+                  modellerRef.current = editor.getModel()
+                }}
                 options={{ readOnly: true, renderSideBySide: true, minimap: { enabled: false }, scrollBeyondLastLine: false, fontSize: 13, automaticLayout: true }}
               />
             </div>
