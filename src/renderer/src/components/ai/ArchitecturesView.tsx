@@ -26,7 +26,7 @@ function Bolum({
       <div className="mb-2.5 flex items-start justify-between gap-3">
         <div>
           <h3 className="flex items-center gap-2 text-[13px] font-semibold text-gray-100">
-            <span className="h-3.5 w-1 rounded-full bg-gradient-to-b from-[#0e7fc4] to-[#2aa8f2]" />
+            <span className="h-3.5 w-1 rounded-full bg-accent" />
             {baslik}
           </h3>
           {aciklama && <p className="mt-0.5 text-xs text-gray-500">{aciklama}</p>}
@@ -406,7 +406,7 @@ export function ArchitecturesView({
                 <button onClick={() => setIsEditingSpecs(false)} className={ikincilButon}>
                   {t('Vazgeç')}
                 </button>
-                <button onClick={() => void handleSaveSpecs()} className="rounded-md bg-gradient-to-r from-[#0e7fc4] to-[#2aa8f2] px-3.5 py-1 text-xs font-semibold text-white hover:brightness-110">
+                <button onClick={() => void handleSaveSpecs()} className="rounded-md bg-accent px-3.5 py-1 text-xs font-semibold text-white hover:bg-accent-hover">
                   {t('Kaydet')}
                 </button>
               </div>
@@ -416,7 +416,7 @@ export function ArchitecturesView({
               {ozellikler.map((o) => {
                 const Ikon = o.ikon
                 return (
-                  <div key={o.ad} className={`flex items-center gap-3 rounded-xl border p-3 ${o.stil}`}>
+                  <div key={o.ad} className={`flex items-center gap-3 rounded-md border p-3 ${o.stil}`}>
                     <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${o.ikonStil}`}>
                       <Ikon className="h-[18px] w-[18px]" />
                     </span>
@@ -457,7 +457,7 @@ export function ArchitecturesView({
                 <button onClick={() => setIsBatchPinMode(false)} className={ikincilButon}>
                   {t('Vazgeç')}
                 </button>
-                <button onClick={() => void handleSaveBatchPin()} className="rounded-md bg-gradient-to-r from-[#0e7fc4] to-[#2aa8f2] px-3.5 py-1 text-xs font-semibold text-white hover:brightness-110">
+                <button onClick={() => void handleSaveBatchPin()} className="rounded-md bg-accent px-3.5 py-1 text-xs font-semibold text-white hover:bg-accent-hover">
                   {t('Kaydet')}
                 </button>
               </div>
@@ -608,7 +608,7 @@ export function ArchitecturesView({
               <button
                 onClick={() => void handleSaveNewModel()}
                 disabled={!newModelName.trim()}
-                className="rounded-md bg-gradient-to-r from-[#0e7fc4] to-[#2aa8f2] px-3.5 py-1 text-xs font-semibold text-white hover:brightness-110 disabled:opacity-40"
+                className="rounded-md bg-accent px-3.5 py-1 text-xs font-semibold text-white hover:bg-accent-hover disabled:opacity-40"
               >
                 {t('Modeli ekle')}
               </button>

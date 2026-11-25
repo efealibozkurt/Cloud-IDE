@@ -107,7 +107,7 @@ function TopBar({
         <img
           src={beyazCloudIde}
           alt="Cloud IDE"
-          className="h-7 w-auto object-contain cursor-default select-none drop-shadow-[0_0_12px_rgba(124,196,240,0.25)]"
+          className="h-7 w-auto object-contain cursor-default select-none"
         />
         <div className="flex items-center gap-1.5">
           <span

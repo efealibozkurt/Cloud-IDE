@@ -25,7 +25,7 @@ function EditorArea(): ReactElement {
             <img
               src={cloudIcon}
               alt="Cloud IDE"
-              className="h-11 w-11 object-contain drop-shadow-[0_0_20px_rgba(124,196,240,0.35)]"
+              className="h-11 w-11 object-contain"
             />
             <div className="flex items-center ml-1">
               <span className="text-2xl font-bold tracking-tight text-white">Cloud</span>
@@ -38,13 +38,13 @@ function EditorArea(): ReactElement {
           <div className="flex gap-2.5">
             <button
               onClick={() => void newSketch()}
-              className="rounded-lg border border-panel-border bg-panel-light px-4 py-2 text-xs font-medium text-gray-200 shadow-sm transition-all hover:border-[#7cc4f0]/40 hover:bg-panel-border hover:text-white"
+              className="rounded border border-panel-border bg-panel-light px-3 py-1.5 text-xs text-gray-200 transition-colors hover:border-accent hover:bg-panel-border hover:text-white"
             >
               {t('Yeni Sketch (Ctrl+N)')}
             </button>
             <button
               onClick={() => void openSketchDialog()}
-              className="rounded-lg border border-panel-border bg-panel-light px-4 py-2 text-xs font-medium text-gray-200 shadow-sm transition-all hover:border-[#7cc4f0]/40 hover:bg-panel-border hover:text-white"
+              className="rounded border border-panel-border bg-panel-light px-3 py-1.5 text-xs text-gray-200 transition-colors hover:border-accent hover:bg-panel-border hover:text-white"
             >
               {t('Sketch Aç (Ctrl+O)')}
             </button>

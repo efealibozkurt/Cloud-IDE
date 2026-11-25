@@ -58,12 +58,12 @@ function AiYazimOverlay({
           data-durum={durum}
           role="status"
           aria-live="polite"
-          className="ai-stream-hud absolute right-6 top-3 z-30 flex items-center gap-2.5 rounded-xl px-3 py-1.5 select-none"
+          className="ai-stream-hud absolute right-6 top-3 z-30 flex items-center gap-2 rounded px-2.5 py-1 select-none"
         >
           {durum === 'yaziyor' ? (
             <>
-              <span className="relative flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-sky-500/10">
-                <span className="ai-stream-hud-ring absolute inset-0 rounded-lg" aria-hidden="true" />
+              <span className="relative flex h-5 w-5 shrink-0 items-center justify-center rounded-sm">
+                <span className="ai-stream-hud-ring absolute inset-0 rounded-sm" aria-hidden="true" />
                 <img src={cloudIcon} alt="" className="h-3.5 w-3.5 object-contain" />
               </span>
               <div className="flex flex-col leading-tight">
@@ -76,7 +76,7 @@ function AiYazimOverlay({
                 type="button"
                 onClick={onAtla}
                 title={t('Yazım animasyonunu atla (Esc)')}
-                className="ai-stream-hud-btn ml-1 flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-medium transition-colors"
+                className="ai-stream-hud-btn ml-1 flex items-center gap-1.5 rounded px-1.5 py-0.5 text-[11px] font-medium transition-colors"
               >
                 <span>{t('Atla')}</span>
                 <kbd className="ai-stream-hud-muted rounded bg-black/15 px-1 text-[9px] font-mono">Esc</kbd>
@@ -84,7 +84,7 @@ function AiYazimOverlay({
             </>
           ) : (
             <>
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400">
+              <span className="flex h-4 w-4 shrink-0 items-center justify-center text-emerald-400">
                 <svg
                   width="12"
                   height="12"

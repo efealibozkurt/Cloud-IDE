@@ -85,7 +85,7 @@ export function CustomMarkdownSkillsView({
             className={
               isAdding
                 ? 'rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-gray-100 hover:bg-white/10'
-                : 'flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#0e7fc4] to-[#2aa8f2] px-3.5 py-1.5 font-semibold text-white shadow-md shadow-sky-500/20 hover:brightness-110'
+                : 'flex items-center gap-1.5 rounded bg-accent px-3.5 py-1.5 font-semibold text-white hover:bg-accent-hover'
             }
           >
             {!isAdding && <PlusSmallIcon className="h-3.5 w-3.5" />}
@@ -147,7 +147,7 @@ export function CustomMarkdownSkillsView({
               <button
                 onClick={onSave}
                 disabled={!title.trim() || !content.trim() || saving}
-                className="rounded-lg bg-gradient-to-r from-[#0e7fc4] to-[#2aa8f2] px-4 py-1.5 text-xs font-semibold text-white hover:brightness-110 disabled:opacity-40"
+                className="rounded bg-accent px-4 py-1.5 text-xs font-semibold text-white hover:bg-accent-hover disabled:opacity-40"
               >
                 {saving ? t('Kaydediliyor…') : t('Kaydet')}
               </button>
@@ -168,9 +168,9 @@ export function CustomMarkdownSkillsView({
                   <li key={s.id}>
                     <button
                       onClick={() => onSelectSkill(s)}
-                      className={`relative block w-full px-4 py-2.5 text-left transition-colors hover:bg-white/[0.05] ${secili ? 'bg-gradient-to-r from-[#2aa8f2]/15 to-transparent' : ''}`}
+                      className={`relative block w-full px-4 py-2.5 text-left transition-colors hover:bg-white/[0.05] ${secili ? 'bg-white/[0.06]' : ''}`}
                     >
-                      {secili && <span className="absolute inset-y-1 left-0 w-1 rounded-r bg-gradient-to-b from-[#0e7fc4] to-[#2aa8f2]" />}
+                      {secili && <span className="absolute inset-y-1 left-0 w-1 rounded-r bg-accent" />}
                       <p className="truncate text-[13px] font-medium text-gray-100">{s.title}</p>
                       <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
                         <span

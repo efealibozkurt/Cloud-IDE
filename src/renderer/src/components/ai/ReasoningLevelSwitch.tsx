@@ -23,7 +23,7 @@ const LEVELS: LevelConfig[] = [
     label: 'Düşük',
     desc: 'Düşük Muhakeme: Hızlı ve doğrudan kod odaklı yanıt.',
     color: 'text-emerald-300',
-    activeBg: 'from-emerald-500/25 to-teal-500/20 border-emerald-500/40 text-emerald-200 shadow-[0_0_10px_rgba(16,185,129,0.25)]',
+    activeBg: 'bg-emerald-500/20 border-emerald-500/40 text-emerald-200',
     renderIcon: (className) => <ZapIcon className={className} />
   },
   {
@@ -31,7 +31,7 @@ const LEVELS: LevelConfig[] = [
     label: 'Orta',
     desc: 'Orta Muhakeme: Dengeli mimari ve donanım açıklaması.',
     color: 'text-[#7cc4f0]',
-    activeBg: 'from-[#0e7fc4]/25 to-[#2aa8f2]/20 border-[#0e7fc4]/40 text-[#8fd0f7] shadow-[0_0_10px_rgba(59,130,246,0.25)]',
+    activeBg: 'bg-[#0e7fc4]/20 border-[#0e7fc4]/40 text-[#8fd0f7]',
     renderIcon: (className) => <BrainIcon className={className} />
   },
   {
@@ -39,7 +39,7 @@ const LEVELS: LevelConfig[] = [
     label: 'Yüksek',
     desc: 'Yüksek Muhakeme: Derin donanım, register ve bellek analizi.',
     color: 'text-cyan-300',
-    activeBg: 'from-cyan-500/30 to-cyan-500/25 border-cyan-500/45 text-cyan-200 shadow-[0_0_12px_rgba(14,127,196,0.3)]',
+    activeBg: 'bg-cyan-500/20 border-cyan-500/45 text-cyan-200',
     renderIcon: (className) => <AtomCoreIcon className={className} />
   }
 ]
@@ -118,7 +118,7 @@ export function ReasoningLevelSwitch({ value, onChange, disabled }: ReasoningLev
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       title={`${t(activeItem.desc)} (${t('Sürükleyin veya tıklayın')})`}
-      className={`relative inline-flex h-7 shrink-0 cursor-grab items-center rounded-lg border border-panel-border bg-black/45 p-0.5 select-none transition-opacity active:cursor-grabbing ${
+      className={`relative inline-flex h-7 shrink-0 cursor-grab items-center rounded border border-panel-border bg-black/30 p-0.5 select-none transition-opacity active:cursor-grabbing ${
         disabled ? 'opacity-40 pointer-events-none' : ''
       }`}
     >
@@ -129,7 +129,7 @@ export function ReasoningLevelSwitch({ value, onChange, disabled }: ReasoningLev
           width: `${currentRect.width}px`,
           transition: isDragging ? 'none' : 'transform 180ms cubic-bezier(0.16, 1, 0.3, 1), width 180ms ease'
         }}
-        className={`pointer-events-none absolute left-0 top-0.5 h-6 rounded-md border bg-gradient-to-r ${activeItem.activeBg}`}
+        className={`pointer-events-none absolute left-0 top-0.5 h-6 rounded border ${activeItem.activeBg}`}
       />
 
       {/* 3 Kademe Butonu: Seçili olan ikon+metin, seçili olmayanlar yalnızca ikon */}

@@ -121,9 +121,9 @@ export function RagVectorView({
                   <li key={c.id}>
                     <button
                       onClick={() => onSelectChunk(c)}
-                      className={`relative block w-full px-4 py-2.5 text-left transition-colors hover:bg-white/[0.05] ${secili ? 'bg-gradient-to-r from-[#0e7fc4]/15 to-transparent' : ''}`}
+                      className={`relative block w-full px-4 py-2.5 text-left transition-colors hover:bg-white/[0.05] ${secili ? 'bg-white/[0.06]' : ''}`}
                     >
-                      {secili && <span className="absolute inset-y-1 left-0 w-1 rounded-r bg-gradient-to-b from-[#0e7fc4] to-[#2aa8f2]" />}
+                      {secili && <span className="absolute inset-y-1 left-0 w-1 rounded-r bg-accent" />}
                       <p className="truncate text-[13px] font-medium text-gray-100">{c.title}</p>
                       <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
                         <span className={`shrink-0 rounded-full border px-1.5 py-px text-[10px] ${ailePuli(c.boardFamily)}`}>{c.boardFamily || t('genel')}</span>

@@ -402,11 +402,11 @@ function BaglantiKilavuzuPanel(): ReactElement {
       {icerik(false)}
       {buyutulmus && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-6 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-6"
           onClick={() => setBuyutulmus(false)}
         >
           <div
-            className="flex h-[86vh] w-[92vw] max-w-6xl flex-col overflow-hidden rounded-xl border border-panel-border bg-panel-light shadow-2xl"
+            className="flex h-[86vh] w-[92vw] max-w-6xl flex-col overflow-hidden rounded-md border border-panel-border bg-panel-light shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {icerik(true)}

@@ -190,7 +190,7 @@ export function RagSkillsModal({ isOpen, onClose, activeBoardContext }: RagSkill
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6 backdrop-blur-sm animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6 animate-in fade-in duration-150"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose()
       }}
@@ -199,19 +199,17 @@ export function RagSkillsModal({ isOpen, onClose, activeBoardContext }: RagSkill
         role="dialog"
         aria-modal="true"
         aria-label={t('Donanım ve bilgi tabanı')}
-        className="flex h-[84vh] max-h-[780px] min-h-[480px] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#12141c] text-gray-200 shadow-[0_24px_80px_rgba(0,0,0,0.7),0_0_60px_rgba(14,127,196,0.15)]"
+        className="flex h-[84vh] max-h-[780px] min-h-[480px] w-full max-w-5xl flex-col overflow-hidden rounded-md border border-panel-border bg-panel-light text-gray-200 shadow-2xl"
       >
         {/* Üst şerit: ikon, başlık ve sekmeler */}
         <div className="relative shrink-0 overflow-hidden border-b border-white/10">
-          <div className="pointer-events-none absolute -left-20 -top-24 h-52 w-52 rounded-full bg-[#0e7fc4]/20 blur-3xl" />
-          <div className="pointer-events-none absolute right-10 -top-24 h-52 w-52 rounded-full bg-[#10b981]/15 blur-3xl" />
-          <div className="relative flex items-start justify-between gap-4 px-6 pt-5">
+          <div className="relative flex items-start justify-between gap-4 px-4 pt-3">
             <div className="flex min-w-0 items-center gap-3.5">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-gradient-to-br from-[#1d3a52] to-[#13222f] text-[#7cc4f0] shadow-lg shadow-sky-500/20">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-panel-border bg-panel text-[#7cc4f0]">
                 <MicrochipIcon className="h-6 w-6" />
               </span>
               <div className="min-w-0">
-                <h2 className="bg-gradient-to-r from-white to-[#bfe3fa] bg-clip-text text-lg font-semibold text-transparent">
+                <h2 className="text-base font-semibold text-gray-100">
                   {t('Donanım ve bilgi tabanı')}
                 </h2>
                 <p className="mt-0.5 text-xs text-gray-400">
@@ -223,7 +221,7 @@ export function RagSkillsModal({ isOpen, onClose, activeBoardContext }: RagSkill
               onClick={onClose}
               title={t('Kapat (Esc)')}
               aria-label={t('Kapat')}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-panel-border text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
             >
               <CloseIcon className="h-4 w-4" />
             </button>
@@ -239,7 +237,7 @@ export function RagSkillsModal({ isOpen, onClose, activeBoardContext }: RagSkill
                   role="tab"
                   aria-selected={secili}
                   onClick={() => setActiveTab(sek.id)}
-                  className={`relative flex items-center gap-2 rounded-t-lg px-4 py-2.5 text-[13px] font-medium transition-colors ${
+                  className={`relative flex items-center gap-2 rounded-t px-3 py-2 text-[13px] font-medium transition-colors ${
                     secili ? 'bg-white/[0.06] text-white' : 'text-gray-400 hover:bg-white/[0.03] hover:text-gray-200'
                   }`}
                 >
@@ -248,14 +246,14 @@ export function RagSkillsModal({ isOpen, onClose, activeBoardContext }: RagSkill
                   {sek.sayi !== undefined && (
                     <span className="rounded-full bg-white/10 px-1.5 py-px text-[10.5px] tabular-nums text-gray-300">{sek.sayi}</span>
                   )}
-                  {secili && <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-gradient-to-r from-[#0e7fc4] to-[#2aa8f2]" />}
+                  {secili && <span className="absolute inset-x-0 bottom-0 h-0.5 bg-accent" />}
                 </button>
               )
             })}
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-hidden bg-[#0f1118]">
+        <div className="min-h-0 flex-1 overflow-hidden bg-panel">
           {loading ? (
             <div className="flex h-full items-center justify-center gap-2 text-xs text-gray-500">
               <span className="h-3.5 w-3.5 animate-spin rounded-full border border-gray-500 border-t-transparent" />

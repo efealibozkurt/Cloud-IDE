@@ -74,7 +74,7 @@ function SplashScreen({ hazir, onTamamlandi, surum }: SplashScreenProps): ReactE
       {/* Merkezde çok hafif bir aydınlık; tema mavisinden */}
       <div
         className="pointer-events-none absolute inset-0"
-        style={{ background: 'radial-gradient(ellipse 50% 45% at 50% 48%, rgba(14,127,196,0.13), transparent 70%)' }}
+        style={{ background: 'radial-gradient(ellipse 50% 45% at 50% 48%, rgba(14,127,196,0.06), transparent 70%)' }}
       />
 
       <div className="relative w-[340px]">
@@ -88,7 +88,7 @@ function SplashScreen({ hazir, onTamamlandi, surum }: SplashScreenProps): ReactE
               <li key={metin} className="flex items-center gap-2.5">
                 <span
                   className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                    bitti ? 'bg-[#3ddc84] shadow-[0_0_5px_#3ddc84]' : 'animate-pulse bg-accent motion-reduce:animate-none'
+                    bitti ? 'bg-[#3ddc84]' : 'animate-pulse bg-accent motion-reduce:animate-none'
                   }`}
                   aria-hidden="true"
                 />

@@ -93,7 +93,7 @@ function SurumYumurtasi({ surum, onKapat }: SurumYumurtasiProps): ReactElement {
                   </span>
                   <span className={`w-28 shrink-0 text-right text-[13px] ${buradasin ? 'font-semibold text-white' : gelecek ? 'text-sky-100/40' : 'text-sky-100/80'}`}>
                     {a.ad}
-                    {buradasin && <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[#3ddc84] shadow-[0_0_6px_#3ddc84]" title={t('Buradasın')} />}
+                    {buradasin && <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[#3ddc84]" title={t('Buradasın')} />}
                   </span>
                 </button>
               </li>

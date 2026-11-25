@@ -30,7 +30,7 @@ function CloudAiDugmesi({ aktif, onClick }: CloudAiDugmesiProps): ReactElement {
         <img
           src={cloudIcon}
           alt=""
-          className={`h-[18px] w-[18px] shrink-0 object-contain drop-shadow-[0_0_6px_rgba(124,196,240,0.7)] transition-transform duration-300 group-hover:-translate-y-px group-hover:scale-110 ${
+          className={`h-[18px] w-[18px] shrink-0 object-contain ${
             calisiyor ? 'animate-pulse' : ''
           }`}
         />
@@ -52,7 +52,7 @@ function CloudAiDugmesi({ aktif, onClick }: CloudAiDugmesiProps): ReactElement {
           </span>
         ) : (
           <span
-            className={`h-1.5 w-1.5 rounded-full transition-colors ${aktif ? 'bg-[#3ddc84] shadow-[0_0_6px_#3ddc84]' : 'bg-gray-600 group-hover:bg-[#7cc4f0]'}`}
+            className={`h-1.5 w-1.5 rounded-full transition-colors ${aktif ? 'bg-[#3ddc84]' : 'bg-gray-600 group-hover:bg-[#7cc4f0]'}`}
             aria-hidden="true"
           />
         )}

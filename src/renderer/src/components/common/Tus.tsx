@@ -11,7 +11,7 @@ interface TusProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'classN
 const STILLER: Record<TusTuru, string> = {
   // Fiziksel tuş gibi: düz vurgu rengi, altta kalın kenar, basınca çöker
   birincil:
-    'bg-accent text-white shadow-[0_2px_0_#0a5a8c] hover:enabled:bg-accent-hover active:enabled:translate-y-px active:enabled:shadow-[0_1px_0_#0a5a8c]',
+    'bg-accent text-white hover:enabled:bg-accent-hover',
   ikincil: 'border border-panel-border text-gray-200 hover:enabled:bg-white/[0.06]',
   // Düşük vurgu: yalnızca metin, üzerine gelince kızarır
   tehlike: 'text-gray-400 hover:enabled:bg-rose-500/10 hover:enabled:text-rose-300'
@@ -34,7 +34,7 @@ export function Tus({ tur = 'ikincil', children, type = 'button', ...diger }: Tu
 export function Led({ metin, baslik }: { metin: string; baslik?: string }): ReactElement {
   return (
     <span title={baslik ?? 'Kurulu'} className="flex shrink-0 items-center gap-1.5 font-mono text-[10.5px] text-gray-400">
-      <span className="h-1.5 w-1.5 rounded-full bg-[#3ddc84] shadow-[0_0_5px_#3ddc84]" aria-hidden="true" />
+      <span className="h-1.5 w-1.5 rounded-full bg-[#3ddc84]" aria-hidden="true" />
       {metin}
     </span>
   )

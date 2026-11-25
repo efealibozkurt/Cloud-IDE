@@ -11,7 +11,7 @@ function DilSecimi({ onSecildi }: { onSecildi: () => void }): ReactElement {
   return (
     <div role="dialog" aria-modal="true" aria-label="Language / Dil" className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0a121b] px-6">
       <div className="w-full max-w-sm text-center">
-        <img src={cloudIcon} alt="" className="mx-auto h-14 w-14 object-contain drop-shadow-[0_0_14px_rgba(124,196,240,0.6)]" />
+        <img src={cloudIcon} alt="" className="mx-auto h-14 w-14 object-contain" />
         <h1 className="mt-5 text-lg font-semibold text-white">Cloud IDE</h1>
         <p className="mt-1 text-xs text-gray-400">Dilinizi seçin · Choose your language</p>
         <div className="mt-6 flex flex-col gap-2.5">

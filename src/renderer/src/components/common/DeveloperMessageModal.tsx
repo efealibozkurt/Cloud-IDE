@@ -70,7 +70,7 @@ function DeveloperMessageModal({ onClose }: DeveloperMessageModalProps): ReactEl
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-5 backdrop-blur-[2px] animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-5 animate-in fade-in duration-200"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) kapat()
       }}
@@ -79,7 +79,7 @@ function DeveloperMessageModal({ onClose }: DeveloperMessageModalProps): ReactEl
         role="dialog"
         aria-modal="true"
         aria-labelledby="gelistirici-notu-baslik"
-        className="relative flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-white/10 bg-[#14161d] text-gray-200 shadow-[0_30px_90px_rgba(0,0,0,0.7)]"
+        className="relative flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-md border border-panel-border bg-panel-light text-gray-200 shadow-2xl"
       >
         <button
           onClick={kapat}
@@ -94,7 +94,7 @@ function DeveloperMessageModal({ onClose }: DeveloperMessageModalProps): ReactEl
           {/* Sol şerit: kim olduğu ve ulaşım yolları */}
           <aside className="shrink-0 border-b border-white/[0.07] bg-[#0f1117] p-6 sm:w-60 sm:border-b-0 sm:border-r">
             <div className="flex items-center gap-3 sm:block">
-              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[#1a1d27] ring-1 ring-white/10">
+              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded border border-panel-border bg-panel">
                 <img src={cloudIcon} alt="Cloud IDE" className="h-10 w-10 object-contain" />
               </span>
               <div className="sm:mt-4">

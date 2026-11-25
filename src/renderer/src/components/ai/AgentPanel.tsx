@@ -161,9 +161,9 @@ function AgentPanel({ onClose }: AgentPanelProps): ReactElement {
     <aside className="flex h-full w-[350px] shrink-0 flex-col overflow-hidden border-l border-panel-border bg-panel-light" aria-label={t('Yapay zekâ asistanı')}>
       <div className="flex items-center gap-1 border-b border-panel-border px-3 py-2">
         <h2 className="flex min-w-0 flex-1 items-center gap-2 text-[13px] font-medium text-gray-100">
-          <img src={cloudIcon} alt="" className="h-5 w-5 shrink-0 object-contain drop-shadow-[0_0_6px_rgba(124,196,240,0.6)]" />
+          <img src={cloudIcon} alt="" className="h-5 w-5 shrink-0 object-contain" />
           <span className="truncate">{gecmisAcik ? t('Geçmiş sohbetler') : agent.aktifOturum?.baslik ?? 'Cloud AI'}</span>
-          {agent.calisiyor && <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-[#7cc4f0] shadow-[0_0_6px_#7cc4f0]" title={t('Çalışıyor')} />}
+          {agent.calisiyor && <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-[#7cc4f0]" title={t('Çalışıyor')} />}
         </h2>
         <BaslikButonu baslik={t('Geçmiş sohbetler')} etkin={gecmisAcik} onClick={() => setGecmisAcik((g) => !g)}>
           <path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2" />
@@ -284,8 +284,8 @@ function AgentPanel({ onClose }: AgentPanelProps): ReactElement {
             </div>
           ) : bos ? (
             <div className="flex flex-col items-center px-1 pt-6 text-center">
-              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#1d3a52] to-[#13222f] shadow-lg shadow-sky-500/20 ring-1 ring-white/10">
-                <img src={cloudIcon} alt="" className="h-8 w-8 object-contain drop-shadow-[0_0_10px_rgba(124,196,240,0.7)]" />
+              <span className="flex h-14 w-14 items-center justify-center rounded border border-panel-border bg-panel">
+                <img src={cloudIcon} alt="" className="h-8 w-8 object-contain" />
               </span>
               <p className="mt-3 text-[15px] font-medium text-white">{t('{ad} üzerinde ne yapalım?', { ad: sketch.name })}</p>
               <p className="mt-1 max-w-[260px] text-xs leading-relaxed text-gray-500">
@@ -299,9 +299,9 @@ function AgentPanel({ onClose }: AgentPanelProps): ReactElement {
                         setGirdi(t(o.metin))
                         requestAnimationFrame(() => girdiRef.current?.focus())
                       }}
-                      className="group flex w-full items-center gap-3 rounded-xl border border-panel-border bg-white/[0.02] px-3 py-2.5 text-[12.5px] text-gray-300 transition-colors hover:border-[#2aa8f2]/50 hover:bg-[#2aa8f2]/[0.07] hover:text-white"
+                      className="group flex w-full items-center gap-3 rounded border border-panel-border bg-transparent px-2.5 py-1.5 text-[12.5px] text-gray-300 transition-colors hover:border-accent hover:bg-white/[0.04] hover:text-white"
                     >
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#7cc4f0]/10 text-[#7cc4f0] transition-colors group-hover:bg-[#7cc4f0]/20">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center text-[#7cc4f0]">
                         <OneriIkon tur={o.ikon} />
                       </span>
                       {t(o.metin)}
@@ -324,9 +324,9 @@ function AgentPanel({ onClose }: AgentPanelProps): ReactElement {
       )}
 
       <div className="shrink-0 px-3 pb-2.5 pt-2">
-        {/* Gradient çerçeve: odakta parlar */}
-        <div className="rounded-2xl bg-gradient-to-br from-white/15 to-white/[0.04] p-px transition-shadow duration-200 focus-within:from-[#0e7fc4] focus-within:via-[#2aa8f2] focus-within:to-[#0e7fc4] focus-within:shadow-[0_0_26px_rgba(14,127,196,0.3)]">
-          <div className="rounded-[15px] bg-panel">
+        {/* Düz çerçeve: odakta vurgu rengi */}
+        <div className="rounded border border-panel-border transition-colors focus-within:border-accent">
+          <div className="rounded bg-panel">
             {/* Bağlam çipleri: asistanın neyi gördüğü */}
             <div className="flex flex-wrap items-center gap-1.5 px-3 pt-2.5">
               {ek && (
@@ -411,7 +411,7 @@ function AgentPanel({ onClose }: AgentPanelProps): ReactElement {
                   disabled={!girdi.trim() && !ek}
                   title={t('Gönder (Enter)')}
                   aria-label={t('Gönder')}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#0e7fc4] to-[#2aa8f2] text-white shadow-[0_2px_12px_rgba(14,127,196,0.5)] transition-all hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:from-white/10 disabled:to-white/10 disabled:text-gray-500 disabled:shadow-none"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-accent text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-gray-500"
                 >
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="12" y1="19" x2="12" y2="5" />
