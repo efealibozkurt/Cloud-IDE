@@ -146,6 +146,25 @@ Otomatik güncelleme için bir GitHub sürümüne `Cloud-IDE-Setup-<sürüm>.exe
 
 Gömülü `arduino-cli.exe` dosyası depoda bulunmaz; `resources/arduino-cli/` klasörüne yerleştirilmelidir.
 
+### 🐧 Linux
+
+Linux kurulum dosyaları (AppImage ve .deb) Windows'ta üretilemez; GitHub'daki **Actions › Linux derlemesi** iş akışı
+bunları Ubuntu üzerinde üretir (elle ya da `v*` etiketiyle tetiklenir). Linux makinede kendiniz derlemek için:
+
+```bash
+npm ci
+npm run arduino-cli:indir -- linux x64   # resmi arduino-cli'yi indirir, SHA-256 ile doğrular
+npm run build:linux                       # release/Cloud-IDE-<sürüm>-x86_64.AppImage ve cloud-ide_<sürüm>_amd64.deb
+```
+
+- **Seri port izni:** karta yükleme ve Seri Monitör için kullanıcınız `dialout` grubunda olmalıdır
+  (Arch tabanlı dağıtımlarda `uucp`): `sudo usermod -aG dialout $USER`, ardından oturumu kapatıp açın.
+- **Boş pencere:** bazı sürücülerde/sanal makinelerde GPU hızlandırması boş pencereye yol açar. Uygulamayı
+  `--disable-gpu` argümanıyla ya da `CLOUD_IDE_GPU_KAPALI=1` ortam değişkeniyle başlatın.
+- **arduino-cli:** pakette gömülü gelir; geliştirme modunda (`npm run dev`) ise sistemde kurulu olmalı
+  (`~/.local/bin`, `~/bin`, `/usr/local/bin`, `/usr/bin` ve `/snap/bin` taranır) ya da yukarıdaki betikle indirilmelidir.
+- Otomatik güncelleme için Release'e AppImage ile birlikte `latest-linux.yml` de yüklenmelidir.
+
 ## 🗂️ Proje Yapısı
 
 <details>

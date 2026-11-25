@@ -37,6 +37,8 @@
     "build:setup": "npm run build && electron-builder --win nsis",
     "build:portable": "npm run build && electron-builder --win portable",
     "build:dir": "npm run build && electron-builder --dir",
+    "build:linux": "npm run build && electron-builder --linux",
+    "arduino-cli:indir": "node scripts/arduino-cli-indir.mjs",
     "generate:icons": "node scripts/generate-icons.js",
     "generate:logos": "node scripts/generate-hd-logos.js",
     "lint": "eslint src",

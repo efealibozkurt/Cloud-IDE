@@ -159,6 +159,8 @@ export const IPC_CHANNELS = {
   window: {
     onCloseRequested: 'window:onCloseRequested',
     replyCloseRequest: 'window:replyCloseRequest',
+    /** Renderer kapatma isteğini aldığını hemen bildirir (cevap kullanıcı onayına kadar gecikebilir) */
+    closeRequestReceived: 'window:closeRequestReceived',
     openNewWindow: 'window:openNewWindow'
   }
 } as const

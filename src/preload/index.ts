@@ -176,11 +176,28 @@ const skills: SkillsAPI = {
   resetBoardModel: (family, modelId) => ipcRenderer.invoke(IPC_CHANNELS.skills.resetBoardModel, family, modelId)
 }
 
+/**
+ * Kapatma isteği tek bir kalıcı dinleyiciden dağıtılır. Arayüz hiç yüklenemediyse (boş pencere) dinleyen
+ * olmaz: o zaman pencere hemen kapanır. Dinleyen varsa önce "aldım" denir, böylece ana süreç
+ * kullanıcının onay penceresini beklerken pencereyi zorla kapatmaz.
+ */
+const kapatmaDinleyicileri = new Set<() => void>()
+ipcRenderer.on(IPC_CHANNELS.window.onCloseRequested, () => {
+  if (kapatmaDinleyicileri.size === 0) {
+    ipcRenderer.send(IPC_CHANNELS.window.replyCloseRequest, true)
+    return
+  }
+  ipcRenderer.send(IPC_CHANNELS.window.closeRequestReceived)
+  kapatmaDinleyicileri.forEach((d) => d())
+})
+
 const windowApi: WindowAPI = {
   onCloseRequested: (dinleyici) => {
     const sarmalayici = (): void => dinleyici()
-    ipcRenderer.on(IPC_CHANNELS.window.onCloseRequested, sarmalayici)
-    return () => ipcRenderer.removeListener(IPC_CHANNELS.window.onCloseRequested, sarmalayici)
+    kapatmaDinleyicileri.add(sarmalayici)
+    return () => {
+      kapatmaDinleyicileri.delete(sarmalayici)
+    }
   },
   replyCloseRequest: (proceed) => ipcRenderer.send(IPC_CHANNELS.window.replyCloseRequest, proceed),
   openNewWindow: (sketchPath) => ipcRenderer.invoke(IPC_CHANNELS.window.openNewWindow, sketchPath)

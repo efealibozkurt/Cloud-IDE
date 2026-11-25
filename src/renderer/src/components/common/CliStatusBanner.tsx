@@ -17,7 +17,7 @@ function CliStatusBanner(): ReactElement | null {
 
   return (
     <div className="flex shrink-0 items-center gap-3 border-b border-amber-800 bg-amber-950 px-3 py-1.5 text-xs text-amber-200">
-      <span className="flex-1">⚠ {durum.message ?? t('arduino-cli bulunamadı.')}</span>
+      <span className="flex-1">⚠ {durum.message ? t(durum.message) : t('arduino-cli bulunamadı.')}</span>
       <button
         onClick={() => void browseForCliPath()}
         className="rounded border border-amber-700 bg-amber-900 px-2 py-1 hover:bg-amber-800"

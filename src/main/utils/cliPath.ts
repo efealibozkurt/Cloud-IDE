@@ -1,6 +1,7 @@
 import { app } from 'electron'
 import { spawn } from 'child_process'
 import { access, constants as fsConstants } from 'fs/promises'
+import { homedir } from 'os'
 import { join } from 'path'
 
 /**
@@ -12,6 +13,8 @@ async function dosyaCalistirilabilirMi(yol: string): Promise<boolean> {
     await access(yol, fsConstants.X_OK | fsConstants.F_OK)
     return true
   } catch {
+    // Linux/macOS'ta çalıştırma izni olmayan dosya spawn'da EACCES verir: bulunmuş sayılmasın
+    if (process.platform !== 'win32') return false
     try {
       // Windows'ta X_OK genelde anlamsızdır; sadece varlığını kontrol et
       await access(yol, fsConstants.F_OK)
@@ -62,7 +65,16 @@ function bilinenKurulumYerleri(): string[] {
   if (process.platform === 'darwin') {
     return ['/Applications/Arduino IDE.app/Contents/Resources/app/lib/backend/resources/arduino-cli']
   }
-  return ['/usr/local/bin/arduino-cli', '/usr/bin/arduino-cli']
+  // Linux: resmi kurulum betiği varsayılan olarak ./bin'e, çoğu kullanıcı ~/.local/bin ya da ~/bin'e kurar;
+  // snap paketi /snap/bin'e düşer. Electron masaüstünden açıldığında PATH bu klasörleri içermeyebilir.
+  const ev = homedir()
+  return [
+    join(ev, '.local', 'bin', 'arduino-cli'),
+    join(ev, 'bin', 'arduino-cli'),
+    '/usr/local/bin/arduino-cli',
+    '/usr/bin/arduino-cli',
+    '/snap/bin/arduino-cli'
+  ]
 }
 
 /** Yukarıdaki bilinen kurulum yerlerini sırayla dener, ilk bulunanı döner */

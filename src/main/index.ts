@@ -47,6 +47,19 @@ if (process.platform === 'win32') {
   app.setAppUserModelId('com.efe.cloudide')
 }
 
+// Bazı Linux sürücülerinde/sanal makinelerde GPU hızlandırması boş pencereye yol açar.
+// `--disable-gpu` argümanı ya da CLOUD_IDE_GPU_KAPALI=1 ile yazılımsal çizime geçilir.
+if (process.env['CLOUD_IDE_GPU_KAPALI'] === '1' || process.argv.includes('--disable-gpu')) {
+  app.disableHardwareAcceleration()
+}
+app.on('child-process-gone', (_e, ayrinti) => {
+  if (ayrinti.type === 'GPU') {
+    console.error(
+      `[gpu] GPU süreci kapandı (${ayrinti.reason}). Pencere boş kalırsa uygulamayı --disable-gpu ile başlatın.`
+    )
+  }
+})
+
 /** Uygulamanın kendi renderer sayfasının adresi (geliştirmede Vite sunucusu, paketli sürümde index.html) */
 function uygulamaAdresi(): string {
   if (isDev && process.env['ELECTRON_RENDERER_URL']) return process.env['ELECTRON_RENDERER_URL']
@@ -70,9 +83,11 @@ function uygulamaSayfasiMi(url: string): boolean {
  * nodeIntegration kapalı tutulur. İsteğe bağlı olarak belirli bir sketch yolu ile açılabilir.
  */
 function createWindow(initialSketchPath?: string): BrowserWindow {
+  // Windows .ico kullanır; Linux pencere ikonu için PNG ister (macOS'ta ikon paketten gelir)
+  const ikonDosyasi = process.platform === 'win32' ? 'icon.ico' : 'icon.png'
   const iconPath = app.isPackaged
-    ? join(process.resourcesPath, 'icon.ico')
-    : join(app.getAppPath(), 'resources', 'icon.ico')
+    ? join(process.resourcesPath, ikonDosyasi)
+    : join(app.getAppPath(), 'resources', ikonDosyasi)
 
   const win = new BrowserWindow({
     title: 'Cloud IDE (BETA)',
@@ -117,6 +132,19 @@ function createWindow(initialSketchPath?: string): BrowserWindow {
   })
   win.webContents.on('will-attach-webview', (event) => event.preventDefault())
 
+  // Boş pencere sorunlarını (özellikle Linux'ta GPU/sürücü kaynaklı) teşhis edebilmek için arayüz
+  // hatalarını ana sürecin günlüğüne de yaz: kullanıcı terminal çıktısını gönderince sebep görünür.
+  win.webContents.on('console-message', (_e, seviye, mesaj, satir, kaynak) => {
+    if (seviye >= 3) console.error(`[arayüz] ${mesaj} (${kaynak}:${satir})`)
+  })
+  win.webContents.on('did-fail-load', (_e, kod, aciklama, adres) => {
+    console.error(`[arayüz] Sayfa yüklenemedi: ${aciklama} (${kod}) ${adres}`)
+  })
+  win.webContents.on('render-process-gone', (_e, ayrinti) => {
+    console.error(`[arayüz] Arayüz süreci kapandı: ${ayrinti.reason} (çıkış kodu ${ayrinti.exitCode})`)
+  })
+  win.on('unresponsive', () => console.warn('[arayüz] Pencere yanıt vermiyor.'))
+
   kapatmaOnayiniBagla(win)
 
   if (isDev && process.env['ELECTRON_RENDERER_URL']) {
@@ -136,25 +164,48 @@ function createWindow(initialSketchPath?: string): BrowserWindow {
  */
 function kapatmaOnayiniBagla(win: BrowserWindow): void {
   let kapatmayaHazir = false
+  let yanitBekleme: NodeJS.Timeout | null = null
+  const wcId = win.webContents.id
+
+  const beklemeyiBitir = (): void => {
+    if (yanitBekleme) clearTimeout(yanitBekleme)
+    yanitBekleme = null
+  }
+  const zorlaKapat = (): void => {
+    beklemeyiBitir()
+    kapatmayaHazir = true
+    if (!win.isDestroyed()) win.close()
+  }
 
   win.on('close', (event) => {
     if (kapatmayaHazir) return
+    // Arayüz çöktüyse soracak kimse yok: doğrudan kapat
+    if (win.webContents.isDestroyed() || win.webContents.isCrashed()) return
     event.preventDefault()
     win.webContents.send(IPC_CHANNELS.window.onCloseRequested)
+    // Arayüz takıldıysa ya da hiç yüklenmediyse pencere kapanmaz hale gelmesin
+    beklemeyiBitir()
+    yanitBekleme = setTimeout(() => {
+      console.warn('[pencere] Arayüz kapatma isteğine yanıt vermedi; pencere zorla kapatılıyor.')
+      zorlaKapat()
+    }, 3000)
   })
 
-  const listener = (_event: Electron.IpcMainEvent, devamEt: boolean): void => {
-    if (_event.sender.id === win.webContents.id) {
-      if (devamEt) {
-        kapatmayaHazir = true
-        win.close()
-      }
-    }
+  const alindi = (event: Electron.IpcMainEvent): void => {
+    if (event.sender.id === wcId) beklemeyiBitir()
+  }
+  const listener = (event: Electron.IpcMainEvent, devamEt: boolean): void => {
+    if (event.sender.id !== wcId) return
+    beklemeyiBitir()
+    if (devamEt) zorlaKapat()
   }
 
+  ipcMain.on(IPC_CHANNELS.window.closeRequestReceived, alindi)
   ipcMain.on(IPC_CHANNELS.window.replyCloseRequest, listener)
 
   win.on('closed', () => {
+    beklemeyiBitir()
+    ipcMain.removeListener(IPC_CHANNELS.window.closeRequestReceived, alindi)
     ipcMain.removeListener(IPC_CHANNELS.window.replyCloseRequest, listener)
   })
 }

@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events'
 import { SerialPort } from 'serialport'
 import { LineEnding, SerialPortInfo } from '@shared/types'
+import { izinIpucuylaBirlestir } from '../utils/seriPortIzni'
 
 /** Satır sonu seçimine göre gönderilecek ek karakterler (Arduino IDE ile aynı: NL+CR sırasıyla \n sonra \r) */
 const SATIR_SONU_EKLERI: Record<LineEnding, string> = {
@@ -140,7 +141,7 @@ export class SerialService extends EventEmitter {
       const yeniPort = new SerialPort({ path: port, baudRate: baud, autoOpen: false })
       yeniPort.open((hata) => {
         if (hata) {
-          reject(new Error(`Port açılamadı: ${hata.message}`))
+          reject(new Error(izinIpucuylaBirlestir(`Port açılamadı: ${hata.message}`)))
           return
         }
         const oturum: Oturum = { port: yeniPort, yol: port, baud, yarimSatir: '' }

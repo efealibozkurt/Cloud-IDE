@@ -1,0 +1,45 @@
+# Linux kurulum dosyalarını (AppImage + .deb) üretir. AppImage ve .deb Windows'ta üretilemediği için
+# bu iş Ubuntu üzerinde çalışır. Elle tetiklenir ya da v* etiketiyle başlar; çıktılar "Artifacts" olarak
+# indirilip GitHub Release'e elle yüklenir (latest-linux.yml dahil: AppImage otomatik güncellemesi için gerekli).
+name: Linux derlemesi
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Bağımlılıkları kur
+        run: npm ci
+
+      - name: Tip denetimi
+        run: npm run typecheck
+
+      - name: arduino-cli'yi indir (SHA-256 doğrulamalı)
+        run: node scripts/arduino-cli-indir.mjs linux x64
+
+      - name: Derle ve paketle
+        run: npm run build:linux -- --publish never
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cloud-ide-linux
+          path: |
+            release/*.AppImage
+            release/*.deb
+            release/latest-linux.yml
+          if-no-files-found: error

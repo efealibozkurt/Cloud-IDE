@@ -835,5 +835,8 @@ export const EN: Record<string, string> = {
   'Sırada': 'Next',
   'Devre şemasından pin bağlantılarına ve donanım testine kadar uçtan uca yapay zekâ destekli geliştirme modu.': 'An end-to-end AI-assisted development mode, from circuit diagrams to pin connections and hardware testing.',
   'Açılışta bir daha gösterme': 'Don\'t show again at startup',
-  'Başlayalım': 'Let\'s start'
+  'Başlayalım': 'Let\'s start',
+  'arduino-cli bulunamadı. Ayarlardan arduino-cli.exe dosyasının yolunu seçebilir ya da resmi siteden indirebilirsiniz.': 'arduino-cli was not found. You can choose the path to arduino-cli.exe in Settings or download it from the official site.',
+  'arduino-cli bulunamadı. Paket yöneticinizle ya da resmi kurulum betiğiyle kurun veya ayarlardan arduino-cli dosyasının yolunu seçin.': 'arduino-cli was not found. Install it with your package manager or the official install script, or choose the arduino-cli path in Settings.',
+  'arduino-cli bulundu ama çalıştırılamadı. Dosyanın bozuk olmadığından emin olun.': 'arduino-cli was found but could not be run. Make sure the file is not corrupted.'
 }

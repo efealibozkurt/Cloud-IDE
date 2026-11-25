@@ -19,6 +19,7 @@ import {
   UploadResult
 } from '@shared/types'
 import { resolveArduinoCliPath } from '../utils/cliPath'
+import { seriIzinIpucu } from '../utils/seriPortIzni'
 import { ArduinoCliOrtami, arduinoCliOrtamiHazirla } from '../utils/arduinoCliConfig'
 import { baslikEksikligiDeseniMi, tumToolchainBaslikYollariniOnar } from '../utils/toolchainHeaderFix'
 import { SettingsService } from './SettingsService'
@@ -258,7 +259,9 @@ export class ArduinoCliService {
         path: null,
         version: null,
         message:
-          'arduino-cli bulunamadı. Ayarlardan arduino-cli.exe dosyasının yolunu seçebilir ya da resmi siteden indirebilirsiniz.'
+          process.platform === 'win32'
+            ? 'arduino-cli bulunamadı. Ayarlardan arduino-cli.exe dosyasının yolunu seçebilir ya da resmi siteden indirebilirsiniz.'
+            : 'arduino-cli bulunamadı. Paket yöneticinizle ya da resmi kurulum betiğiyle kurun veya ayarlardan arduino-cli dosyasının yolunu seçin.'
       }
     }
     this.cliPath = yol
@@ -824,10 +827,14 @@ export class ArduinoCliService {
       false
     )
     const basarili = kod === 0
+    const log = ansiTemizle([stdout, stderr].filter(Boolean).join('\n'))
+    // Linux'ta dialout grubunda olmayan kullanıcıya çözümü göster (izin hatası log'un içinde olabilir)
+    const izinIpucu = !basarili ? seriIzinIpucu(log) : null
+    const anaHata = ilkSatir(stderr) || ilkSatir(stdout) || 'Yükleme başarısız oldu'
     return {
       success: basarili,
-      log: ansiTemizle([stdout, stderr].filter(Boolean).join('\n')),
-      topLevelError: !basarili ? ilkSatir(stderr) || ilkSatir(stdout) || 'Yükleme başarısız oldu' : undefined
+      log: izinIpucu ? `${log}\n\n${izinIpucu}` : log,
+      topLevelError: !basarili ? (izinIpucu ? `${anaHata}\n${izinIpucu}` : anaHata) : undefined
     }
   }
 }

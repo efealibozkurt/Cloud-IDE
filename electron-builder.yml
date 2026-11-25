@@ -14,17 +14,9 @@ files:
   - "!**/node_modules/*.d.ts"
   - "!**/node_modules/.bin"
 
-extraResources:
-  # Gömülü arduino-cli; GPL-3.0 gereği lisans metni ve kaynak kod bildirimi ikiliyle birlikte dağıtılır
-  - from: resources/arduino-cli
-    to: arduino-cli
-    filter:
-      - arduino-cli.exe
-      - LICENSE.txt
-      - NOTICE.txt
-  # Pencere/görev çubuğu ikonu (src/main/index.ts: process.resourcesPath/icon.ico)
-  - from: resources/icon.ico
-    to: icon.ico
+# Gömülü arduino-cli ve pencere ikonu her platformda kendi dosyasıyla paketlenir (aşağıdaki win/linux bölümleri).
+# src/main/utils/cliPath.ts → process.resourcesPath/arduino-cli/arduino-cli(.exe)
+# src/main/index.ts        → process.resourcesPath/icon.ico (Windows) | icon.png (Linux)
 
 asar: true
 asarUnpack:
@@ -40,6 +32,16 @@ asarUnpack:
 win:
   icon: resources/icon.ico
   legalTrademarks: Cloud IDE
+  extraResources:
+    - from: resources/arduino-cli
+      to: arduino-cli
+      filter:
+        - arduino-cli.exe
+        # GPL-3.0: lisans metni ve kaynak kod bildirimi ikiliyle birlikte dağıtılır
+        - LICENSE.txt
+        - NOTICE.txt
+    - from: resources/icon.ico
+      to: icon.ico
   target:
     - target: nsis
       arch:
@@ -62,6 +64,48 @@ nsis:
   runAfterFinish: true
   # Boşluksuz ad: GitHub yüklemede boşluğu noktaya çevirir ve latest.yml ile uyuşmazlık çıkar
   artifactName: Cloud-IDE-Setup-${version}.${ext}
+
+linux:
+  icon: resources/icon.png
+  category: Development
+  synopsis: AI destekli Arduino ve gömülü sistem IDE'si
+  maintainer: Efe Ali Bozkurt <iletisim@efealibozkurt.com.tr>
+  executableName: cloud-ide
+  extraResources:
+    # Önce: node scripts/arduino-cli-indir.mjs linux x64
+    - from: resources/arduino-cli
+      to: arduino-cli
+      filter:
+        - arduino-cli
+        - LICENSE.txt
+        - NOTICE.txt
+    - from: resources/icon.png
+      to: icon.png
+  target:
+    - target: AppImage
+      arch:
+        - x64
+    - target: deb
+      arch:
+        - x64
+
+appImage:
+  # Boşluksuz ad: latest-linux.yml ile uyuşsun (otomatik güncelleme AppImage üzerinden çalışır)
+  artifactName: Cloud-IDE-${version}-x86_64.${ext}
+
+deb:
+  artifactName: cloud-ide_${version}_amd64.${ext}
+  # Seri port için dialout grubu gerekir; kurulum sonrası notu README'de
+  depends:
+    - libgtk-3-0
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+    - libatspi2.0-0
+    - libuuid1
+    - libsecret-1-0
 
 publish:
   provider: github
