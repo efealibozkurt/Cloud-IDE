@@ -20,7 +20,7 @@
   <img src="https://img.shields.io/github/last-commit/efealibozkurt/Cloud-IDE?style=flat-square&color=06b6d4" alt="Last commit" />
   <img src="https://img.shields.io/github/repo-size/efealibozkurt/Cloud-IDE?style=flat-square&color=f97316" alt="Repo size" />
   <img src="https://img.shields.io/badge/license-GPL--3.0-3b82f6?style=flat-square" alt="License" />
-  <img src="https://img.shields.io/badge/version-v0.1.6%20Stratus--BETA-0e7fc4?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/version-v0.1.7%20Stratus--BETA-0e7fc4?style=flat-square" alt="Version" />
   <img src="https://img.shields.io/badge/status-Open_Beta-eab308?style=flat-square" alt="Status" />
 </p>
 
@@ -222,7 +222,7 @@ Cloud-IDE/
 
 ## 🗺️ Roadmap
 
-**Current status: v0.1.6 "Stratus" (Beta)**
+**Current status: v0.1.7 "Stratus" (Beta)**
 This version includes the editor, build/upload, the Cloud AI agent with live code writing, pin checking, the wiring guide, version history, templates, notes, an English/Turkish interface and one-click problem reporting. Linux support is experimental.
 
 **Next**
