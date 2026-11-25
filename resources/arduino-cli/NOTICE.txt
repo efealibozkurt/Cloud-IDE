@@ -1,0 +1,24 @@
+Arduino CLI
+===========
+
+This directory contains an unmodified binary of Arduino CLI, distributed together with Cloud IDE
+as a separate program. Cloud IDE runs it as an external process.
+
+  Program:    Arduino CLI
+  Version:    1.5.1
+  Copyright:  Arduino SA
+  License:    GNU General Public License v3.0 (see LICENSE.txt in this directory)
+  Homepage:   https://github.com/arduino/arduino-cli
+  Source:     https://github.com/arduino/arduino-cli/tree/v1.5.1
+  Releases:   https://github.com/arduino/arduino-cli/releases/tag/v1.5.1
+
+The complete corresponding source code for this version is available at the "Source" address above.
+
+"Arduino" is a registered trademark of Arduino SA. Cloud IDE is an independent project and is not
+affiliated with or endorsed by Arduino SA.
+
+---
+
+Bu klasör, Cloud IDE ile birlikte ayrı bir program olarak dağıtılan, değiştirilmemiş Arduino CLI
+ikilisini içerir. Telif hakkı Arduino SA'ya aittir ve GNU GPL v3.0 lisansı altındadır (bkz. LICENSE.txt).
+Bu sürümün tam kaynak koduna yukarıdaki "Source" adresinden ulaşılabilir.

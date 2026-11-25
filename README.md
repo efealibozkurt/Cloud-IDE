@@ -43,6 +43,7 @@
 - [Yol Haritası](#-yol-haritası)
 - [Katkıda Bulunma](#-katkıda-bulunma)
 - [Görsel Kaynakları](#-görsel-kaynakları)
+- [Üçüncü Taraf Yazılımlar](#-üçüncü-taraf-yazılımlar)
 - [Lisans](#-lisans)
 - [Geliştirici](#-geliştirici)
 
@@ -198,6 +199,41 @@ Katkılar memnuniyetle karşılanır! Bir [issue](https://github.com/efealibozku
 
 ## 🖼️ Görsel Kaynakları
 Kart seçicideki kart fotoğrafları Wikimedia Commons (Creative Commons) ve resmi Deneyap kart belgelerinden alınmıştır. Her görselin yazarı ve lisansı [`CREDITS.md`](src/renderer/src/assets/boards/CREDITS.md) dosyasında listelenir.
+
+## 🧩 Üçüncü Taraf Yazılımlar
+
+Cloud IDE aşağıdaki açık kaynak yazılımlar üzerine kuruludur. Her biri kendi lisansı altındadır; telif hakları sahiplerine aittir.
+
+**Uygulamayla birlikte dağıtılan program**
+
+| Yazılım | Sürüm | Telif | Lisans | Kaynak kod |
+|---|---|---|---|---|
+| [Arduino CLI](https://github.com/arduino/arduino-cli) | 1.5.1 | Arduino SA | GPL-3.0 | [v1.5.1 etiketi](https://github.com/arduino/arduino-cli/tree/v1.5.1) |
+
+Arduino CLI değiştirilmeden, ayrı bir program olarak pakete eklenir ve Cloud IDE tarafından ayrı bir süreç olarak çalıştırılır. Lisans metni ve bildirim, kurulum klasöründe `resources/arduino-cli/` altında (`LICENSE.txt`, `NOTICE.txt`) yer alır. Bu sürümün kaynak koduna yukarıdaki bağlantıdan ulaşılabilir.
+
+**Başlıca kütüphaneler**
+
+| Yazılım | Lisans |
+|---|---|
+| [Electron](https://www.electronjs.org/) (Chromium ve Node.js içerir) | MIT; Chromium bileşen lisansları paketteki `LICENSES.chromium.html` dosyasındadır |
+| [React](https://react.dev/) | MIT |
+| [Monaco Editor](https://github.com/microsoft/monaco-editor) | MIT |
+| [Transformers.js](https://github.com/xenova/transformers.js) | Apache-2.0 |
+| [ONNX Runtime](https://github.com/microsoft/onnxruntime) | MIT |
+| [Node SerialPort](https://serialport.io/) | MIT |
+| [electron-store](https://github.com/sindresorhus/electron-store), [electron-updater](https://github.com/electron-userland/electron-builder) | MIT |
+| [Tailwind CSS](https://tailwindcss.com/) | MIT |
+
+Tüm bağımlılıkların tam listesi ve lisansları `package.json` ile `node_modules` içindeki paketlerde bulunur.
+
+**Yapay zekâ modeli**
+
+Yerel bilgi tabanı araması, ilk kullanımda indirilen [multilingual-e5-small](https://huggingface.co/intfloat/multilingual-e5-small) gömme modelini (Microsoft, MIT lisansı; [Xenova](https://huggingface.co/Xenova/multilingual-e5-small) ONNX dönüşümü) kullanır. Model uygulama paketinde dağıtılmaz.
+
+**Marka bildirimi**
+
+"Arduino" ve Arduino logosu Arduino SA'nın tescilli markalarıdır. "Deneyap" adı ve logosu ilgili hak sahiplerine aittir. Cloud IDE bağımsız bir projedir; Arduino SA veya Deneyap ile bağlantılı değildir ve onlar tarafından onaylanmamıştır. Bu adlar yalnızca uyumlu donanımı tanımlamak için kullanılır.
 
 ## 📄 Lisans
 
