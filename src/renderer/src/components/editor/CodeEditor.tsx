@@ -196,6 +196,8 @@ function CodeEditor({
   const buDosyaAktifReview = Boolean(
     aiReview && normalizeYol(aiReview.filePath) === normalizeYol(filePath)
   )
+  // Onayla / Geri Al çubuğu yazım animasyonu sürerken gizli kalır; Esc o sırada yalnızca animasyonu atlar
+  const incelemeGoster = buDosyaAktifReview && !yazim
 
   const yazimAtla = useCallback(() => {
     yazimAtlaRef.current?.()
@@ -858,16 +860,16 @@ function CodeEditor({
 
   // Klavye ile Onay (Enter) / Reddet (Esc)
   useEffect(() => {
-    if (!buDosyaAktifReview || aiReview?.isWriting) return
+    if (!incelemeGoster || aiReview?.isWriting) return
     const handleKeyDown = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') {
         e.preventDefault()
-        rejectAiDiff()
+        void rejectAiDiff()
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [buDosyaAktifReview, aiReview?.isWriting, rejectAiDiff])
+  }, [incelemeGoster, aiReview?.isWriting, rejectAiDiff])
 
   // Genel highlight desteği
   useEffect(() => {
@@ -995,7 +997,7 @@ function CodeEditor({
       <AiYazimOverlay
         durum={overlayDurum}
         toplamDegisen={overlayToplam}
-        hudGoster={!buDosyaAktifReview}
+        hudGoster={!incelemeGoster}
         onAtla={yazimAtla}
         viewportRef={viewportRef}
         beamRef={beamRef}
@@ -1005,10 +1007,10 @@ function CodeEditor({
       />
 
       {/* ── AI Değişiklik İnceleme Onay (✓) / Reddet (✕) Yüzen Çubuğu ── */}
-      {buDosyaAktifReview && aiReview && (
-        <div className="ai-diff-floating-bar absolute right-6 top-3 z-30 flex items-center gap-3 rounded-xl px-3 py-2 shadow-2xl select-none">
-          <div className="flex items-center gap-2.5 border-r border-white/10 pr-3">
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-sky-500/15 p-1">
+      {incelemeGoster && aiReview && (
+        <div className="ai-diff-floating-bar absolute right-6 top-3 z-30 flex items-center gap-3 rounded px-2.5 py-1.5 select-none">
+          <div className="flex items-center gap-2 border-r border-panel-border pr-2.5">
+            <span className="flex h-5 w-5 items-center justify-center p-0.5">
               <img src={cloudIcon} alt="Cloud AI" className="h-full w-full object-contain" />
             </span>
             <div className="flex flex-col">
@@ -1021,12 +1023,12 @@ function CodeEditor({
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             <button
               onClick={acceptAiDiff}
               disabled={aiReview.isWriting}
               title={t('Değişiklikleri onayla (Enter)')}
-              className="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-emerald-300 transition-all hover:bg-emerald-500/25 hover:border-emerald-500/50 disabled:opacity-40"
+              className="flex items-center gap-1.5 rounded border border-emerald-500/40 bg-transparent px-2 py-0.5 text-xs font-medium text-emerald-300 transition-colors hover:bg-emerald-500/15 disabled:opacity-40"
             >
               <CheckIcon />
               <span>{t('Onayla')}</span>
@@ -1034,10 +1036,10 @@ function CodeEditor({
             </button>
 
             <button
-              onClick={rejectAiDiff}
+              onClick={() => void rejectAiDiff()}
               disabled={aiReview.isWriting}
               title={t('Eski kodu geri getir ve iptal et (Esc)')}
-              className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs font-medium text-gray-300 transition-all hover:border-red-500/30 hover:bg-red-500/15 hover:text-red-200 disabled:opacity-40"
+              className="flex items-center gap-1.5 rounded border border-panel-border bg-transparent px-2 py-0.5 text-xs font-medium text-gray-300 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-40"
             >
               <CancelIcon />
               <span>{t('Geri Al')}</span>
@@ -1054,11 +1056,11 @@ function CodeEditor({
           className="absolute z-20 animate-in fade-in slide-in-from-bottom-1 duration-150"
           style={{ top: Math.max(6, secim.top - 52), left: Math.min(Math.max(8, secim.left - 8), window.innerWidth - 300) }}
         >
-          <div className="relative flex items-center gap-1 rounded-full border border-white/10 bg-[#161923]/95 p-1 shadow-[0_10px_30px_rgba(0,0,0,0.55),0_0_0_1px_rgba(14,127,196,0.25)] backdrop-blur-md">
+          <div className="relative flex items-center gap-0.5 rounded border border-panel-border bg-panel-light p-0.5 shadow-md">
             <button
               onClick={aiIleDuzelt}
               title={t('Seçili kodu Cloud AI ile düzeltmeyi iste')}
-              className="group flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#0e7fc4] to-[#2aa8f2] py-1.5 pl-2.5 pr-3.5 text-[12px] font-semibold text-white shadow-[0_2px_12px_rgba(14,127,196,0.55)] transition-all hover:brightness-110 hover:shadow-[0_2px_18px_rgba(14,127,196,0.7)] active:scale-[0.97]"
+              className="group flex items-center gap-1.5 rounded-sm bg-accent py-1 pl-2 pr-2.5 text-[12px] font-medium text-white transition-colors hover:bg-accent-hover"
             >
               <FixIcon />
               {t('AI ile Düzelt')}
@@ -1066,7 +1068,7 @@ function CodeEditor({
             <button
               onClick={kodAciklat}
               title={t("Seçili kodun ne yaptığını Cloud AI'a açıklat")}
-              className="flex items-center gap-1.5 rounded-full py-1.5 pl-2.5 pr-3 text-[12px] font-medium text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
+              className="flex items-center gap-1.5 rounded-sm py-1 pl-2 pr-2.5 text-[12px] text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
             >
               <ExplainIcon />
               {t('Açıkla')}
@@ -1074,13 +1076,13 @@ function CodeEditor({
             <button
               onClick={promptGir}
               title={t("Seçili kodu Cloud AI'a gönder, kendi isteğini yaz")}
-              className="flex items-center gap-1.5 rounded-full py-1.5 pl-2.5 pr-3 text-[12px] font-medium text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
+              className="flex items-center gap-1.5 rounded-sm py-1 pl-2 pr-2.5 text-[12px] text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
             >
               <PromptIcon />
               {t('Prompt Gir')}
             </button>
             {/* Seçime bakan küçük ok */}
-            <span className="pointer-events-none absolute -bottom-1 left-6 h-2 w-2 rotate-45 border-b border-r border-white/10 bg-[#161923]" />
+            <span className="pointer-events-none absolute -bottom-1 left-6 h-2 w-2 rotate-45 border-b border-r border-panel-border bg-panel-light" />
           </div>
         </div>
       )}
@@ -1108,7 +1110,7 @@ function CancelIcon(): ReactElement {
 
 function FixIcon(): ReactElement {
   return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none" className="drop-shadow-[0_0_4px_rgba(124,196,240,0.8)]">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none">
       <path d="M12 2.5c.35 3.32 1.1 5.63 2.25 6.9 1.15 1.28 3.3 2.1 6.25 2.6-2.95.5-5.1 1.32-6.25 2.6-1.15 1.27-1.9 3.58-2.25 6.9-.35-3.32-1.1-5.63-2.25-6.9-1.15-1.28-3.3-2.1-6.25-2.6 2.95-.5 5.1-1.32 6.25-2.6 1.15-1.27 1.9-3.58 2.25-6.9Z" />
     </svg>
   )

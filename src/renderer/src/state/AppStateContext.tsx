@@ -231,6 +231,7 @@ type Action =
     }
   | { type: 'aiYazim/basladi'; id: number; filePath: string; onceki: string; hedef: string }
   | { type: 'aiYazim/bitti'; id: number }
+  | { type: 'aiDiff/incelemeBasladi'; filePath: string; originalContent: string; newCode: string }
   | { type: 'aiDiff/writingFinished' }
   | { type: 'aiDiff/accepted' }
   | { type: 'aiDiff/rejected' }
@@ -543,6 +544,23 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, aiYazim: { id: action.id, filePath: action.filePath, onceki: action.onceki, hedef: action.hedef } }
     case 'aiYazim/bitti':
       return state.aiYazim && state.aiYazim.id === action.id ? { ...state, aiYazim: null } : state
+    case 'aiDiff/incelemeBasladi': {
+      // Ajan aynı dosyayı onay beklerken yeniden değiştirirse "Geri Al" ilk (AI öncesi) hale döndürsün
+      const onceki =
+        state.aiDiffReview && ayniDosyaMi(state.aiDiffReview.filePath, action.filePath)
+          ? state.aiDiffReview.originalContent
+          : action.originalContent
+      return {
+        ...state,
+        aiDiffReview: {
+          active: true,
+          filePath: action.filePath,
+          originalContent: onceki,
+          newCode: action.newCode,
+          isWriting: false
+        }
+      }
+    }
     case 'aiDiff/writingFinished':
       return state.aiDiffReview
         ? { ...state, aiDiffReview: { ...state.aiDiffReview, isWriting: false } }
@@ -617,7 +635,7 @@ interface AppStateBaglami {
   /** Editördeki yazım efekti bitince çağrılır */
   aiYazimBitti: (id: number) => void
   acceptAiDiff: () => void | Promise<void>
-  rejectAiDiff: () => void
+  rejectAiDiff: () => void | Promise<void>
   // sketch
   newSketch: () => Promise<SketchInfo | null>
   openSketchDialog: () => Promise<void>
@@ -1092,6 +1110,10 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
                   aiYazimSayaci += 1
                   dispatch({ type: 'aiYazim/basladi', id: aiYazimSayaci, filePath: c.path, onceki: sekme.content, hedef: c.content })
                 }
+                // Görünen dosyada AI değişikliği için Onayla / Geri Al çubuğunu aç (çubuk animasyon bitince görünür)
+                if (sekme && aktifMi && sekme.content !== c.content) {
+                  dispatch({ type: 'aiDiff/incelemeBasladi', filePath: c.path, originalContent: sekme.content, newCode: c.content })
+                }
                 dispatch({ type: 'sketch/tabContentChanged', path: c.path, content: c.content })
                 dispatch({ type: 'sketch/tabSaved', path: c.path, content: c.content })
               }
@@ -1247,10 +1269,17 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
     toastGoster('AI değişiklikleri onaylandı ve kaydedildi', 'basari')
   }, [toastGoster])
 
-  const rejectAiDiff = useCallback(() => {
+  const rejectAiDiff = useCallback(async () => {
     const review = stateRef.current.aiDiffReview
     if (review) {
       dispatch({ type: 'sketch/tabContentChanged', path: review.filePath, content: review.originalContent })
+      // Ajan değişikliği diske zaten yazmış olur; eski kodu diske de geri yaz
+      try {
+        await window.api.sketch.writeFile(review.filePath, review.originalContent)
+        dispatch({ type: 'sketch/tabSaved', path: review.filePath, content: review.originalContent })
+      } catch (hata) {
+        console.error('Eski kod diske yazılamadı:', hata)
+      }
     }
     dispatch({ type: 'aiDiff/rejected' })
     dispatch({ type: 'editor/highlightCleared' })
