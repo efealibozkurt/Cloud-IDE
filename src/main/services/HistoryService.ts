@@ -87,7 +87,7 @@ export class HistoryService {
 
   private adDogrula(ad: string, tur: string): string {
     const temiz = ad.trim()
-    if (!AD_DESENI.test(temiz)) throw new Error(`Geçersiz ${tur} adı (harf, rakam, . _ - kullanın; en çok 40 karakter)`)
+    if (!AD_DESENI.test(temiz)) throw new Error(`Geçersiz ${tur} adı (boşluk yerine - kullanın; harf, rakam, . _ - olabilir, en çok 40 karakter)`)
     return temiz
   }
 
@@ -423,10 +423,10 @@ export class HistoryService {
     return this.kilitli(proje, () => {
       const yol = this.projeDogrula(proje)
       this.idDogrula(id)
-      const temiz = this.adDogrula(ad, 'etiket')
+      const temiz = this.adDogrula(ad, 'sürüm')
       if (!this.commitOku(yol, id)) throw new Error('Sürüm bulunamadı')
       const refs = this.refsOku(yol)
-      if (refs.etiketler[temiz]) throw new Error('Bu etiket zaten kullanılıyor')
+      if (refs.etiketler[temiz]) throw new Error('Bu ad başka bir sürümde kullanılıyor')
       refs.etiketler[temiz] = id
       this.refsYaz(yol, refs)
     })
@@ -445,9 +445,9 @@ export class HistoryService {
   dalOlustur(proje: string, ad: string, id?: string): Promise<void> {
     return this.kilitli(proje, () => {
       const yol = this.projeDogrula(proje)
-      const temiz = this.adDogrula(ad, 'dal')
+      const temiz = this.adDogrula(ad, 'deneme')
       const refs = this.refsOku(yol)
-      if (refs.dallar[temiz]) throw new Error('Bu dal zaten var')
+      if (refs.dallar[temiz]) throw new Error('Bu adda bir deneme zaten var')
       const kaynak = id ?? refs.dallar[refs.aktifDal]
       if (!kaynak) throw new Error('Önce en az bir sürüm kaydı oluşturun')
       this.idDogrula(kaynak)
@@ -466,10 +466,10 @@ export class HistoryService {
       const yol = this.projeDogrula(proje)
       const refs = this.refsOku(yol)
       const id = refs.dallar[ad]
-      if (!id) throw new Error('Dal bulunamadı')
+      if (!id) throw new Error('Deneme bulunamadı')
       if (ad === refs.aktifDal) return []
       const hedef = this.commitOku(yol, id)
-      if (!hedef) throw new Error('Dalın sürümü bulunamadı')
+      if (!hedef) throw new Error('Denemenin sürümü bulunamadı')
       this.temizMi(yol, refs)
       refs.aktifDal = ad
       this.refsYaz(yol, refs)
@@ -481,8 +481,8 @@ export class HistoryService {
     return this.kilitli(proje, () => {
       const yol = this.projeDogrula(proje)
       const refs = this.refsOku(yol)
-      if (ad === refs.aktifDal) throw new Error('Aktif dal silinemez')
-      if (ad === VARSAYILAN_DAL) throw new Error('Ana dal silinemez')
+      if (ad === refs.aktifDal) throw new Error('Açık olan deneme silinemez')
+      if (ad === VARSAYILAN_DAL) throw new Error('Ana kod silinemez')
       delete refs.dallar[ad]
       this.refsYaz(yol, refs)
     })

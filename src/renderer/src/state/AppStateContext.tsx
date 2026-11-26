@@ -11,6 +11,7 @@ import {
 } from 'react'
 import type {
   AIProviderId,
+  CustomAIProvider,
   AppSettings,
   ArduinoCliStatus,
   BaudRate,
@@ -28,10 +29,24 @@ import type {
   UploadResult,
   AgentChangeItem
 } from '@shared/types'
-import { DEFAULT_BAUD_RATE } from '@shared/types'
+import { AI_PROVIDERS, DEFAULT_BAUD_RATE } from '@shared/types'
 import { fqbnSecenekleriyle, temelFqbn } from '@shared/boardFqbn'
+import { koddanBaudBul } from '@shared/seriBaud'
+import { portlariSirala } from '@shared/portTanima'
+import { cevir } from '../i18n'
 import { useToast } from './ToastContext'
 import { ayniDosyaMi } from '../utils/paths'
+
+/** arduino-cli port listesine USB kimliklerini ekler; kart portları başa gelir */
+async function portlariGetir(): Promise<DetectedPort[]> {
+  const [portlar, usb] = await Promise.all([window.api.arduinoCli.listPorts(), window.api.serial.listPorts().catch(() => [])])
+  return portlariSirala(
+    portlar.map((p) => {
+      const bilgi = usb.find((u) => u.path === p.address)
+      return bilgi ? { ...p, vendorId: bilgi.vendorId, productId: bilgi.productId, pnpId: bilgi.pnpId } : p
+    })
+  )
+}
 
 // ────────────────────────────────────────────────────────────────────────
 // Durum (state) şekli
@@ -606,6 +621,9 @@ interface AppStateBaglami {
   setCustomContextLimit: (provider: AIProviderId, limit: number) => Promise<void>
   saveApiKey: (provider: AIProviderId, apiKey: string) => Promise<void>
   clearApiKey: (provider: AIProviderId) => Promise<void>
+  /** Özel sağlayıcıyı ekler ya da günceller; kaydedilemezse false döner */
+  saveCustomProvider: (provider: CustomAIProvider) => Promise<boolean>
+  removeCustomProvider: (id: AIProviderId) => Promise<void>
   // Dret AI paneli
   toggleDretAi: () => void
   closeDretAi: () => void
@@ -682,7 +700,8 @@ interface AppStateBaglami {
   clearReveal: () => void
   // serial
   /** Üst çubukta seçili portu açar; diğer açık portlara dokunmaz */
-  connectSerial: () => Promise<void>
+  /** Port verilmezse üst çubukta seçili port bağlanır */
+  connectSerial: (port?: string) => Promise<void>
   disconnectSerial: (port?: string) => Promise<void>
   writeSerial: (data: string, lineEnding: LineEnding, port?: string) => Promise<void>
   clearSerial: (port?: string) => void
@@ -835,7 +854,7 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
     let iptalEdildi = false
     const yenile = async (): Promise<void> => {
       try {
-        const ports = await window.api.arduinoCli.listPorts()
+        const ports = await portlariGetir()
         if (!iptalEdildi) dispatch({ type: 'arduinoCli/ports', ports })
       } catch {
         // arduino-cli geçici olarak meşgulse sessizce bir sonraki turu bekle
@@ -885,7 +904,7 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
   }, [])
 
   const refreshPorts = useCallback(async () => {
-    const ports = await window.api.arduinoCli.listPorts()
+    const ports = await portlariGetir()
     dispatch({ type: 'arduinoCli/ports', ports })
   }, [])
 
@@ -922,6 +941,39 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
     dispatch({ type: 'arduinoCli/selectBaud', baud })
     void window.api.settings.set('selectedBaud', baud)
   }, [])
+
+  // ── baud hızını koddan eşitle ──
+  // Yeni başlayanlar en çok burada takılıyor: kodda Serial.begin(9600) yazarken monitör 115200'de
+  // kalırsa anlamsız karakterler görünür. Koddaki değer (ya da proje) değiştiğinde seçim ona göre
+  // ayarlanır; kullanıcı elle başka bir hız seçerse kod değişene kadar dokunulmaz.
+  const kodBaud = useMemo(() => {
+    const klasor = state.sketch.activeSketchPath
+    if (!klasor) return null
+    const duz = (yol: string): string => yol.replace(/\\/g, '/').toLowerCase()
+    const onek = `${duz(klasor)}/`
+    return koddanBaudBul(
+      state.sketch.tabs.filter((s) => duz(s.path).startsWith(onek) && /\.(ino|cpp|c|h|hpp)$/i.test(s.path)).map((s) => s.content)
+    )
+  }, [state.sketch.tabs, state.sketch.activeSketchPath])
+
+  useEffect(() => {
+    if (!state.ready || !kodBaud) return
+    // Yazarken ara değerler uygulanmasın diye kısa bir bekleme
+    const zamanlayici = setTimeout(() => {
+      const { selectedBaud, selectedPort } = stateRef.current.arduinoCli
+      if (selectedBaud === kodBaud) return
+      selectBaud(kodBaud)
+      toastGoster(cevir('Baud hızı koddaki Serial.begin değerine ayarlandı: {baud}', { baud: kodBaud }), 'bilgi')
+      // Tek bağlantı açıksa yeni hızla yeniden bağlan; birden çok port varsa kartlar farklı olabilir
+      const { portlar, temporarilyClosedForUpload } = stateRef.current.serial.status
+      if (!temporarilyClosedForUpload && portlar.length === 1 && portlar[0].port === selectedPort && portlar[0].baud !== kodBaud) {
+        void window.api.serial.open(selectedPort, kodBaud).catch((hata) => {
+          toastGoster(hata instanceof Error ? hata.message : 'Port açılamadı', 'hata')
+        })
+      }
+    }, 800)
+    return () => clearTimeout(zamanlayici)
+  }, [kodBaud, state.sketch.activeSketchPath, state.ready, selectBaud, toastGoster])
 
   const addBoardManagerUrl = useCallback(async (url: string) => {
     const urls = await window.api.arduinoCli.addBoardManagerUrl(url)
@@ -969,6 +1021,43 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
       console.error('Bağlam limiti ayarı kaydedilemedi:', err)
     }
   }, [])
+
+  const ozelSaglayicilariYaz = useCallback(
+    async (liste: CustomAIProvider[]): Promise<boolean> => {
+      try {
+        await window.api.settings.set('customAiProviders', liste)
+        // stateRef bir sonraki çizimi beklemeden güncel olsun (hemen ardından anahtar ve model kaydedilir)
+        if (stateRef.current.settings) stateRef.current.settings = { ...stateRef.current.settings, customAiProviders: liste }
+        dispatch({ type: 'settings/patched', patch: { customAiProviders: liste } })
+        // Sunucusu değişen ya da silinen sağlayıcının anahtarı ana süreçte silinir
+        dispatch({ type: 'secrets/configuredProviders', providers: await window.api.secrets.getConfiguredProviders() })
+        return true
+      } catch (hata) {
+        toastGoster(hata instanceof Error ? hata.message : 'Sağlayıcı kaydedilemedi', 'hata')
+        return false
+      }
+    },
+    [toastGoster]
+  )
+
+  const saveCustomProvider = useCallback(
+    (saglayici: CustomAIProvider): Promise<boolean> => {
+      const mevcut = stateRef.current.settings?.customAiProviders ?? []
+      const varMi = mevcut.some((s) => s.id === saglayici.id)
+      return ozelSaglayicilariYaz(varMi ? mevcut.map((s) => (s.id === saglayici.id ? saglayici : s)) : [...mevcut, saglayici])
+    },
+    [ozelSaglayicilariYaz]
+  )
+
+  const removeCustomProvider = useCallback(
+    async (id: AIProviderId): Promise<void> => {
+      const mevcut = stateRef.current.settings?.customAiProviders ?? []
+      const secili = stateRef.current.settings?.selectedAiProvider === id
+      if (!(await ozelSaglayicilariYaz(mevcut.filter((s) => s.id !== id)))) return
+      if (secili) setSelectedAiProvider(AI_PROVIDERS[0].id)
+    },
+    [ozelSaglayicilariYaz, setSelectedAiProvider]
+  )
 
   const saveApiKey = useCallback(
     async (provider: AIProviderId, apiKey: string) => {
@@ -1830,11 +1919,12 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
   const clearReveal = useCallback(() => dispatch({ type: 'build/revealHandled' }), [])
 
   // ── seri port aksiyonları ──
-  const connectSerial = useCallback(async () => {
+  const connectSerial = useCallback(async (port?: string) => {
     const { selectedPort, selectedBaud } = stateRef.current.arduinoCli
-    if (!selectedPort) return toastGoster('Önce üst çubuktan bir port seçin', 'hata')
+    const hedef = port ?? selectedPort
+    if (!hedef) return toastGoster('Önce üst çubuktan bir port seçin', 'hata')
     try {
-      await window.api.serial.open(selectedPort, selectedBaud)
+      await window.api.serial.open(hedef, selectedBaud)
     } catch (hata) {
       toastGoster(hata instanceof Error ? hata.message : 'Port açılamadı', 'hata')
     }
@@ -1883,6 +1973,8 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
       setCustomContextLimit,
       saveApiKey,
       clearApiKey,
+      saveCustomProvider,
+      removeCustomProvider,
       toggleDretAi,
       closeDretAi,
       askDretAi,
@@ -1950,6 +2042,8 @@ export function AppStateProvider({ children }: { children: ReactNode }): ReactEl
       setCustomContextLimit,
       saveApiKey,
       clearApiKey,
+      saveCustomProvider,
+      removeCustomProvider,
       toggleDretAi,
       closeDretAi,
       askDretAi,

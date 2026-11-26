@@ -1,6 +1,12 @@
-import { AI_PROVIDERS, type AIProviderId, type AppSettings } from '@shared/types'
+import {
+  isCustomProvider,
+  isValidCustomProviderUrl,
+  isValidProviderId,
+  MAX_CUSTOM_PROVIDERS,
+  type AIProviderId,
+  type AppSettings
+} from '@shared/types'
 
-const SAGLAYICILAR = new Set<string>(AI_PROVIDERS.map((p) => p.id))
 const YEREL_SAGLAYICILAR = new Set<string>(['lmstudio', 'ollama'])
 
 function metinMi(v: unknown, maks = 1024): v is string {
@@ -15,7 +21,7 @@ function sayiMi(v: unknown, min: number, maks: number): v is number {
 function saglayiciHaritasi(v: unknown, deger: (x: unknown, id: AIProviderId) => boolean): boolean {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return false
   return Object.entries(v as Record<string, unknown>).every(
-    ([k, x]) => SAGLAYICILAR.has(k) && deger(x, k as AIProviderId)
+    ([k, x]) => isValidProviderId(k) && deger(x, k)
   )
 }
 
@@ -32,6 +38,18 @@ function adresGecerli(x: unknown, id: AIProviderId): boolean {
   }
 }
 
+function ozelSaglayicilarGecerli(v: unknown): boolean {
+  if (!Array.isArray(v) || v.length > MAX_CUSTOM_PROVIDERS) return false
+  const kimlikler = new Set<string>()
+  return v.every((x) => {
+    if (!x || typeof x !== 'object') return false
+    const { id, name, baseUrl } = x as Record<string, unknown>
+    if (!isCustomProvider(id) || kimlikler.has(id)) return false
+    kimlikler.add(id)
+    return metinMi(name, 40) && name.trim().length > 0 && typeof baseUrl === 'string' && isValidCustomProviderUrl(baseUrl)
+  })
+}
+
 type Dogrulayici = (v: unknown) => boolean
 
 const DOGRULAYICILAR: { [K in keyof AppSettings]?: Dogrulayici } = {
@@ -44,11 +62,12 @@ const DOGRULAYICILAR: { [K in keyof AppSettings]?: Dogrulayici } = {
   lastOpenedSketch: (v) => v === null || metinMi(v, 600),
   editorFontSize: (v) => sayiMi(v, 8, 40),
   editorTheme: (v) => metinMi(v, 50),
-  selectedAiProvider: (v) => v === null || (typeof v === 'string' && SAGLAYICILAR.has(v)),
+  selectedAiProvider: (v) => v === null || isValidProviderId(v),
   selectedModelPerProvider: (v) => saglayiciHaritasi(v, (x) => metinMi(x, 200)),
   selectedReasoningEffort: (v) => v === 'low' || v === 'medium' || v === 'high',
   customContextLimits: (v) => saglayiciHaritasi(v, (x) => sayiMi(x, 1024, 10_000_000)),
   aiBaseUrls: (v) => saglayiciHaritasi(v, adresGecerli),
+  customAiProviders: ozelSaglayicilarGecerli,
   agentPermissionMode: (v) => v === 'ask' || v === 'auto-edit' || v === 'full-auto',
   agentAutoCompile: (v) => typeof v === 'boolean',
   localToolMode: (v) => v === 'auto' || v === 'native' || v === 'text',

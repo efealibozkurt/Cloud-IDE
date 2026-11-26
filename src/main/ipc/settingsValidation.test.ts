@@ -22,6 +22,17 @@ describe('ayarDegeriniDogrula', () => {
     expect(() => ayarDegeriniDogrula('aiBaseUrls', { openai: 'https://proxy.example/v1' })).not.toThrow()
   })
 
+  it('özel sağlayıcıyı kabul eder, güvensiz adresi ve bozuk kimliği reddeder', () => {
+    const s = { id: 'ozel-abcd1234', name: 'Sunucum', baseUrl: 'https://a.example/v1' }
+    expect(() => ayarDegeriniDogrula('customAiProviders', [s])).not.toThrow()
+    expect(() => ayarDegeriniDogrula('selectedAiProvider', s.id)).not.toThrow()
+    expect(() => ayarDegeriniDogrula('selectedModelPerProvider', { [s.id]: 'model' })).not.toThrow()
+    expect(() => ayarDegeriniDogrula('customAiProviders', [{ ...s, baseUrl: 'http://evil.example' }])).toThrow()
+    expect(() => ayarDegeriniDogrula('customAiProviders', [{ ...s, id: 'openai' }])).toThrow()
+    expect(() => ayarDegeriniDogrula('customAiProviders', [{ ...s, name: '  ' }])).toThrow()
+    expect(() => ayarDegeriniDogrula('customAiProviders', [s, s])).toThrow()
+  })
+
   it('bilinmeyen sağlayıcı anahtarını reddeder', () => {
     expect(() => ayarDegeriniDogrula('customContextLimits', { foo: 4096 })).toThrow()
   })

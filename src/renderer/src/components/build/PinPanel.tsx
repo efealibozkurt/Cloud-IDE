@@ -91,7 +91,7 @@ function PinPanel({ sonuc, onOpenBaglanti }: { sonuc: PinDenetimSonucu; onOpenBa
         {onOpenBaglanti && (
           <button
             onClick={onOpenBaglanti}
-            className="rounded border border-accent/40 bg-accent/10 px-2 py-0.5 text-[11px] text-[#7cc4f0] hover:bg-accent/20"
+            className="rounded border border-panel-border px-2 py-0.5 text-[11px] text-gray-300 hover:bg-white/[0.06]"
           >
             {t('Bağlantı kılavuzu')} →
           </button>

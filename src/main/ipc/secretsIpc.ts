@@ -1,12 +1,10 @@
 import { ipcMain } from 'electron'
-import { AI_PROVIDERS, AIProviderId, IPC_CHANNELS } from '@shared/types'
+import { AIProviderId, IPC_CHANNELS, isValidProviderId } from '@shared/types'
 import { SecretsService } from '../services/SecretsService'
 
-const SAGLAYICILAR = new Set<string>(AI_PROVIDERS.map((p) => p.id))
-
 function saglayici(v: unknown): AIProviderId {
-  if (typeof v !== 'string' || !SAGLAYICILAR.has(v)) throw new Error('Bilinmeyen sağlayıcı')
-  return v as AIProviderId
+  if (!isValidProviderId(v)) throw new Error('Bilinmeyen sağlayıcı')
+  return v
 }
 
 /** SecretsService'i IPC'ye bağlayan ince katman */

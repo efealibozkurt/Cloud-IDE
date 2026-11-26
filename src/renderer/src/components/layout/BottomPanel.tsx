@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type ReactElement,
+  type ReactNode,
   type MouseEvent as ReactMouseEvent
 } from 'react'
 import type { BuildSizeItem } from '@shared/types'
@@ -14,7 +15,6 @@ import BaglantiKilavuzuPanel from '../build/BaglantiKilavuzuPanel'
 import { YardimDugmesi } from '../common/YardimDugmesi'
 import type { YardimKonuId } from '../help/yardimKonulari'
 import { usePinSorunlari } from '../../hooks/usePinSorunlari'
-import SerialMonitor from '../serial/SerialMonitor'
 import { useT } from '../../i18n'
 
 export type BottomPanelTab = 'cikti' | 'seri' | 'pinler' | 'baglanti' | 'problems'
@@ -23,6 +23,8 @@ interface BottomPanelProps {
   activeTab: BottomPanelTab
   onTabChange: (tab: BottomPanelTab) => void
   onClose: () => void
+  /** Seri monitör alttaysa içeriği; sağdaysa undefined (sekme de gizlenir) */
+  seri?: ReactNode
 }
 
 const YARDIM_KONUSU: Record<BottomPanelTab, YardimKonuId> = {
@@ -41,7 +43,7 @@ const DEFAULT_HEIGHT = 240
  * Alt panel: Çıktı, Seri Monitör ve Problems sekmeleri arasında geçiş
  * sağlar. Üst kenarından fare ile sürüklenerek yüksekliği değiştirilebilir.
  */
-function BottomPanel({ activeTab, onTabChange, onClose }: BottomPanelProps): ReactElement {
+function BottomPanel({ activeTab, onTabChange, onClose, seri }: BottomPanelProps): ReactElement {
   const t = useT()
   const { state } = useAppState()
   const [height, setHeight] = useState(DEFAULT_HEIGHT)
@@ -90,7 +92,7 @@ function BottomPanel({ activeTab, onTabChange, onClose }: BottomPanelProps): Rea
 
   const TABS: { id: BottomPanelTab; label: string }[] = [
     { id: 'cikti', label: t('Çıktı') },
-    { id: 'seri', label: t('Seri Monitör') },
+    ...(seri !== undefined ? [{ id: 'seri' as const, label: t('Seri Monitör') }] : []),
     { id: 'pinler', label: pinSorunlari.length > 0 ? `${t('Pin denetimi')} (${pinSorunlari.length})` : t('Pin denetimi') },
     { id: 'baglanti', label: t('Bağlantı Kılavuzu') },
     {
@@ -154,7 +156,7 @@ function BottomPanel({ activeTab, onTabChange, onClose }: BottomPanelProps): Rea
             {state.build.log || t('Henüz bir derleme/yükleme yapılmadı. (Ctrl+R derle, Ctrl+U yükle)')}
           </pre>
         )}
-        {activeTab === 'seri' && <SerialMonitor />}
+        {activeTab === 'seri' && seri}
         {activeTab === 'pinler' && <PinPanel sonuc={pinSonuc} onOpenBaglanti={() => onTabChange('baglanti')} />}
         {activeTab === 'baglanti' && <BaglantiKilavuzuPanel />}
         {activeTab === 'problems' && <ProblemsPanel pinSorunlari={pinSorunlari} />}

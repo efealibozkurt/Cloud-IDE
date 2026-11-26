@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react'
 import { temelFqbn } from '@shared/boardFqbn'
 import { usbCipiBul } from '@shared/usbCipleri'
+import { portTuru } from '@shared/portTanima'
+import { useToast } from '../../state/ToastContext'
 import { useAppState } from '../../state/AppStateContext'
 import { Tus } from './Tus'
 import { useT } from '../../i18n'
@@ -35,10 +37,12 @@ function Yerlestir(metin: string, degerler: Record<string, string>): ReactElemen
  * Yeni bir kart USB'ye takılınca ekranın üstünde küçük bir öneri gösterir:
  *  - kart tanınıyorsa (ilgili kart paketi kurulu) "Uno bulundu, kullanılsın mı?"
  *  - tanınmıyorsa USB çipinden (CH340, CP210x…) ne tür bir kart olabileceğini söyler.
- * Hiçbir şeyi kendiliğinden değiştirmez; yalnızca port seçili değilse portu seçer.
+ * Dahili ve Bluetooth portları yok sayılır. Kartı kendiliğinden değiştirmez; yalnızca seçili port bir
+ * kart portu değilse yeni takılan kartın portunu seçer ve bildirir.
  */
 function KartTanimaBandi(): ReactElement | null {
   const t = useT()
+  const { toastGoster } = useToast()
   const { state, selectFqbn, selectPort } = useAppState()
   const { ports, selectedFqbn, selectedPort } = state.arduinoCli
   const [oneri, setOneri] = useState<Oneri | null>(null)
@@ -51,7 +55,16 @@ function KartTanimaBandi(): ReactElement | null {
     oncekiPortlar.current = simdiki
 
     // İlk liste açılışta gelir: kart takılıyken uygulamayı açan kullanıcıya yalnızca kart seçili değilse öneri yapılır
-    const yeni = ports.filter((p) => p.protocol === 'serial' && (onceki ? !onceki.has(p.address) : !selectedFqbn) && !reddedilen.current.has(p.address))
+    const kartPortlari = ports.filter((p) => portTuru(p) === 'kart')
+
+    // Seçili port bir kart değilse (boş, çıkarılmış, COM1 ya da Bluetooth) yeni gelen kartı seç
+    const gelen = kartPortlari.find((p) => !onceki?.has(p.address))
+    if (gelen && !kartPortlari.some((p) => p.address === selectedPort)) {
+      selectPort(gelen.address)
+      toastGoster(t('Kartınız {port} portunda bulundu ve seçildi.', { port: gelen.address }), 'bilgi')
+    }
+
+    const yeni = kartPortlari.filter((p) => p.protocol === 'serial' && (onceki ? !onceki.has(p.address) : !selectedFqbn) && !reddedilen.current.has(p.address))
     if (yeni.length === 0) {
       // Önerilen port çıkarıldıysa öneriyi kaldır
       setOneri((o) => (o && !simdiki.has(o.port) ? null : o))
@@ -59,9 +72,6 @@ function KartTanimaBandi(): ReactElement | null {
     }
     const p = yeni[0]
     const eslesen = p.matchingBoards.find((b) => b.fqbn)
-
-    // Port seçili değilse (ya da seçili port artık yoksa) yeni portu sessizce seç
-    if (!selectedPort || (onceki && !simdiki.has(selectedPort))) selectPort(p.address)
 
     if (eslesen) {
       // Seçili kart zaten bu portun kartlarından biriyse söylenecek bir şey yok

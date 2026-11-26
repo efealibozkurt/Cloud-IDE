@@ -4,6 +4,9 @@ import {
   AI_PROVIDERS,
   estimateTokens,
   getModelContextLimit,
+  isCustomProvider,
+  isLocalProvider,
+  isLoopbackUrl,
   type AgentPermissionMode,
   type ReasoningEffort
 } from '@shared/types'
@@ -11,9 +14,9 @@ import { tumKartlariDuzlestir, useAppState } from '../../state/AppStateContext'
 import { useAgent, type EklenenKod } from '../../state/AgentContext'
 import { ayniDosyaMi } from '../../utils/paths'
 import ContextMeter from './ContextMeter'
+import ModelSecici from './ModelSecici'
 import ApprovalCard from './ApprovalCard'
 import { CanliGorunum, MesajBaloncugu } from './AgentMessages'
-import { ReasoningLevelSwitch } from './ReasoningLevelSwitch'
 import { RagSkillsModal } from './RagSkillsModal'
 import cloudIcon from '../../assets/icon.png'
 import { useI18n, type TFonksiyonu } from '../../i18n'
@@ -29,6 +32,13 @@ const IZIN_SECENEKLERI: Array<{ id: AgentPermissionMode; ad: string; aciklama: s
   { id: 'auto-edit', ad: 'Yarı otomatik', aciklama: 'Dosya yazar; silme, yeniden adlandırma ve kütüphane kurulumunu sorar' },
   { id: 'full-auto', ad: 'Tam otomatik', aciklama: 'Hiçbir işlem için sormaz. Değişiklikler yine geri alınabilir' }
 ]
+
+/** İzin düzeyine göre simge: onay isteyen kalkan, yarı otomatik kalem, tam otomatik şimşek */
+const IZIN_SIMGELERI: Record<AgentPermissionMode, string> = {
+  ask: 'M12 3 5 6v5c0 4.5 3 8 7 10 4-2 7-5.5 7-10V6l-7-3ZM9 12l2 2 4-4',
+  'auto-edit': 'M4 20h4L19 9l-4-4L4 16v4ZM13 7l4 4',
+  'full-auto': 'M13 2 3 14h9l-1 8 10-12h-9l1-8Z'
+}
 
 function tarih(ts: number, t: TFonksiyonu, yerel: string): string {
   const d = new Date(ts)
@@ -66,6 +76,8 @@ function AgentPanel({ onClose }: AgentPanelProps): ReactElement {
   const sketch = state.sketch.info
   const saglayici = state.settings?.selectedAiProvider ?? AI_PROVIDERS[0].id
   const aktifModel = state.settings?.selectedModelPerProvider?.[saglayici] ?? modeller[0] ?? ''
+  const ozelAdres = state.settings?.customAiProviders?.find((s) => s.id === saglayici)?.baseUrl
+  const anahtarsizCalisir = isLocalProvider(saglayici) || Boolean(ozelAdres && isLoopbackUrl(ozelAdres))
   const kart = tumKartlariDuzlestir(state.arduinoCli.platforms).find((k) => k.fqbn === state.arduinoCli.selectedFqbn)
 
   // Seçili sağlayıcının modelleri
@@ -78,7 +90,7 @@ function AgentPanel({ onClose }: AgentPanelProps): ReactElement {
         if (iptal) return
         setModeller(liste)
         const mevcut = state.settings?.selectedModelPerProvider?.[saglayici]
-        if (liste.length > 0 && (!mevcut || !liste.includes(mevcut))) void setSelectedAiModel(saglayici, liste[0])
+        if (liste.length > 0 && (!mevcut || (!isCustomProvider(saglayici) && !liste.includes(mevcut)))) void setSelectedAiModel(saglayici, liste[0])
       })
       .catch((err) => console.error('Modeller getirilemedi:', err))
       .finally(() => {
@@ -88,7 +100,7 @@ function AgentPanel({ onClose }: AgentPanelProps): ReactElement {
       iptal = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saglayici, state.configuredAiProviders])
+  }, [saglayici, state.configuredAiProviders, state.settings?.customAiProviders])
 
   // Editörden gelen "bunu AI'a sor" isteği
   useEffect(() => {
@@ -158,7 +170,7 @@ function AgentPanel({ onClose }: AgentPanelProps): ReactElement {
   const bos = agent.mesajlar.length === 0 && !agent.calisma
 
   return (
-    <aside className="flex h-full w-[350px] shrink-0 flex-col overflow-hidden border-l border-panel-border bg-panel-light" aria-label={t('Yapay zekâ asistanı')}>
+    <aside className="flex h-full w-full flex-col overflow-hidden bg-panel-light" aria-label={t('Yapay zekâ asistanı')}>
       <div className="flex items-center gap-1 border-b border-panel-border px-3 py-2">
         <h2 className="flex min-w-0 flex-1 items-center gap-2 text-[13px] font-medium text-gray-100">
           <img src={cloudIcon} alt="" className="h-5 w-5 shrink-0 object-contain" />
@@ -186,36 +198,6 @@ function AgentPanel({ onClose }: AgentPanelProps): ReactElement {
         </BaslikButonu>
       </div>
 
-      <div className="flex items-center gap-1.5 border-b border-panel-border px-3 py-1.5 text-xs">
-        <select
-          value={saglayici}
-          onChange={(e) => setSelectedAiProvider(e.target.value as typeof saglayici)}
-          aria-label={t('Sağlayıcı')}
-          className="h-7 min-w-0 flex-1 rounded border border-panel-border bg-panel px-1.5 text-gray-200 outline-none focus:border-accent"
-        >
-          {AI_PROVIDERS.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-              {state.configuredAiProviders.includes(p.id) ? '' : ` (${t('anahtar yok')})`}
-            </option>
-          ))}
-        </select>
-        <select
-          value={aktifModel}
-          onChange={(e) => void setSelectedAiModel(saglayici, e.target.value)}
-          disabled={modellerYukleniyor || modeller.length === 0}
-          aria-label={t('Model')}
-          title={modellerYukleniyor ? t('Modeller listeleniyor…') : aktifModel}
-          className="h-7 min-w-0 flex-1 rounded border border-panel-border bg-panel px-1.5 text-gray-200 outline-none focus:border-accent disabled:opacity-50"
-        >
-          {modeller.map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
-          ))}
-        </select>
-      </div>
-
       <div className="flex items-center justify-between gap-2 border-b border-panel-border px-3 py-1.5 text-xs text-gray-400">
         <span className="truncate" title={kart?.fqbn}>
           {kart ? kart.name : state.arduinoCli.selectedFqbn ?? t('Kart seçilmedi')}
@@ -224,16 +206,6 @@ function AgentPanel({ onClose }: AgentPanelProps): ReactElement {
           {t('Donanım ve bilgi tabanı')}
         </button>
       </div>
-
-      <ContextMeter
-        veri={baglam}
-        saglayici={saglayici}
-        ozetleniyor={agent.ozetleniyor}
-        mesgul={agent.calisiyor}
-        bildirim={agent.bildirim}
-        onOzetle={() => void agent.gecmisiOzetle()}
-        onLimitDegistir={(limit) => void setCustomContextLimit(saglayici, limit)}
-      />
 
       {gecmisAcik ? (
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -299,7 +271,7 @@ function AgentPanel({ onClose }: AgentPanelProps): ReactElement {
                         setGirdi(t(o.metin))
                         requestAnimationFrame(() => girdiRef.current?.focus())
                       }}
-                      className="group flex w-full items-center gap-3 rounded border border-panel-border bg-transparent px-2.5 py-1.5 text-[12.5px] text-gray-300 transition-colors hover:border-accent hover:bg-white/[0.04] hover:text-white"
+                      className="group flex w-full items-center gap-3 rounded border border-panel-border bg-transparent px-2.5 py-1.5 text-[12.5px] text-gray-300 transition-colors hover:border-white/30 hover:bg-white/[0.04] hover:text-white"
                     >
                       <span className="flex h-6 w-6 shrink-0 items-center justify-center text-[#7cc4f0]">
                         <OneriIkon tur={o.ikon} />
@@ -325,24 +297,18 @@ function AgentPanel({ onClose }: AgentPanelProps): ReactElement {
 
       <div className="shrink-0 px-3 pb-2.5 pt-2">
         {/* Düz çerçeve: odakta vurgu rengi */}
-        <div className="rounded border border-panel-border transition-colors focus-within:border-accent">
+        <div className="relative rounded border border-panel-border transition-colors focus-within:border-accent">
           <div className="rounded bg-panel">
-            {/* Bağlam çipleri: asistanın neyi gördüğü */}
-            <div className="flex flex-wrap items-center gap-1.5 px-3 pt-2.5">
-              {ek && (
-                <span className="flex items-center gap-1.5 rounded-md border border-[#2aa8f2]/40 bg-[#2aa8f2]/10 py-0.5 pl-2 pr-1 text-[11px] text-[#8fd0f7]">
-                  <span>
-                    {t('Seçili kod · {n} satır', { n: ek.kod.split('\n').length })}
-                  </span>
-                  <button onClick={() => setEk(null)} aria-label={t('Eklenen kodu kaldır')} className="rounded px-1 text-[#8fd0f7]/70 hover:bg-white/10 hover:text-white">
+            {ek && (
+              <div className="flex px-3 pt-2.5">
+                <span className="flex items-center gap-1.5 rounded-md border border-white/15 bg-white/[0.06] py-0.5 pl-2 pr-1 text-[11px] text-gray-200">
+                  <span>{t('Seçili kod · {n} satır', { n: ek.kod.split('\n').length })}</span>
+                  <button onClick={() => setEk(null)} aria-label={t('Eklenen kodu kaldır')} className="rounded px-1 text-gray-400 hover:bg-white/10 hover:text-white">
                     ✕
                   </button>
                 </span>
-              )}
-              {baglam.aktifDosyaAdi && <BaglamCipi ikon="dosya">{baglam.aktifDosyaAdi}</BaglamCipi>}
-              {kart && <BaglamCipi ikon="kart">{kart.name}</BaglamCipi>}
-              {!baglam.aktifDosyaAdi && !kart && !ek && <span className="text-[11px] text-gray-600">{t('Açık dosya ve kart burada görünür')}</span>}
-            </div>
+              </div>
+            )}
 
             <textarea
               ref={girdiRef}
@@ -362,37 +328,53 @@ function AgentPanel({ onClose }: AgentPanelProps): ReactElement {
               className="max-h-44 min-h-[68px] w-full resize-none bg-transparent px-3 pb-1 pt-2 text-[13px] leading-relaxed text-gray-100 outline-none placeholder:text-gray-500"
             />
 
-            <div className="flex items-center justify-between gap-2 px-2.5 pb-2.5">
-              <div className="flex min-w-0 items-center gap-1.5">
-                <ReasoningLevelSwitch
-                  value={reasoning}
-                  onChange={(e) => {
-                    setReasoning(e)
-                    void window.api.settings.set('selectedReasoningEffort', e)
-                  }}
-                  disabled={agent.calisiyor}
-                />
-                <label
-                  title={t(IZIN_SECENEKLERI.find((x) => x.id === izin)?.aciklama ?? '')}
-                  className="flex h-7 items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] pl-1.5 pr-0.5 text-gray-400 hover:border-white/20"
+            <div className="flex items-center justify-end gap-1.5 px-2.5 pb-2.5">
+              <ModelSecici
+                saglayici={saglayici}
+                model={aktifModel}
+                modeller={modeller}
+                yukleniyor={modellerYukleniyor}
+                ozelSaglayicilar={state.settings?.customAiProviders}
+                anahtarVar={anahtarsizCalisir || state.configuredAiProviders.includes(saglayici)}
+                anahtarliSaglayicilar={state.configuredAiProviders}
+                muhakeme={reasoning}
+                disabled={agent.calisiyor}
+                onSaglayici={setSelectedAiProvider}
+                onModel={(m) => void setSelectedAiModel(saglayici, m)}
+                onMuhakeme={(yeni) => {
+                  setReasoning(yeni)
+                  void window.api.settings.set('selectedReasoningEffort', yeni)
+                }}
+              />
+              <label
+                title={t(IZIN_SECENEKLERI.find((x) => x.id === izin)?.aciklama ?? '')}
+                className="flex h-6 shrink-0 items-center gap-1 rounded pl-1.5 text-gray-400 hover:bg-white/[0.06] hover:text-gray-100"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d={IZIN_SIMGELERI[izin]} />
+                </svg>
+                <select
+                  value={izin}
+                  onChange={(e) => izinDegistir(e.target.value as AgentPermissionMode)}
+                  aria-label={t('Değişiklik izni')}
+                  className="h-6 cursor-pointer appearance-none rounded bg-transparent pr-1.5 text-[11.5px] outline-none [field-sizing:content] focus-visible:ring-1 focus-visible:ring-accent"
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M12 3 5 6v5c0 4.5 3 8 7 10 4-2 7-5.5 7-10V6l-7-3Z" />
-                  </svg>
-                  <select
-                    value={izin}
-                    onChange={(e) => izinDegistir(e.target.value as AgentPermissionMode)}
-                    aria-label={t('Değişiklik izni')}
-                    className="max-w-[112px] cursor-pointer bg-transparent py-1 text-[11px] text-gray-200 outline-none"
-                  >
-                    {IZIN_SECENEKLERI.map((x) => (
-                      <option key={x.id} value={x.id} className="bg-panel-light">
-                        {t(x.ad)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
+                  {IZIN_SECENEKLERI.map((x) => (
+                    <option key={x.id} value={x.id} className="bg-panel-light">
+                      {t(x.ad)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <ContextMeter
+                veri={baglam}
+                saglayici={saglayici}
+                ozetleniyor={agent.ozetleniyor}
+                mesgul={agent.calisiyor}
+                bildirim={agent.bildirim}
+                onOzetle={() => void agent.gecmisiOzetle()}
+                onLimitDegistir={(limit) => void setCustomContextLimit(saglayici, limit)}
+              />
 
               {agent.calisiyor ? (
                 <button
@@ -425,6 +407,7 @@ function AgentPanel({ onClose }: AgentPanelProps): ReactElement {
         <p className="mt-1.5 px-1 text-[10.5px] text-gray-600">
           {agent.calisiyor ? t('Esc ile durdurabilirsin') : t('Enter gönderir, Shift+Enter yeni satır açar')}
         </p>
+        <p className="mt-0.5 px-1 text-center text-[10px] text-gray-500">{t('Yapay zekâ hata yapabilir. Kodu ve bağlantıları kontrol edin.')}</p>
       </div>
 
       <RagSkillsModal
@@ -439,27 +422,6 @@ function AgentPanel({ onClose }: AgentPanelProps): ReactElement {
         }
       />
     </aside>
-  )
-}
-
-function BaglamCipi({ ikon, children }: { ikon: 'dosya' | 'kart'; children: string }): ReactElement {
-  return (
-    <span className="flex max-w-[150px] items-center gap-1.5 rounded-md bg-white/[0.06] px-2 py-0.5 text-[11px] text-gray-300" title={children}>
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-gray-500" aria-hidden="true">
-        {ikon === 'dosya' ? (
-          <>
-            <path d="M14.5 3H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7.5L14.5 3Z" />
-            <path d="M14 3v5h5" />
-          </>
-        ) : (
-          <>
-            <rect x="5" y="5" width="14" height="14" rx="2" />
-            <path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3" />
-          </>
-        )}
-      </svg>
-      <span className="truncate">{children}</span>
-    </span>
   )
 }
 

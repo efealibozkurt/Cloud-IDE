@@ -466,7 +466,9 @@ export class ArduinoCliService {
   }
 
   async installCore(id: string, operationId: string, onLog?: (satir: string) => void): Promise<void> {
-    const { stdout, stderr, kod } = await this.calistirVeIzle(['core', 'install', id], operationId, onLog)
+    // Metin biçiminde çalıştırılır: --format json indirme satırlarını gizlediği için kullanıcı
+    // dakikalarca hiçbir ilerleme göremiyordu
+    const { stdout, stderr, kod } = await this.calistirVeIzle(['core', 'install', id], operationId, onLog, false)
     if (kod !== 0) {
       const hamSonuc = bunuJsonYap<{ error?: string }>(stdout)
       throw new Error(hamSonuc?.error || ilkSatir(stderr) || ilkSatir(stdout) || `${id} kurulamadı`)

@@ -316,7 +316,7 @@ function BoardManager(): ReactElement {
                 <p className="text-xs text-gray-400">{t('Henüz kurulu bir kart platformu bulunamadı.')}</p>
                 <button
                   onClick={() => setAktifSekme('tumu')}
-                  className="mt-2 rounded bg-accent/20 px-3 py-1 text-xs text-accent-hover hover:bg-accent/30"
+                  className="mt-2 rounded bg-white/[0.08] px-3 py-1 text-xs text-gray-200 hover:bg-white/[0.14]"
                 >
                   Katalogda Kart Ara
                 </button>

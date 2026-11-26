@@ -467,7 +467,7 @@ export function ArchitecturesView({
               <ul className="flex flex-wrap gap-1.5">
                 {currentModel.pins.length === 0 && <li className="text-xs text-gray-500">{t('Henüz pin tanımlı değil.')}</li>}
                 {currentModel.pins.map((pin, idx) => (
-                  <li key={`${pin}-${idx}`} className="group flex items-center rounded-md border border-sky-400/25 bg-sky-400/[0.07] text-xs transition-colors hover:border-sky-300/50 hover:bg-sky-400/[0.12]">
+                  <li key={`${pin}-${idx}`} className="group flex items-center rounded-md border border-white/15 bg-white/[0.05] text-xs transition-colors hover:border-white/30 hover:bg-white/[0.1]">
                     {editingPinIdx === idx ? (
                       <input
                         autoFocus
@@ -488,7 +488,7 @@ export function ArchitecturesView({
                             setEditingPinVal(pin)
                           }}
                           title={t('Düzenlemek için tıklayın')}
-                          className="px-2 py-1 font-mono text-sky-100 hover:text-white"
+                          className="px-2 py-1 font-mono text-gray-100 hover:text-white"
                         >
                           {pin}
                         </button>

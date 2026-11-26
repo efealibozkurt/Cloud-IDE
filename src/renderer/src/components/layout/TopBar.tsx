@@ -12,6 +12,8 @@ import BoardPicker from '../boards/BoardPicker'
 import type { AIModeOrigin } from '../ai/AIModeScreen'
 import { useT } from '../../i18n'
 import beyazCloudIde from '../../assets/beyaz_cloud_ide.png'
+import cloudSimgesi from '../../assets/icon.png'
+import { portAciklamasi, portTuru } from '@shared/portTanima'
 
 interface TopBarProps {
   /** Sürüm bilgisini gösterir (main process'ten preload API'si ile alınır) */
@@ -102,14 +104,15 @@ function TopBar({
   }, [ornekMenuAcik])
 
   return (
-    <header className="flex h-12 shrink-0 items-center gap-2 border-b border-panel-border bg-panel-light px-3 select-none">
-      <div className="mr-3 flex items-center gap-2.5">
+    <header className="flex h-12 shrink-0 items-center gap-1.5 border-b border-panel-border bg-panel-light px-2 select-none min-[1200px]:gap-2 min-[1200px]:px-3">
+      <div className="flex shrink-0 items-center gap-2.5 min-[1200px]:mr-3">
+        <img src={cloudSimgesi} alt="Cloud IDE" className="h-6 w-6 object-contain cursor-default select-none min-[1200px]:hidden" />
         <img
           src={beyazCloudIde}
           alt="Cloud IDE"
-          className="h-7 w-auto object-contain cursor-default select-none"
+          className="hidden h-7 w-auto object-contain cursor-default select-none min-[1200px]:block"
         />
-        <div className="flex items-center gap-1.5">
+        <div className="hidden items-center gap-1.5 min-[1440px]:flex">
           <span
             onClick={rozeteTiklandi}
             className="cursor-default rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-medium text-gray-400"
@@ -120,7 +123,7 @@ function TopBar({
         </div>
       </div>
 
-      <div data-tur="derle" className="flex items-center gap-2">
+      <div data-tur="derle" className="flex shrink-0 items-center gap-1.5 min-[1200px]:gap-2">
       <ToolbarButton
         label={t('Derle')}
         title={meşgulNedeni ?? t("Sketch'i derle (Ctrl+R)")}
@@ -137,7 +140,7 @@ function TopBar({
       />
       </div>
 
-      <div ref={ornekMenuRef} data-tur="ornekler" className="relative">
+      <div ref={ornekMenuRef} data-tur="ornekler" className="relative shrink-0">
         <ToolbarButton
           label={t('Örnekler')}
           title={t('Kurulu kütüphane/kart örneklerini aç')}
@@ -148,7 +151,7 @@ function TopBar({
       </div>
 
       {(hataSayisi > 0 || uyariSayisi > 0) && (
-        <div className="flex items-center gap-2 text-[11px]">
+        <div className="hidden shrink-0 items-center gap-2 text-[11px] min-[1000px]:flex">
           {hataSayisi > 0 && <span className="text-red-400">✕ {hataSayisi}</span>}
           {uyariSayisi > 0 && <span className="text-amber-400">⚠ {uyariSayisi}</span>}
         </div>
@@ -160,7 +163,7 @@ function TopBar({
           onChange={(e) => setActiveSketch(e.target.value)}
           aria-label={t('Derlenecek proje')}
           title={t('Derle ve Yükle düğmeleri bu projeye uygulanır')}
-          className="h-7 min-w-0 max-w-[120px] rounded border border-panel-border bg-panel px-2 text-xs text-gray-300 outline-none focus:border-accent lg:max-w-[180px]"
+          className="h-7 min-w-[64px] max-w-[120px] shrink rounded border border-panel-border bg-panel px-1.5 text-xs text-gray-300 outline-none focus:border-accent min-[1280px]:max-w-[180px]"
         >
           {state.sketch.workspaceSketches.map((sk) => (
             <option key={sk.folderPath} value={sk.folderPath}>
@@ -170,34 +173,45 @@ function TopBar({
         </select>
       )}
 
-      <div className="mx-2 h-6 w-px bg-panel-border" />
+      <div className="mx-2 hidden h-6 w-px shrink-0 bg-panel-border min-[1200px]:block" />
 
-      <div data-tur="kart" className="flex items-center gap-1">
+      <div data-tur="kart" className="flex min-w-[110px] shrink items-center gap-1">
         <BoardPicker boards={kartlar} value={selectedFqbn} disabled={busy || !status?.found} onChange={selectFqbn} />
         <KartAyarlari />
       </div>
 
-      <div data-tur="port" className="flex items-center gap-1">
+      <div data-tur="port" className="flex min-w-[96px] shrink items-center gap-1 min-[1200px]:min-w-[128px]">
         <select
           disabled={busy || !status?.found}
           value={selectedPort ?? ''}
           onChange={(e) => selectPort(e.target.value || null)}
           title={t('Port seçici (3 saniyede bir otomatik yenilenir)')}
-          className="h-7 min-w-0 max-w-[130px] rounded border border-panel-border bg-panel px-2 text-xs text-gray-300 disabled:cursor-not-allowed disabled:text-gray-500 lg:max-w-[200px]"
+          className="h-7 w-full min-w-0 max-w-[130px] rounded border border-panel-border bg-panel px-1.5 text-xs text-gray-300 disabled:cursor-not-allowed disabled:text-gray-500 min-[1280px]:max-w-[200px]"
         >
-          <option value="">{t('Port bulunamadı')}</option>
-          {ports.map((p) => (
-            <option key={p.address} value={p.address}>
-              {p.address}
-              {p.matchingBoards[0] ? ` (${p.matchingBoards[0].name})` : ''}
-            </option>
-          ))}
+          <option value="">{ports.some((p) => portTuru(p) === 'kart') ? t('Port seçin') : t('Kart takılı değil')}</option>
+          {(
+            [
+              [t('Kartınız'), ports.filter((p) => portTuru(p) === 'kart')],
+              [t('Diğer portlar'), ports.filter((p) => portTuru(p) !== 'kart')]
+            ] as const
+          ).map(
+            ([baslik, grup]) =>
+              grup.length > 0 && (
+                <optgroup key={baslik} label={baslik}>
+                  {grup.map((p) => (
+                    <option key={p.address} value={p.address}>
+                      {p.address} · {t(portAciklamasi(p))}
+                    </option>
+                  ))}
+                </optgroup>
+              )
+          )}
         </select>
         <button
           onClick={() => void refreshPorts()}
           disabled={busy || !status?.found}
           title={t('Port listesini şimdi yenile')}
-          className="flex h-7 w-7 items-center justify-center rounded border border-panel-border bg-panel text-gray-400 hover:enabled:bg-panel-border disabled:cursor-not-allowed disabled:text-gray-600"
+          className="hidden h-7 w-7 shrink-0 items-center justify-center rounded border border-panel-border bg-panel text-gray-400 hover:enabled:bg-panel-border disabled:cursor-not-allowed disabled:text-gray-600 min-[1200px]:flex"
         >
           <RefreshIcon />
         </button>
@@ -208,7 +222,7 @@ function TopBar({
         value={selectedBaud}
         onChange={(e) => selectBaud(Number(e.target.value) as BaudRate)}
         title={t('Baud hızı')}
-        className="h-7 rounded border border-panel-border bg-panel px-2 text-xs text-gray-300 disabled:cursor-not-allowed"
+        className="h-7 shrink-0 rounded border border-panel-border bg-panel px-1 text-xs text-gray-300 disabled:cursor-not-allowed min-[1200px]:px-2"
       >
         {BAUD_RATES.map((b) => (
           <option key={b} value={b}>
@@ -217,23 +231,24 @@ function TopBar({
         ))}
       </select>
 
-      <div className="flex-1" />
+      <div className="min-w-0 flex-1" />
 
       <button
         onClick={onToggleSerialMonitor}
         title={t("Seri Monitör'ü aç/kapat (Ctrl+Shift+M)")}
-        className={`flex h-7 items-center gap-1.5 rounded border px-2 text-xs transition-colors ${
+        aria-label={t('Seri Monitör')}
+        className={`flex h-7 shrink-0 items-center gap-1.5 rounded border px-2 text-xs transition-colors ${
           serialMonitorActive
-            ? 'border-accent bg-accent/20 text-accent-hover'
+            ? 'border-white/30 bg-white/[0.12] text-white'
             : 'border-panel-border bg-panel text-gray-300 hover:bg-panel-border'
         }`}
       >
         <SerialIcon />
-        <span className="hidden lg:inline">{t('Seri Monitör')}</span>
+        <span className="hidden whitespace-nowrap min-[1440px]:inline">{t('Seri Monitör')}</span>
       </button>
 
-      {/* Dar pencerede (<1280px) yer açmak için gizlenir; "yakında" yer tutucusudur */}
-      <div className="relative ml-1 hidden opacity-70 transition-opacity hover:opacity-100 xl:block">
+      {/* Dar pencerede yer açmak için gizlenir; "yakında" yer tutucusudur */}
+      <div className="relative ml-1 hidden shrink-0 whitespace-nowrap opacity-70 transition-opacity hover:opacity-100 min-[1680px]:block">
         <button
           ref={aiButtonRef}
           onClick={aiModunuAc}
@@ -252,21 +267,21 @@ function TopBar({
         <button
           onClick={onOpenDeveloperMessage}
           title={t('Geliştiriciden Mesaj & Beta Sürüm Notu')}
-          className="flex h-7 items-center gap-1.5 rounded border border-panel-border bg-panel px-2 text-xs text-gray-300 transition-colors hover:border-sky-500/40 hover:bg-panel-border hover:text-white"
+          className="hidden h-7 shrink-0 items-center whitespace-nowrap min-[1200px]:flex gap-1.5 rounded border border-panel-border bg-panel px-2 text-xs text-gray-300 transition-colors hover:border-white/30 hover:bg-panel-border hover:text-white"
         >
           <DeveloperIcon />
-          <span className="hidden xl:inline text-[11px]">{t('Geliştirici & Sürüm Notu')}</span>
-          <span className="hidden rounded border border-amber-500/30 bg-amber-500/15 px-1 py-px text-[8.5px] font-bold text-amber-300 uppercase xl:inline">BETA</span>
+          <span className="hidden text-[11px] min-[1920px]:inline">{t('Geliştirici & Sürüm Notu')}</span>
+          <span className="hidden rounded border border-amber-500/30 bg-amber-500/15 px-1 py-px text-[8.5px] font-bold text-amber-300 uppercase min-[1920px]:inline">BETA</span>
         </button>
       )}
 
       <button
         onClick={() => void openInNewWindow()}
         title={t('Yeni IDE Penceresi Aç (Ctrl+Shift+N)')}
-        className="flex h-7 items-center gap-1.5 rounded border border-panel-border bg-panel px-2 text-xs text-gray-300 transition-colors hover:border-cyan-500/40 hover:bg-panel-border hover:text-cyan-200"
+        className="hidden h-7 shrink-0 items-center whitespace-nowrap min-[1200px]:flex gap-1.5 rounded border border-panel-border bg-panel px-2 text-xs text-gray-300 transition-colors hover:border-white/30 hover:bg-panel-border hover:text-white"
       >
         <WindowTopBarIcon />
-        <span className="hidden xl:inline text-[11px]">{t('Yeni Pencere')}</span>
+        <span className="hidden text-[11px] min-[1920px]:inline">{t('Yeni Pencere')}</span>
       </button>
 
       <GuncellemeDugmesi />
@@ -276,7 +291,7 @@ function TopBar({
         data-tur="yardim"
         title={t('Yardım ve rehber (F1)')}
         aria-label={t('Yardım ve rehber')}
-        className="flex h-7 w-7 items-center justify-center rounded border border-panel-border bg-panel text-gray-400 hover:bg-panel-border hover:text-gray-200"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-panel-border bg-panel text-gray-400 hover:bg-panel-border hover:text-gray-200"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="9" />
@@ -287,7 +302,7 @@ function TopBar({
       <button
         onClick={onOpenSettings}
         title={t('Uygulama Ayarları')}
-        className="flex h-7 w-7 items-center justify-center rounded border border-panel-border bg-panel text-gray-400 hover:bg-panel-border hover:text-gray-200"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-panel-border bg-panel text-gray-400 hover:bg-panel-border hover:text-gray-200"
       >
         <SettingsIcon />
       </button>
@@ -310,10 +325,12 @@ function ToolbarButton({ label, title, icon, disabled, onClick }: ToolbarButtonP
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="flex h-7 items-center gap-1.5 rounded border border-panel-border bg-panel px-2 text-xs text-gray-300 transition-colors hover:enabled:bg-panel-border disabled:cursor-not-allowed disabled:text-gray-600"
+      aria-label={label}
+      className="flex h-7 min-w-7 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded border border-panel-border bg-panel px-2 text-xs text-gray-300 transition-colors hover:enabled:bg-panel-border disabled:cursor-not-allowed disabled:text-gray-600"
     >
       {icon}
-      {label}
+      {/* Dar pencerede yalnızca simge kalır; ad ipucunda görünür */}
+      <span className="hidden min-[1320px]:inline">{label}</span>
     </button>
   )
 }

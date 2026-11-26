@@ -544,7 +544,7 @@ function LibraryManager(): ReactElement {
                       Math.min(onceki + SAYFA_BOYUTU, sonuclar.length)
                     )
                   }
-                  className="rounded border border-panel-border bg-panel px-3 py-1 text-[11px] text-accent-hover hover:bg-panel-border/80 transition-colors"
+                  className="rounded border border-panel-border bg-panel px-3 py-1 text-[11px] text-gray-300 hover:bg-panel-border/80 transition-colors"
                 >
                   {t('Daha Fazla Göster')} (+{Math.min(SAYFA_BOYUTU, sonuclar.length - gorunenKatalogSayisi)})
                 </button>
@@ -565,7 +565,7 @@ function LibraryManager(): ReactElement {
                 <p className="text-xs text-gray-400">{t('Henüz kurulu bir kütüphane bulunamadı.')}</p>
                 <button
                   onClick={() => setAktifSekme('tumu')}
-                  className="mt-2 rounded bg-accent/20 px-3 py-1 text-xs text-accent-hover hover:bg-accent/30"
+                  className="mt-2 rounded bg-white/[0.08] px-3 py-1 text-xs text-gray-200 hover:bg-white/[0.14]"
                 >
                   {t('Katalogda Kütüphane Ara')}
                 </button>
@@ -600,7 +600,7 @@ function LibraryManager(): ReactElement {
                       Math.min(onceki + SAYFA_BOYUTU, filtrelenmisKurulular.length)
                     )
                   }
-                  className="rounded border border-panel-border bg-panel px-3 py-1 text-[11px] text-accent-hover hover:bg-panel-border/80 transition-colors"
+                  className="rounded border border-panel-border bg-panel px-3 py-1 text-[11px] text-gray-300 hover:bg-panel-border/80 transition-colors"
                 >
                   {t('Daha Fazla Göster')} (+{Math.min(SAYFA_BOYUTU, filtrelenmisKurulular.length - gorunenKuruluSayisi)})
                 </button>

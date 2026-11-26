@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react'
-import { AI_PROVIDERS, isLocalProvider, type AIProviderId, type ProviderTestResult } from '@shared/types'
+import { AI_PROVIDERS, isCustomProvider, isLocalProvider, type AIProviderId, type ProviderTestResult } from '@shared/types'
 import { ANAHTAR_SAYFALARI, KART_ONERILERI, cekirdekKurulu, kartiBul, type KartOnerisi } from '@shared/ilkKurulum'
 import { useAppState } from '../../state/AppStateContext'
 import { kartGorseli, kartRengi } from '../../utils/boardImages'
@@ -40,6 +40,9 @@ function IlkKurulumSihirbazi({ onBitti, ilkAcilis }: Props): ReactElement {
   const [kartHatasi, setKartHatasi] = useState('')
   const [secilenKartAdi, setSecilenKartAdi] = useState<string | null>(null)
   const operasyonRef = useRef<string | null>(null)
+  /** Süren kurulumun geçen süresi (sn): satır gelmese de işlemin sürdüğü belli olsun */
+  const [gecenSure, setGecenSure] = useState(0)
+  const iptalRef = useRef(false)
 
   // Yapay zekâ adımı
   const baslangicSaglayici = state.settings?.selectedAiProvider
@@ -47,7 +50,7 @@ function IlkKurulumSihirbazi({ onBitti, ilkAcilis }: Props): ReactElement {
     baslangicSaglayici ? (isLocalProvider(baslangicSaglayici) ? 'yerel' : 'bulut') : 'bulut'
   )
   const [bulutSaglayici, setBulutSaglayici] = useState<AIProviderId>(
-    baslangicSaglayici && !isLocalProvider(baslangicSaglayici) ? baslangicSaglayici : 'gemini'
+    baslangicSaglayici && !isLocalProvider(baslangicSaglayici) && !isCustomProvider(baslangicSaglayici) ? baslangicSaglayici : 'gemini'
   )
   const [yerelSaglayici, setYerelSaglayici] = useState<AIProviderId>(
     baslangicSaglayici && isLocalProvider(baslangicSaglayici) ? baslangicSaglayici : 'ollama'
@@ -71,6 +74,20 @@ function IlkKurulumSihirbazi({ onBitti, ilkAcilis }: Props): ReactElement {
       setKurulumSatiri(olay.message.trim().slice(0, 120))
     })
   }, [])
+
+  useEffect(() => {
+    if (!kuruluyor) return
+    const bas = Date.now()
+    setGecenSure(0)
+    const sayac = setInterval(() => setGecenSure(Math.floor((Date.now() - bas) / 1000)), 1000)
+    return () => clearInterval(sayac)
+  }, [kuruluyor])
+
+  const kurulumuIptalEt = (): void => {
+    if (!operasyonRef.current) return
+    iptalRef.current = true
+    void window.api.arduinoCli.cancelOperation(operasyonRef.current)
+  }
 
   const kapat = (turuBaslat: boolean): void => {
     try {
@@ -98,12 +115,20 @@ function IlkKurulumSihirbazi({ onBitti, ilkAcilis }: Props): ReactElement {
       operasyonRef.current = operationId
       setKuruluyor(oneri.id)
       setKurulumSatiri('')
+      iptalRef.current = false
       try {
         await window.api.arduinoCli.installCore(oneri.cekirdek, operationId)
         platformlar = await window.api.arduinoCli.listCores()
         await refreshPlatforms()
       } catch (hata) {
-        if (canli.current) setKartHatasi(hata instanceof Error ? hata.message : t('Kart paketi kurulamadı. İnternet bağlantınızı kontrol edin.'))
+        if (canli.current)
+          setKartHatasi(
+            iptalRef.current
+              ? t('Kurulum iptal edildi.')
+              : hata instanceof Error
+                ? hata.message
+                : t('Kart paketi kurulamadı. İnternet bağlantınızı kontrol edin.')
+          )
         return
       } finally {
         if (canli.current) setKuruluyor(null)
@@ -130,7 +155,15 @@ function IlkKurulumSihirbazi({ onBitti, ilkAcilis }: Props): ReactElement {
         }
         if (anahtar.trim()) await saveApiKey(saglayici, anahtar.trim())
       }
-      const test = await window.api.agent.testProvider(saglayici)
+      // Gemini'de eski modeller yeni kullanıcılara kapalı olabiliyor: modeli önce listeden seç,
+      // böylece denenen model ile sonra kullanılacak model aynı olur
+      let denenecekModel: string | undefined
+      if (saglayici === 'gemini') {
+        const liste = await window.api.chat.getProviderModels(saglayici).catch(() => [] as string[])
+        const mevcut = state.settings?.selectedModelPerProvider?.[saglayici]
+        denenecekModel = mevcut && liste.includes(mevcut) ? mevcut : liste[0]
+      }
+      const test = await window.api.agent.testProvider(saglayici, denenecekModel)
       if (!canli.current) return
       setSonuc(test)
       if (test.ok) {
@@ -190,6 +223,28 @@ function IlkKurulumSihirbazi({ onBitti, ilkAcilis }: Props): ReactElement {
             <div>
               <p className="text-[13px] font-medium text-gray-100">{t('Hangi kartla çalışıyorsunuz?')}</p>
               <p className="mt-1 leading-relaxed text-gray-400">{t('Seçtiğiniz kart, derleme ve pin denetimi için kullanılır. Kart paketi kurulu değilse indirilir (birkaç dakika sürebilir).')}</p>
+              <p className="mt-2 rounded-[5px] border border-amber-400/30 bg-amber-400/[0.06] px-3 py-2 leading-relaxed text-amber-200">
+                {t('İlk kurulumda Arduino Uno önerilir: paketi küçüktür, hızlı kurulur (Nano ve Mega da aynı paketi kullanır). ESP32, Deneyap gibi kartların paketleri büyüktür; internet hızınıza göre kurulum uzun sürebilir.')}
+              </p>
+              {kuruluyor && (
+                <div className="sticky top-0 z-10 mt-2 rounded-[6px] border border-accent/60 bg-panel px-3 py-2 text-gray-300" role="status">
+                  <div className="flex items-center gap-2">
+                    <span className="h-3 w-3 shrink-0 animate-spin rounded-full border border-gray-400 border-t-transparent" />
+                    <span className="min-w-0 flex-1 text-gray-100">
+                      {t('{kart} için paket indiriliyor ve kuruluyor…', { kart: KART_ONERILERI.find((o) => o.id === kuruluyor)?.ad ?? '' })}
+                    </span>
+                    <span className="shrink-0 font-mono tabular-nums text-gray-400">
+                      {String(Math.floor(gecenSure / 60)).padStart(2, '0')}:{String(gecenSure % 60).padStart(2, '0')}
+                    </span>
+                    <Tus onClick={kurulumuIptalEt}>{t('İptal')}</Tus>
+                  </div>
+                  <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10" aria-hidden="true">
+                    <div className="h-full w-1/3 animate-[kurulum-kayan_1.4s_ease-in-out_infinite] rounded-full bg-accent" />
+                  </div>
+                  <p className="mt-1.5 truncate font-mono text-[10.5px] text-gray-500">{kurulumSatiri || t('Paket listesi hazırlanıyor…')}</p>
+                  <p className="mt-0.5 text-[11px] text-gray-500">{t('Bitene kadar bu pencere açık kalsın.')}</p>
+                </div>
+              )}
               <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {KART_ONERILERI.map((o) => {
                   const kurulu = cekirdekKurulu(state.arduinoCli.platforms, o.cekirdek)
@@ -203,11 +258,14 @@ function IlkKurulumSihirbazi({ onBitti, ilkAcilis }: Props): ReactElement {
                         onClick={() => void kartiSec(o)}
                         disabled={meşgul}
                         aria-pressed={aktif}
-                        className={`flex w-full items-center gap-3 rounded-[6px] border px-2.5 py-2 text-left transition-colors disabled:cursor-not-allowed ${aktif ? 'border-accent bg-accent/10' : 'border-panel-border hover:bg-white/[0.04]'} ${meşgul && !bu ? 'opacity-50' : ''}`}
+                        className={`flex w-full items-center gap-3 rounded-[6px] border px-2.5 py-2 text-left transition-colors disabled:cursor-not-allowed ${aktif ? 'border-white/40 bg-white/[0.08]' : 'border-panel-border hover:bg-white/[0.04]'} ${meşgul && !bu ? 'opacity-50' : ''}`}
                       >
                         <BoardThumb src={gorsel} genislik={54} renk={kartRengi({ fqbn: o.fqbn, name: o.ad })} alt="" />
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[12.5px] text-gray-100">{o.ad}</span>
+                          <span className="block truncate text-[12.5px] text-gray-100">
+                            {o.ad}
+                            {o.id === 'uno' && <span className="ml-1.5 rounded-[3px] border border-amber-400/40 px-1 text-[10px] text-amber-200">{t('Önerilen')}</span>}
+                          </span>
                           <span className="block text-[11px] text-gray-500">
                             {bu ? t('Kuruluyor…') : aktif ? t('Seçili') : kurulu ? t(o.aciklama) : `${t(o.aciklama)} · ${t('indirme gerekir')}`}
                           </span>
@@ -217,15 +275,6 @@ function IlkKurulumSihirbazi({ onBitti, ilkAcilis }: Props): ReactElement {
                   )
                 })}
               </ul>
-              {kuruluyor && (
-                <div className="mt-3 rounded-[6px] border border-panel-border bg-panel px-3 py-2 text-gray-400" role="status">
-                  <p className="flex items-center gap-2">
-                    <span className="h-3 w-3 shrink-0 animate-spin rounded-full border border-gray-500 border-t-transparent" />
-                    {t('Kart paketi indiriliyor, lütfen bekleyin…')}
-                  </p>
-                  {kurulumSatiri && <p className="mt-1 truncate font-mono text-[10.5px] text-gray-500">{kurulumSatiri}</p>}
-                </div>
-              )}
               {kartHatasi && <p className="mt-3 rounded-[5px] border border-rose-500/40 bg-rose-500/5 px-3 py-2 text-rose-300" role="alert">{kartHatasi}</p>}
               {secilenKart && !kuruluyor && <p className="mt-3 text-gray-300">{t('Seçili kart')}: <span className="font-medium text-gray-100">{secilenKart}</span></p>}
               <p className="mt-3 text-[11px] text-gray-500">{t('Listede yoksa üst çubuktaki kart seçiciden ya da Kart Yöneticisi’nden başka bir kart seçebilirsiniz.')}</p>
@@ -254,7 +303,7 @@ function IlkKurulumSihirbazi({ onBitti, ilkAcilis }: Props): ReactElement {
                       setSonuc(null)
                     }}
                     disabled={deniyor}
-                    className={`rounded-[6px] border px-2.5 py-2 text-left transition-colors ${mod === id ? 'border-accent bg-accent/10' : 'border-panel-border hover:bg-white/[0.04]'}`}
+                    className={`rounded-[6px] border px-2.5 py-2 text-left transition-colors ${mod === id ? 'border-white/40 bg-white/[0.08]' : 'border-panel-border hover:bg-white/[0.04]'}`}
                   >
                     <span className="block text-[12.5px] text-gray-100">{t(baslik)}</span>
                     <span className="block text-[11px] text-gray-500">{t(alt)}</span>

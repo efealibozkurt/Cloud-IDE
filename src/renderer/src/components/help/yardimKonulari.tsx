@@ -229,14 +229,18 @@ export const YARDIM_KONULARI: YardimKonusu[] = [
       <>
         <Par>Kodunuzdaki <Ad>Serial.println()</Ad> çıktılarını görmenin ve karta komut göndermenin yoludur. Üst çubuktaki <Ad>Seri Monitör</Ad> düğmesiyle (<Tus>Ctrl</Tus>+<Tus>Shift</Tus>+<Tus>M</Tus>) açılır.</Par>
         <Adimlar>
-          <Adim no={1}>Üst çubuktan portu ve <Ad>baud hızını</Ad> seçin. Baud, kodunuzdaki <Ad>Serial.begin(…)</Ad> değeriyle aynı olmalıdır; aksi halde anlamsız karakterler görürsünüz.</Adim>
+          <Adim no={1}>Üst çubuktan portu ve <Ad>baud hızını</Ad> seçin. Baud, kodunuzdaki <Ad>Serial.begin(…)</Ad> değeriyle aynı olmalıdır; aksi halde anlamsız karakterler görürsünüz. Kodda <Ad>Serial.begin(9600)</Ad> gibi tek bir hız varsa IDE baud seçimini kendisi buna ayarlar.</Adim>
           <Adim no={2}><Ad>Bağlan</Ad>'a tıklayın. Gelen satırlar akmaya başlar.</Adim>
           <Adim no={3}>Alttaki kutuya yazıp <Tus>Enter</Tus> ile gönderin. Satır sonu seçimi (NL, CR, NL+CR) karttaki kodun beklentisine göre ayarlanır.</Adim>
         </Adimlar>
+        <Baslik>Nerede görünsün?</Baslik>
+        <Par>Seri monitör varsayılan olarak editörün sağında açılır; genişliğini sol kenarından sürükleyebilirsiniz. Başlığındaki düğmelerle alt panele alabilir ya da tam ekran yapabilirsiniz; son seçtiğiniz konum hatırlanır. Tam ekranda <Ad>İkisi</Ad> görünümü metni ve grafiği yan yana gösterir, <Tus>Esc</Tus> ile çıkılır. Cloud AI da açıksa sağdaki alanda sekmeyle geçersiniz.</Par>
+        <Baslik>Hangi port benim kartım?</Baslik>
+        <Par>Üst çubuktaki port listesinde kart olabilecek portlar <Ad>Kartınız</Ad> başlığında, bilgisayarın kendi portu ve Bluetooth portları <Ad>Diğer portlar</Ad> başlığında görünür. Kartı taktığınızda portu kendiliğinden seçilir. Kart <Ad>Kartınız</Ad> altında hiç çıkmıyorsa kablo yalnızca şarj kablosu olabilir ya da USB sürücüsü (CH340, CP210x) eksiktir.</Par>
         <Baslik>Birden çok kartı aynı anda izleme</Baslik>
-        <Par>Bir port bağlıyken üst çubukta başka bir port seçip <Ad>Port ekle</Ad>'ye basın. Diğer bağlantılar açık kalır; üstte her port için ayrı sekme ve <Ad>Tümü</Ad> sekmesi çıkar. <Ad>Tümü</Ad> görünümünde her satırın başında hangi porttan geldiği renkli etiketle yazar. Gönderme, temizleme ve kesme işlemleri seçili sekmeye uygulanır.</Par>
+        <Par>Bir port bağlıyken durum yazısının yanındaki <Ad>+</Ad> (Port ekle) düğmesine basıp listeden ikinci portu seçin; üst çubuktaki baud hızıyla bağlanır. Diğer bağlantılar açık kalır; üstte her port için ayrı sekme ve <Ad>Tümü</Ad> sekmesi çıkar. <Ad>Tümü</Ad> görünümünde her satırın başında hangi porttan geldiği renkli etiketle yazar. Gönderme, temizleme ve kesme işlemleri seçili sekmeye uygulanır.</Par>
         <Baslik>Grafik görünümü</Baslik>
-        <Par>Sağ üstteki <Ad>Metin / Grafik</Ad> anahtarıyla gelen sayıları canlı çizgi grafiğe çevirebilirsiniz; sensör değerlerini ayarlarken çok işe yarar. Kodda şu biçimlerden birini yazdırın:</Par>
+        <Par>Üstteki <Ad>Metin / Grafik</Ad> anahtarıyla gelen sayıları canlı çizgi grafiğe çevirebilirsiniz; sensör değerlerini ayarlarken çok işe yarar. Kodda şu biçimlerden birini yazdırın:</Par>
         <Liste>
           <Madde><Ad>Serial.println(deger);</Ad> tek çizgi</Madde>
           <Madde><Ad>10,20,30</Ad> (virgül ya da boşlukla ayrılmış) birden çok çizgi</Madde>
@@ -244,10 +248,11 @@ export const YARDIM_KONULARI: YardimKonusu[] = [
         </Liste>
         <Par>Pencere seçiciyle kaç örneğin görüneceğini, <Ad>Duraklat</Ad> ile akışı dondurmayı ayarlarsınız.</Par>
         <Baslik>Yararlı seçenekler</Baslik>
+        <Par>İlk üçü, ayar çizgileri simgeli <Ad>Görünüm seçenekleri</Ad> menüsündedir.</Par>
         <Liste>
-          <Madde baslik="Zaman damgası">Her satırın başına saat ekler.</Madde>
-          <Madde baslik="Oto kaydır">En yeni satırı hep gösterir; yukarı kaydırınca kendiliğinden kapanır.</Madde>
-          <Madde baslik="Bootloader gizle">ESP32'nin açılışta bastığı teknik satırları (rst:, load:, entry …) soluklaştırıp süzer.</Madde>
+          <Madde baslik="Saati göster">Her satırın başına saat ekler.</Madde>
+          <Madde baslik="Otomatik kaydır">En yeni satırı hep gösterir; yukarı kaydırınca kendiliğinden kapanır.</Madde>
+          <Madde baslik="Açılış mesajlarını gizle">ESP32'nin açılışta bastığı teknik satırları (rst:, load:, entry …) soluklaştırıp süzer.</Madde>
           <Madde baslik="AI'a Sor ve hata vurgusu">ESP32 çökme, Watchdog (WDT) veya güç düşümü (Brownout) satırları kırmızıyla vurgulanır. Üstteki <Ad>AI'a Sor</Ad> düğmesi son çıktıyı doğrudan Cloud AI'a gönderir; ayrıca asistan çalışırken açık seri portu kendisi de okuyabilir.</Madde>
         </Liste>
         <Ipucu>Yükleme sırasında ilgili port kısa süre kendiliğinden kapatılır ve yükleme bitince yeniden açılır. Bu sırada "Yükleme için geçici kapatıldı" yazar; endişelenmeyin.</Ipucu>
@@ -292,17 +297,17 @@ export const YARDIM_KONULARI: YardimKonusu[] = [
         <Adimlar>
           <Adim no={1}>Kodunuzun çalıştığı bir anda <Ad>Sürüm kaydet</Ad>'e basın. İsterseniz kısa bir not yazın ("LED hızı ayarlandı").</Adim>
           <Adim no={2}>Üstteki durum satırı, son kayıttan beri kaç dosyanın değiştiğini gösterir. <Ad>Değişiklikleri gör</Ad> farkı açar.</Adim>
-          <Adim no={3}>Listedeki bir sürümde <Ad>Fark</Ad> bir önceki sürümle, <Ad>Şimdikiyle</Ad> bugünkü halle karşılaştırır.</Adim>
+          <Adim no={3}>Listedeki bir sürümde <Ad>Şu ankiyle karşılaştır</Ad> o günden bugüne neyin değiştiğini gösterir; <Ad>⋯</Ad> menüsündeki <Ad>Bu sürümde ne değişti?</Ad> bir önceki kayıtla karşılaştırır.</Adim>
           <Adim no={4}><Ad>Geri yükle</Ad> o sürümdeki dosyaları geri getirir. Bugünkü hal önce "geri yükleme öncesi" diye otomatik saklanır, yani pişman olursanız bu da geri alınabilir.</Adim>
         </Adimlar>
         <Baslik>Otomatik kayıtlar</Baslik>
         <Par>Siz bir şey yapmasanız da şu anlarda anlık görüntü alınır: kaydetmeden önce (en çok 2 dakikada bir), Cloud AI dosyalara dokunmadan önce ve kod değiştiyse derlerken. Bunlar listede "otomatik", "yapay zekâ öncesi" veya "derleme" olarak görünür. Otomatik kayıt sayısı sınırlıdır (varsayılan 50); elle kaydettikleriniz ve etiketlediğiniz sürümler hiçbir zaman silinmez. Ayarlar'daki <Ad>Sürüm geçmişi</Ad> bölümünden kapatabilir veya sınırı değiştirebilirsiniz.</Par>
         <Baslik>Derleme bilgisi</Baslik>
         <Par>Derlenmiş sürümlerde yeşil nokta, kullanılan Flash/RAM oranı ve bir önceki derlemeye göre flash farkı görünür. Eski bir sürüme dönerken, o sürüm farklı bir kart ya da kütüphane sürümüyle derlenmişse uyarılırsınız. Derleme hatası aldıysanız panelin üstündeki <Ad>son derlenen sürümden bu yana ne değişti</Ad> bağlantısı sorunun nerede çıktığını bulmanıza yardım eder.</Par>
-        <Baslik>Etiket ve dal</Baslik>
+        <Baslik>İsim verme ve deneme</Baslik>
         <Liste>
-          <Madde baslik="Etiket">Önemli bir sürüme ad verir ("v1.0", "fuara-giden"). Listede mavi bir çerçeveyle görünür.</Madde>
-          <Madde baslik="Dal aç">Bir sürümden ayrı bir deneme hattı başlatır; ana hattınız bozulmaz. <Ad>Dal</Ad> seçiciyle aralarında geçiş yaparsınız. Deney işe yaramazsa <Ad>Dalı sil</Ad> ile atarsınız. (Şimdilik dalları birleştirme yoktur.)</Madde>
+          <Madde baslik="İsim ver">Önemli bir sürüme ad verir ("v1.0", "fuara-giden"). Listede çerçeve içinde görünür.</Madde>
+          <Madde baslik="Buradan deneme başlat">Bir sürümden ayrı bir deneme yolu açar; ana kodunuz bozulmaz. Deneme açıkken panelin üstünde sarı bir şerit görünür; <Ad>Ana koda dön</Ad> ile geri geçer, <Ad>Denemeyi sil</Ad> ile atarsınız. (Şimdilik denemeyi ana koda birleştirme yoktur.)</Madde>
         </Liste>
         <Baslik>Yedekleme ve paylaşma</Baslik>
         <Par>Panelin altındaki <Ad>Paketle (.zip)</Ad> projeyi tüm geçmişiyle tek bir dosyaya yazar; <Ad>İçe aktar</Ad> böyle bir paketi başka bilgisayarda yeni proje olarak açar.</Par>
@@ -322,8 +327,9 @@ export const YARDIM_KONULARI: YardimKonusu[] = [
         <Adimlar>
           <Adim no={1}>Sağ üstteki dişli simgesiyle <Ad>Ayarlar › Yapay Zekâ</Ad>'ya girin, bir sağlayıcı seçin ve API anahtarınızı yapıştırın. Anahtar yalnızca bu bilgisayarda, işletim sistemi tarafından şifrelenerek saklanır.</Adim>
           <Adim no={2}>İnternet istemiyorsanız <Ad>Ollama</Ad> veya <Ad>LM Studio</Ad> ile bilgisayarınızda çalışan yerel bir model kullanabilirsiniz; anahtar gerekmez.</Adim>
-          <Adim no={3}>Panelin üstünden sağlayıcıyı ve modeli seçin, alttaki kutuya isteğinizi yazıp <Tus>Enter</Tus> ile gönderin ("D13'teki LED'i saniyede bir yak söndür").</Adim>
+          <Adim no={3}>Sohbet kutusunun altındaki model adına tıklayıp sağlayıcıyı, modeli ve düşünme düzeyini seçin; sonra kutuya isteğinizi yazıp <Tus>Enter</Tus> ile gönderin ("D13'teki LED'i saniyede bir yak söndür").</Adim>
         </Adimlar>
+        <Ipucu>Listede olmayan bir servis (OpenRouter, Groq, Mistral gibi OpenAI uyumlu olanlar) kullanmak için aynı yerdeki <Ad>+ Sağlayıcı ekle</Ad> düğmesine basın.</Ipucu>
         <Baslik>Değişiklik izni: kontrol sizde</Baslik>
         <Par>Giriş kutusunun yanındaki kalkan simgesinden asistanın ne kadar özgür olduğunu seçersiniz:</Par>
         <Liste>

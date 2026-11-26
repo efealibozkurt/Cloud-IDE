@@ -68,7 +68,7 @@ function klasorAdi(yol: string): string {
 type Girdi = { tur: 'etiket' | 'dal'; id: string } | null
 type Onay = { tur: 'geri-yukle'; surum: HistoryCommit } | { tur: 'dal-sil'; ad: string } | null
 
-/** Proje sürüm geçmişi: sürüm kaydet, eski hallere bak, karşılaştır, geri yükle, etiket ve dal. */
+/** Proje sürüm geçmişi: sürüm kaydet, eski hallere bak, karşılaştır, geri yükle, ad ver ve deneme başlat. */
 function HistoryPanel(): ReactElement {
   const { dil, t } = useI18n()
   const yerel = dil === 'en' ? 'en-US' : 'tr-TR'
@@ -80,6 +80,8 @@ function HistoryPanel(): ReactElement {
   const [mesaj, setMesaj] = useState('')
   const [mesgul, setMesgul] = useState(false)
   const [girdi, setGirdi] = useState<Girdi>(null)
+  /** "Diğer işlemler" menüsü açık olan sürüm */
+  const [menu, setMenu] = useState<string | null>(null)
   const [girdiDegeri, setGirdiDegeri] = useState('')
   const [onay, setOnay] = useState<Onay>(null)
   const [fark, setFark] = useState<{ baslik: string; dosyalar: HistoryDiffFile[] } | null>(null)
@@ -169,7 +171,7 @@ function HistoryPanel(): ReactElement {
       await saveAllTabs()
       await window.api.history.checkout(proje, ad)
       await reloadSketchFolders([proje])
-    }, t('Dal değiştirilemedi'))
+    }, t('Deneme değiştirilemedi'))
 
   const paketIceAktar = (): Promise<void> =>
     calistir(async () => {
@@ -246,28 +248,40 @@ function HistoryPanel(): ReactElement {
             {t('Derleme hatası mı aldınız? Son derlenen sürümden bu yana ne değişti')} →
           </button>
         )}
-        {liste && (
-          <div className="flex items-center gap-2">
-            <label className="flex min-w-0 flex-1 items-center gap-1.5 text-[11px] text-gray-500">
-              {t('Dal')}
+        {/* "Dal" kavramı yalnızca bir deneme varken görünür */}
+        {liste && (liste.aktifDal !== 'ana' || liste.dallar.some((d) => d !== 'ana')) && (
+          <div
+            className={`space-y-1.5 rounded-[5px] border px-2 py-1.5 text-[11px] ${
+              liste.aktifDal !== 'ana' ? 'border-amber-400/40 bg-amber-400/[0.07]' : 'border-panel-border'
+            }`}
+          >
+            <label className="flex items-center gap-1.5 text-gray-400">
+              {liste.aktifDal !== 'ana' ? t('Deneme') : t('Denemeler')}
               <select
                 value={liste.aktifDal}
                 disabled={mesgul}
                 onChange={(e) => void dalDegistir(e.target.value)}
-                className="h-6 min-w-0 flex-1 rounded-[4px] border border-panel-border bg-panel px-1 text-xs text-gray-200 outline-none focus:border-accent"
+                className="h-6 min-w-0 flex-1 rounded-[4px] border border-panel-border bg-panel px-1 text-xs text-gray-100 outline-none focus:border-accent"
               >
-                {liste.dallar.length === 0 && <option value={liste.aktifDal}>{liste.aktifDal}</option>}
                 {liste.dallar.map((d) => (
                   <option key={d} value={d}>
-                    {d}
+                    {d === 'ana' ? t('Ana kod') : d}
                   </option>
                 ))}
               </select>
             </label>
             {liste.aktifDal !== 'ana' && (
-              <Tus tur="tehlike" onClick={() => setOnay({ tur: 'dal-sil', ad: liste.aktifDal })} disabled={mesgul}>
-                {t('Dalı sil')}
-              </Tus>
+              <>
+                <p className="text-gray-500">{t('Ana kodunuz olduğu gibi duruyor.')}</p>
+                <div className="flex gap-1.5">
+                  <Tus onClick={() => void dalDegistir('ana')} disabled={mesgul}>
+                    {t('Ana koda dön')}
+                  </Tus>
+                  <Tus tur="tehlike" onClick={() => setOnay({ tur: 'dal-sil', ad: liste.aktifDal })} disabled={mesgul}>
+                    {t('Denemeyi sil')}
+                  </Tus>
+                </div>
+              </>
             )}
           </div>
         )}
@@ -296,7 +310,7 @@ function HistoryPanel(): ReactElement {
                         <span>{gorelZaman(s.zaman, t, yerel)}</span>
                         {TUR_ETIKETI[s.tur] && <span>· {t(TUR_ETIKETI[s.tur])}</span>}
                         {s.etiketler.map((e) => (
-                          <span key={e} className="rounded-[3px] border border-accent/40 px-1 text-accent">
+                          <span key={e} className="rounded-[3px] border border-white/25 px-1 text-gray-200">
                             {e}
                           </span>
                         ))}
@@ -315,50 +329,78 @@ function HistoryPanel(): ReactElement {
                     </p>
                   )}
                   <div className="mt-1.5 flex flex-wrap gap-1 opacity-70 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-                    {onceki && (
-                      <Tus onClick={() => void karsilastir(`${onceki.mesaj} → ${s.mesaj}`, onceki.id, s.id)} disabled={mesgul}>
-                        {t('Fark')}
-                      </Tus>
-                    )}
                     <Tus onClick={() => void karsilastir(`${s.mesaj} ↔ ${t('çalışma kopyası')}`, s.id, 'calisma')} disabled={mesgul}>
-                      {t('Şimdikiyle')}
+                      {t('Şu ankiyle karşılaştır')}
                     </Tus>
                     {geriYuklenebilir && (
                       <Tus
-                      onClick={() => {
-                        setOnay({ tur: 'geri-yukle', surum: s })
-                        setKurulu(null)
-                        if (s.derleme) {
-                          void window.api.arduinoCli
-                            .listLibraries()
-                            .then((l) => setKurulu(Object.fromEntries(l.map((k) => [k.name, k.version]))))
-                            .catch(() => undefined)
-                        }
-                      }}
-                      disabled={mesgul}
-                    >
+                        onClick={() => {
+                          setOnay({ tur: 'geri-yukle', surum: s })
+                          setKurulu(null)
+                          if (s.derleme) {
+                            void window.api.arduinoCli
+                              .listLibraries()
+                              .then((l) => setKurulu(Object.fromEntries(l.map((k) => [k.name, k.version]))))
+                              .catch(() => undefined)
+                          }
+                        }}
+                        disabled={mesgul}
+                      >
                         {i === 0 ? t('Bu sürüme dön') : t('Geri yükle')}
                       </Tus>
                     )}
                     <Tus
-                      onClick={() => {
-                        setGirdi({ tur: 'etiket', id: s.id })
-                        setGirdiDegeri('')
-                      }}
+                      onClick={() => setMenu(menu === s.id ? null : s.id)}
                       disabled={mesgul}
+                      aria-label={t('Diğer işlemler')}
+                      title={t('Diğer işlemler')}
+                      aria-expanded={menu === s.id}
                     >
-                      {t('Etiket')}
-                    </Tus>
-                    <Tus
-                      onClick={() => {
-                        setGirdi({ tur: 'dal', id: s.id })
-                        setGirdiDegeri('')
-                      }}
-                      disabled={mesgul}
-                    >
-                      {t('Dal aç')}
+                      ⋯
                     </Tus>
                   </div>
+                  {menu === s.id && (
+                    <ul className="mt-1.5 overflow-hidden rounded-[5px] border border-panel-border bg-panel py-0.5">
+                      {onceki && (
+                        <MenuSatiri
+                          ad={t('Bu sürümde ne değişti?')}
+                          aciklama={t('Bir önceki kayda göre')}
+                          onClick={() => {
+                            setMenu(null)
+                            void karsilastir(`${onceki.mesaj} → ${s.mesaj}`, onceki.id, s.id)
+                          }}
+                        />
+                      )}
+                      <MenuSatiri
+                        ad={t('İsim ver')}
+                        aciklama={t('Sonra kolay bulmak için')}
+                        onClick={() => {
+                          setMenu(null)
+                          setGirdi({ tur: 'etiket', id: s.id })
+                          setGirdiDegeri('')
+                        }}
+                      />
+                      <MenuSatiri
+                        ad={t('Buradan deneme başlat')}
+                        aciklama={t('Çalışan kodunuz bozulmadan deneyin')}
+                        onClick={() => {
+                          setMenu(null)
+                          setGirdi({ tur: 'dal', id: s.id })
+                          setGirdiDegeri('')
+                        }}
+                      />
+                      {s.etiketler.map((e) => (
+                        <MenuSatiri
+                          key={e}
+                          ad={t('“{e}” adını kaldır', { e })}
+                          onClick={() => {
+                            setMenu(null)
+                            void calistir(() => window.api.history.untag(proje, e), t('Ad kaldırılamadı'))
+                          }}
+                        />
+                      ))}
+                    </ul>
+                  )}
                   {girdi?.id === s.id && (
                     <form
                       className="mt-2 flex gap-1.5"
@@ -375,27 +417,13 @@ function HistoryPanel(): ReactElement {
                           if (e.key === 'Escape') setGirdi(null)
                         }}
                         maxLength={40}
-                        placeholder={girdi.tur === 'etiket' ? t('Etiket adı (ör. v1.0)') : t('Yeni dal adı')}
+                        placeholder={girdi.tur === 'etiket' ? t('Ad (ör. sergi-hali)') : t('Denemenin adı (ör. wifi)')}
                         className="h-[26px] min-w-0 flex-1 rounded-[5px] border border-panel-border bg-panel px-2 text-xs text-gray-100 outline-none placeholder:text-gray-600 focus:border-accent"
                       />
                       <Tus type="submit" tur="birincil" disabled={mesgul || !girdiDegeri.trim()}>
                         {t('Ekle')}
                       </Tus>
                     </form>
-                  )}
-                  {s.etiketler.length > 0 && (
-                    <div className="mt-1 flex flex-wrap gap-2">
-                      {s.etiketler.map((e) => (
-                        <button
-                          key={e}
-                          onClick={() => void calistir(() => window.api.history.untag(proje, e), t('Etiket kaldırılamadı'))}
-                          className="text-[10.5px] text-gray-600 hover:text-rose-300"
-                          title={t('Etiketi kaldır')}
-                        >
-                          {t('{e} etiketini kaldır', { e })}
-                        </button>
-                      ))}
-                    </div>
                   )}
                 </li>
               )
@@ -451,8 +479,8 @@ function HistoryPanel(): ReactElement {
       )}
       {onay?.tur === 'dal-sil' && (
         <ConfirmModal
-          baslik={t('“{ad}” dalı silinsin mi?', { ad: onay.ad })}
-          onayMetni={t('Dalı sil')}
+          baslik={t('“{ad}” denemesi silinsin mi?', { ad: onay.ad })}
+          onayMetni={t('Denemeyi sil')}
           tehlikeli
           onOnay={() => {
             const ad = onay.ad
@@ -463,15 +491,26 @@ function HistoryPanel(): ReactElement {
               await window.api.history.checkout(proje, 'ana')
               await window.api.history.deleteBranch(proje, ad)
               await reloadSketchFolders([proje])
-            }, t('Dal silinemedi'))
+            }, t('Deneme silinemedi'))
           }}
           onVazgec={() => setOnay(null)}
         >
-          <p>{t('Önce “ana” dala geçilir, sonra bu dalın kaydı kaldırılır. Dalda yapılan sürümler listeden kaybolur.')}</p>
+          <p>{t('Önce ana koda dönülür, sonra bu deneme silinir. Denemede yapılan sürümler listeden kaybolur.')}</p>
         </ConfirmModal>
       )}
       {fark && <HistoryDiffModal baslik={fark.baslik} dosyalar={fark.dosyalar} onKapat={() => setFark(null)} />}
     </div>
+  )
+}
+
+function MenuSatiri({ ad, aciklama, onClick }: { ad: string; aciklama?: string; onClick: () => void }): ReactElement {
+  return (
+    <li>
+      <button type="button" onClick={onClick} className="block w-full px-2.5 py-1 text-left text-xs text-gray-200 hover:bg-white/[0.08]">
+        {ad}
+        {aciklama && <span className="block text-[10.5px] text-gray-500">{aciklama}</span>}
+      </button>
+    </li>
   )
 }
 

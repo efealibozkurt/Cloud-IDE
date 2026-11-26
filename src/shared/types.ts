@@ -1,3 +1,7 @@
+import { isCustomProvider, type CustomAIProvider, type CustomAIProviderId } from './ozelSaglayici'
+
+export * from './ozelSaglayici'
+
 import type { SistemBilgisi, TemizlemeBaglami } from './tanilama'
 /**
  * Main, preload ve renderer arasında paylaşılan ortak tip tanımları.
@@ -198,6 +202,10 @@ export interface DetectedPort {
   protocolLabel: string
   hardwareId?: string
   matchingBoards: MatchingBoard[]
+  /** USB bilgileri (serialport listesinden eklenir; dahili ve Bluetooth portlarında kimlik yoktur) */
+  vendorId?: string
+  productId?: string
+  pnpId?: string
 }
 
 /** Kurulu bir çekirdeğin sağladığı, seçilebilir tek bir kart */
@@ -421,6 +429,7 @@ export interface SerialPortInfo {
   manufacturer?: string
   vendorId?: string
   productId?: string
+  pnpId?: string
 }
 
 export interface SerialDataChunk {
@@ -458,7 +467,24 @@ export const AI_PROVIDERS = [
   { id: 'ollama', name: 'Ollama (Yerel / Local)' }
 ] as const
 
-export type AIProviderId = (typeof AI_PROVIDERS)[number]['id']
+export type BuiltinAIProviderId = (typeof AI_PROVIDERS)[number]['id']
+
+/** Hazır sağlayıcılar ve kullanıcının eklediği özel sağlayıcılar */
+export type AIProviderId = BuiltinAIProviderId | CustomAIProviderId
+
+export function isValidProviderId(v: unknown): v is AIProviderId {
+  return isCustomProvider(v) || AI_PROVIDERS.some((p) => p.id === v)
+}
+
+/** Seçim listeleri için hazır ve özel sağlayıcılar */
+export function providerList(custom?: readonly CustomAIProvider[]): Array<{ id: AIProviderId; name: string }> {
+  return [...AI_PROVIDERS, ...(custom ?? [])]
+}
+
+/** Bağlam sınırını kullanıcının seçebildiği sağlayıcılar */
+export function isContextAdjustable(provider: AIProviderId): boolean {
+  return provider === 'nvidia' || provider === 'lmstudio' || isCustomProvider(provider)
+}
 
 /** Yerel çalışan (internete çıkmayan) sağlayıcılar */
 export const LOCAL_AI_PROVIDERS: readonly AIProviderId[] = ['lmstudio', 'ollama']
@@ -468,7 +494,7 @@ export function isLocalProvider(provider: AIProviderId): boolean {
 }
 
 /** Her yapay zekâ sağlayıcısı için varsayılan yaklaşık bağlam (context window) token sınırları */
-export const PROVIDER_DEFAULT_CONTEXT_LIMITS: Record<AIProviderId, number> = {
+export const PROVIDER_DEFAULT_CONTEXT_LIMITS: Record<BuiltinAIProviderId, number> = {
   gemini: 1_000_000,
   openai: 1_000_000,
   anthropic: 1_000_000,
@@ -509,7 +535,7 @@ export function getModelContextLimit(
   }
 
   // 2. NVIDIA ve yerel sağlayıcılar haricindeki tüm sağlayıcılar doğrudan 1 Milyon (1M) token
-  if (provider !== 'nvidia' && !isLocalProvider(provider)) {
+  if (provider !== 'nvidia' && !isLocalProvider(provider) && !isCustomProvider(provider)) {
     return 1_000_000
   }
 
@@ -529,7 +555,7 @@ export function getModelContextLimit(
   }
 
   // 4. Varsayılanlar: nvidia -> 128_000, lmstudio -> 16_000
-  return PROVIDER_DEFAULT_CONTEXT_LIMITS[provider] || 128_000
+  return isCustomProvider(provider) ? 128_000 : PROVIDER_DEFAULT_CONTEXT_LIMITS[provider] || 128_000
 }
 
 /**
@@ -596,6 +622,8 @@ export interface AppSettings {
   customContextLimits?: Partial<Record<AIProviderId, number>>
   /** Yerel sağlayıcılar (LM Studio / Ollama) için sunucu adresi; API anahtarı alanından ayrıdır */
   aiBaseUrls?: Partial<Record<AIProviderId, string>>
+  /** Kullanıcının eklediği OpenAI uyumlu sağlayıcılar */
+  customAiProviders?: CustomAIProvider[]
   /** Agent izin modu (varsayılan: auto-edit) */
   agentPermissionMode?: AgentPermissionMode
   /** Agent dosya değiştirdikten sonra derleyip hataları otomatik düzeltsin mi (varsayılan: açık) */

@@ -1057,10 +1057,11 @@ function CodeEditor({
           style={{ top: Math.max(6, secim.top - 52), left: Math.min(Math.max(8, secim.left - 8), window.innerWidth - 300) }}
         >
           <div className="relative flex items-center gap-0.5 rounded border border-panel-border bg-panel-light p-0.5 shadow-md">
+            <img src={cloudIcon} alt="Cloud AI" className="mx-1.5 h-3.5 w-3.5 object-contain" />
             <button
               onClick={aiIleDuzelt}
               title={t('Seçili kodu Cloud AI ile düzeltmeyi iste')}
-              className="group flex items-center gap-1.5 rounded-sm bg-accent py-1 pl-2 pr-2.5 text-[12px] font-medium text-white transition-colors hover:bg-accent-hover"
+              className="group flex items-center gap-1.5 rounded-sm bg-white/[0.1] py-1 pl-2 pr-2.5 text-[12px] font-medium text-white transition-colors hover:bg-white/[0.16]"
             >
               <FixIcon />
               {t('AI ile Düzelt')}

@@ -13,6 +13,15 @@ files:
   - "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}"
   - "!**/node_modules/*.d.ts"
   - "!**/node_modules/.bin"
+  - "!**/*.map"
+  # Yalnızca tarayıcıda kullanılan WebAssembly dosyaları; masaüstünde onnxruntime-node çalışır
+  - "!**/node_modules/@xenova/transformers/dist/**"
+  - "!**/node_modules/onnxruntime-web/dist/*.wasm"
+
+# Chromium'un onlarca dil dosyasından yalnızca arayüzün desteklediği diller
+electronLanguages:
+  - tr
+  - en-US
 
 # Gömülü arduino-cli ve pencere ikonu her platformda kendi dosyasıyla paketlenir (aşağıdaki win/linux bölümleri).
 # src/main/utils/cliPath.ts → process.resourcesPath/arduino-cli/arduino-cli(.exe)
@@ -31,6 +40,10 @@ asarUnpack:
 
 win:
   icon: resources/icon.ico
+  # Diğer işletim sistemlerinin onnxruntime kütüphaneleri pakete girmez
+  files:
+    - "!**/node_modules/onnxruntime-node/bin/napi-v3/{darwin,linux}/**"
+    - "!**/node_modules/onnxruntime-node/bin/napi-v3/win32/arm64/**"
   legalTrademarks: Cloud IDE
   extraResources:
     - from: resources/arduino-cli
@@ -67,6 +80,9 @@ nsis:
 
 linux:
   icon: resources/icon.png
+  files:
+    - "!**/node_modules/onnxruntime-node/bin/napi-v3/{darwin,win32}/**"
+    - "!**/node_modules/onnxruntime-node/bin/napi-v3/linux/arm64/**"
   category: Development
   synopsis: AI destekli Arduino ve gömülü sistem IDE'si
   maintainer: Efe Ali Bozkurt <iletisim@efealibozkurt.com.tr>

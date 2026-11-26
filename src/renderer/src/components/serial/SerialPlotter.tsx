@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import { seriOrnekleriniTopla } from '../../utils/seriCizici'
 import { useT } from '../../i18n'
+import { useOturumDurumu } from '../../hooks/useOturumDurumu'
 
 const RENKLER = ['#4fb3f0', '#f0a24f', '#5fd68a', '#e86a8a', '#c9b24f', '#4fd1c5', '#e0794f', '#a3b1c2']
 const PENCERELER = [100, 300, 1000]
@@ -21,7 +22,7 @@ function sayiMetni(n: number): string {
  */
 function SerialPlotter({ satirlar }: { satirlar: string[] }): ReactElement {
   const t = useT()
-  const [pencere, setPencere] = useState(300)
+  const [pencere, setPencere] = useOturumDurumu('seri.grafikPencere', 300)
   const [durdu, setDurdu] = useState(false)
   const [gizli, setGizli] = useState<Set<string>>(new Set())
   const donmus = useRef<string[]>([])

@@ -163,26 +163,30 @@ export const YARDIM_KONULARI_EN: YardimKonusu[] = [
     icerik: () => (
       <>
         <Par>It is the way to see the <Ad>Serial.println()</Ad> output of your code and to send commands to the board. Open it with the <Ad>Serial Monitor</Ad> button in the top bar (<Tus>Ctrl</Tus>+<Tus>Shift</Tus>+<Tus>M</Tus>).</Par>
+        <Par>By default the serial monitor opens to the right of the editor; drag its left edge to change the width. The buttons in its header move it to the bottom panel or make it full screen, and the last position is remembered. In full screen, the <Ad>Both</Ad> view shows text and chart side by side; press <Tus>Esc</Tus> to leave. If Cloud AI is also open, switch between them with the tabs on the right.</Par>
         <Adimlar>
-          <Adim no={1}>Select the port and the <Ad>baud rate</Ad> in the top bar. The baud rate must match the value in your <Ad>Serial.begin(…)</Ad>; otherwise you see meaningless characters.</Adim>
+          <Adim no={1}>Select the port and the <Ad>baud rate</Ad> in the top bar. The baud rate must match the value in your <Ad>Serial.begin(…)</Ad>; otherwise you see meaningless characters. If your code has a single speed such as <Ad>Serial.begin(9600)</Ad>, the IDE sets the baud selection to match it.</Adim>
           <Adim no={2}>Click <Ad>Connect</Ad>. Incoming lines start to flow.</Adim>
           <Adim no={3}>Type in the box at the bottom and send with <Tus>Enter</Tus>. Set the line-ending choice (NL, CR, NL+CR) to what the code on the board expects.</Adim>
         </Adimlar>
         <Baslik>Watching several boards at once</Baslik>
-        <Par>While one port is connected, pick another port in the top bar and press <Ad>Add port</Ad>. Other connections stay open; a separate tab for each port and an <Ad>All</Ad> tab appear at the top. In the <Ad>All</Ad> view each line starts with a colored label showing which port it came from. Sending, clearing and disconnecting apply to the selected tab.</Par>
+        <Par>While one port is connected, press the <Ad>+</Ad> (Add port) button next to the status text and pick the second port from the list; it connects at the baud rate in the top bar. Other connections stay open; a separate tab for each port and an <Ad>All</Ad> tab appear at the top. In the <Ad>All</Ad> view each line starts with a colored label showing which port it came from. Sending, clearing and disconnecting apply to the selected tab.</Par>
         <Baslik>Chart view</Baslik>
-        <Par>With the <Ad>Text / Chart</Ad> switch at the top right you can turn incoming numbers into a live line chart; very useful when tuning sensor values. Print one of these formats in your code:</Par>
+        <Par>With the <Ad>Text / Chart</Ad> switch at the top you can turn incoming numbers into a live line chart; very useful when tuning sensor values. Print one of these formats in your code:</Par>
         <Liste>
           <Madde><Ad>Serial.println(value);</Ad> a single line</Madde>
           <Madde><Ad>10,20,30</Ad> (separated by commas or spaces) multiple lines</Madde>
           <Madde><Ad>temperature:23.5 humidity:60</Ad> named lines; the names appear above the chart and you can hide a line by clicking it</Madde>
         </Liste>
         <Par>The window selector sets how many samples are shown, and <Ad>Pause</Ad> freezes the stream.</Par>
+        <Baslik>Which port is my board?</Baslik>
+        <Par>In the port list on the top bar, ports that can be a board appear under <Ad>Your board</Ad>; the computer's own port and Bluetooth ports appear under <Ad>Other ports</Ad>. When you plug in a board its port is selected automatically. If nothing shows under <Ad>Your board</Ad>, the cable may be charge-only or the USB driver (CH340, CP210x) is missing.</Par>
         <Baslik>Useful options</Baslik>
+        <Par>The first three are in the <Ad>View options</Ad> menu (the sliders icon).</Par>
         <Liste>
-          <Madde baslik="Timestamp">Adds the time at the start of each line.</Madde>
+          <Madde baslik="Show time">Adds the time at the start of each line.</Madde>
           <Madde baslik="Auto-scroll">Always shows the newest line; turns itself off when you scroll up.</Madde>
-          <Madde baslik="Hide bootloader">Dims and filters the technical lines the ESP32 prints at startup (rst:, load:, entry …).</Madde>
+          <Madde baslik="Hide startup messages">Dims and filters the technical lines the ESP32 prints at startup (rst:, load:, entry …).</Madde>
           <Madde baslik="Ask AI and error highlighting">ESP32 crash, Watchdog (WDT) or Brownout lines are highlighted in red. The <Ad>Ask AI</Ad> button at the top sends the latest output straight to Cloud AI; the assistant can also read the open serial port itself while it works.</Madde>
         </Liste>
         <Ipucu>During an upload the relevant port is closed briefly and reopened when the upload finishes. It says "Temporarily closed for upload" meanwhile; don't worry.</Ipucu>
@@ -227,17 +231,17 @@ export const YARDIM_KONULARI_EN: YardimKonusu[] = [
         <Adimlar>
           <Adim no={1}>At a moment when your code works, press <Ad>Save version</Ad>. You can write a short note if you like ("LED speed adjusted").</Adim>
           <Adim no={2}>The status line at the top shows how many files have changed since the last save. <Ad>View changes</Ad> opens the diff.</Adim>
-          <Adim no={3}>On a version in the list, <Ad>Diff</Ad> compares with the previous version and <Ad>With current</Ad> compares with today's state.</Adim>
+          <Adim no={3}>On a version in the list, <Ad>Compare with current</Ad> shows what changed since then; <Ad>What changed in this version?</Ad> in the <Ad>⋯</Ad> menu compares it with the previous save.</Adim>
           <Adim no={4}><Ad>Restore</Ad> brings back the files of that version. Today's state is first saved automatically as "before restore", so if you regret it, that can be undone too.</Adim>
         </Adimlar>
         <Baslik>Automatic snapshots</Baslik>
         <Par>Even if you do nothing, snapshots are taken at these moments: before saving (at most every 2 minutes), before Cloud AI touches files, and when building if the code changed. They appear in the list as "automatic", "before AI" or "build". The number of automatic snapshots is limited (50 by default); versions you saved by hand and versions you tagged are never deleted. You can turn this off or change the limit in the <Ad>Version history</Ad> section of Settings.</Par>
         <Baslik>Build information</Baslik>
         <Par>Built versions show a green dot, the Flash/RAM usage and the flash difference from the previous build. When you go back to an old version, you are warned if it was built with a different board or library version. If you get a build error, the <Ad>what changed since the last built version</Ad> link at the top of the panel helps you find where the problem came from.</Par>
-        <Baslik>Tags and branches</Baslik>
+        <Baslik>Names and experiments</Baslik>
         <Liste>
-          <Madde baslik="Tag">Gives an important version a name ("v1.0", "sent-to-the-fair"). It appears with a blue outline in the list.</Madde>
-          <Madde baslik="Create branch">Starts a separate line of experiments from a version; your main line stays intact. You switch between them with the <Ad>Branch</Ad> selector. If the experiment doesn't work out, throw it away with <Ad>Delete branch</Ad>. (Merging branches is not available yet.)</Madde>
+          <Madde baslik="Give it a name">Names an important version ("v1.0", "sent-to-the-fair"). The name appears in a box in the list.</Madde>
+          <Madde baslik="Start an experiment from here">Opens a separate path from a version; your main code stays intact. While an experiment is open a yellow strip appears at the top of the panel; use <Ad>Back to main code</Ad> to switch back or <Ad>Delete experiment</Ad> to throw it away. (Merging an experiment into the main code is not available yet.)</Madde>
         </Liste>
         <Baslik>Backup and sharing</Baslik>
         <Par><Ad>Package (.zip)</Ad> at the bottom of the panel writes the project with its whole history into a single file; <Ad>Import</Ad> opens such a package as a new project on another computer.</Par>
@@ -257,8 +261,9 @@ export const YARDIM_KONULARI_EN: YardimKonusu[] = [
         <Adimlar>
           <Adim no={1}>Use the gear icon at the top right to go to <Ad>Settings › Artificial intelligence</Ad>, choose a provider and paste your API key. The key is stored only on this computer, encrypted by the operating system.</Adim>
           <Adim no={2}>If you don't want internet, you can use a local model running on your computer with <Ad>Ollama</Ad> or <Ad>LM Studio</Ad>; no key is needed.</Adim>
-          <Adim no={3}>Choose the provider and model at the top of the panel, type your request in the box at the bottom and send with <Tus>Enter</Tus> ("Blink the LED on D13 once a second").</Adim>
+          <Adim no={3}>Click the model name under the chat box to choose the provider, model and thinking level, then type your request and press <Tus>Enter</Tus> ("Blink the LED on D13 once a second").</Adim>
         </Adimlar>
+        <Ipucu>To use a service that isn’t in the list (OpenAI-compatible ones such as OpenRouter, Groq or Mistral), press <Ad>+ Add provider</Ad> in the same place.</Ipucu>
         <Baslik>Change permission: you are in control</Baslik>
         <Par>With the shield icon next to the input box you choose how free the assistant is:</Par>
         <Liste>

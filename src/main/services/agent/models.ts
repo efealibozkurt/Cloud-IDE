@@ -1,9 +1,11 @@
 import type { AIProviderId, ProviderTestResult } from '@shared/types'
+import { isCustomProvider } from '@shared/ozelSaglayici'
 import type { SecretsService } from '../SecretsService'
 import type { SettingsService } from '../SettingsService'
 import type { ResolvedProvider, ToolDef } from './llmTypes'
 import { ProviderError } from './llmTypes'
 import { aracDestegiYokHatasiMi, resolveProvider, streamChat } from './providers'
+import { geminiModelleriniSirala } from './staticModels'
 
 async function getirJson<T>(url: string, basliklar: Record<string, string>, zamanAsimiMs = 8000): Promise<T> {
   const ac = new AbortController()
@@ -30,9 +32,12 @@ export async function canliModelleriListele(p: ResolvedProvider): Promise<string
         `${p.baseUrl}/models?pageSize=200`,
         { 'x-goog-api-key': p.apiKey }
       )
-      return (j.models ?? [])
-        .filter((m) => m.supportedGenerationMethods?.includes('generateContent') && /gemini/i.test(m.name))
-        .map((m) => m.name.replace(/^models\//, ''))
+      // Ekranlar seçim yokken listedeki ilk modeli aldığı için önerilenler başa alınır
+      return geminiModelleriniSirala(
+        (j.models ?? [])
+          .filter((m) => m.supportedGenerationMethods?.includes('generateContent') && /gemini/i.test(m.name))
+          .map((m) => m.name.replace(/^models\//, ''))
+      )
     }
     case 'anthropic': {
       const j = await getirJson<{ data?: Array<{ id: string }> }>(`${p.baseUrl}/v1/models?limit=100`, {
@@ -93,7 +98,8 @@ export async function saglayiciyiSina(
     modeller = await canliModelleriListele(p)
     detaylar.push(`Sunucuya bağlanıldı, ${modeller.length} model listelendi.`)
   } catch (e) {
-    if (p.isLocal) {
+    // Özel sağlayıcılar model listesi vermeyebilir; asıl sınama üretim isteğidir
+    if (p.isLocal && !isCustomProvider(id)) {
       return {
         ok: false,
         message: `Yerel sunucuya bağlanılamadı (${p.baseUrl}). ${id === 'ollama' ? 'Ollama\'nın çalıştığından emin olun (ollama serve).' : 'LM Studio > Developer > Start Server ile sunucuyu başlatın.'}`,
@@ -102,7 +108,7 @@ export async function saglayiciyiSina(
     }
     detaylar.push(`Model listesi alınamadı (${(e as Error).message}); doğrudan istek deneniyor.`)
   }
-  if (p.isLocal && modeller.length === 0) {
+  if (p.isLocal && !isCustomProvider(id) && modeller.length === 0) {
     return {
       ok: false,
       message: id === 'ollama' ? 'Ollama çalışıyor ama hiç model yüklü değil. `ollama pull <model>` ile bir model indirin.' : 'LM Studio\'da yüklü model bulunamadı.',
@@ -111,7 +117,7 @@ export async function saglayiciyiSina(
   }
   if (modeller.length && !modeller.includes(p.model)) {
     const yakin = modeller.find((m) => m.split(':')[0] === p.model.split(':')[0])
-    if (p.isLocal) {
+    if (p.isLocal && !isCustomProvider(id)) {
       return {
         ok: false,
         message: `"${p.model}" modeli sunucuda yok.${yakin ? ` Belki "${yakin}" demek istediniz.` : ''}`,

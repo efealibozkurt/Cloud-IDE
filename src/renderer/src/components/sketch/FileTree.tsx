@@ -240,7 +240,7 @@ function FileTree(): ReactElement {
                           })
                         }
                         className={`group flex h-6 items-center pl-7 pr-2 ${
-                          sekmeAktif ? 'bg-accent/20 text-gray-50' : 'text-gray-400 hover:bg-white/[0.05] hover:text-gray-200'
+                          sekmeAktif ? 'bg-white/[0.1] text-gray-50' : 'text-gray-400 hover:bg-white/[0.05] hover:text-gray-200'
                         }`}
                       >
                         {adlandiriliyor ? (
@@ -379,7 +379,7 @@ function MenuOgesi({
       role="menuitem"
       disabled={devreDisi}
       onClick={onClick}
-      className="block w-full px-3 py-1 text-left hover:bg-accent/30 disabled:cursor-default disabled:text-gray-600 disabled:hover:bg-transparent"
+      className="block w-full px-3 py-1 text-left hover:bg-white/10 disabled:cursor-default disabled:text-gray-600 disabled:hover:bg-transparent"
     >
       {children}
     </button>

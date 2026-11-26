@@ -3,6 +3,7 @@ import { join } from 'path'
 import { pathToFileURL } from 'url'
 import { disAdresMi, mutlakYol } from './ipc/yolDogrulama'
 import { IPC_CHANNELS } from '@shared/types'
+import { isCustomProvider } from '@shared/ozelSaglayici'
 import { ArduinoCliService } from './services/ArduinoCliService'
 import { KutuphaneSembolServisi } from './services/KutuphaneSembolServisi'
 import { SketchService } from './services/SketchService'
@@ -258,7 +259,7 @@ app.whenReady().then(async () => {
   })
   sketchIpcKaydet(mainWindow, app.getPath('documents'), sketchService, settingsService)
   serialIpcKaydet(mainWindow, serialService, deviceLock)
-  settingsIpcKaydet(settingsService)
+  settingsIpcKaydet(settingsService, secretsService)
   tanilamaIpcKaydet(new TanilamaService(arduinoCliService))
   const updateService = new UpdateService(settingsService)
   updaterIpcKaydet(updateService)
@@ -273,7 +274,8 @@ app.whenReady().then(async () => {
     } catch {
       // aşağıdaki geri dönüşe düş
     }
-    return provider === 'ollama' ? [] : (STATIK_MODELLER[provider] ?? [])
+    // Özel sağlayıcıların hazır listesi yoktur; model adı elle yazılır
+    return provider === 'ollama' || isCustomProvider(provider) ? [] : (STATIK_MODELLER[provider] ?? [])
   })
   agentIpcKaydet(agentService)
   skillsIpcKaydet(ragService, boardSkillEngine, customSkillService)

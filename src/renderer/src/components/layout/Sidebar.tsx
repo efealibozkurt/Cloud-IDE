@@ -105,7 +105,7 @@ function Sidebar({ activeTab, onTabChange }: SidebarProps): ReactElement {
       </nav>
 
       {acik && (
-        <div className="flex w-72 flex-col bg-panel-light">
+        <div className="flex w-52 flex-col bg-panel-light min-[1100px]:w-72">
           <div className="flex h-9 shrink-0 items-center justify-between border-b border-panel-border px-3">
             <h2 className="text-[13px] font-medium text-gray-100">{t(aktif.baslik)}</h2>
             <span className="flex items-center gap-0.5">

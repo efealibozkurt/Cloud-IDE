@@ -48,7 +48,8 @@ export class SerialService extends EventEmitter {
       path: p.path,
       manufacturer: p.manufacturer,
       vendorId: p.vendorId,
-      productId: p.productId
+      productId: p.productId,
+      pnpId: p.pnpId
     }))
   }
 

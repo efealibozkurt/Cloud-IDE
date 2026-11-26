@@ -1,7 +1,7 @@
 import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import {
-  AI_PROVIDERS,
   IPC_CHANNELS,
+  isValidProviderId,
   type AgentEvent,
   type AgentReply,
   type AgentRunParams,
@@ -10,7 +10,6 @@ import {
 import type { AgentService } from '../services/agent/AgentService'
 
 const RUN_ID_DESENI = /^[\w-]{1,80}$/
-const GECERLI_SAGLAYICILAR = new Set<string>(AI_PROVIDERS.map((p) => p.id))
 
 /** runId → çalıştırmayı başlatan pencerenin webContents kimliği (başka pencerenin run'ına müdahaleyi önler) */
 const sahipler = new Map<string, number>()
@@ -24,7 +23,7 @@ function parametreHatasi(p: unknown): string | null {
   if (!p || typeof p !== 'object') return 'Geçersiz agent parametresi'
   const a = p as Partial<AgentRunParams>
   if (typeof a.runId !== 'string' || !RUN_ID_DESENI.test(a.runId)) return 'Geçersiz runId'
-  if (typeof a.provider !== 'string' || !GECERLI_SAGLAYICILAR.has(a.provider)) return 'Geçersiz sağlayıcı'
+  if (!isValidProviderId(a.provider)) return 'Geçersiz sağlayıcı'
   if (typeof a.model !== 'string' || a.model.length === 0 || a.model.length > 200) return 'Geçersiz model'
   if (!Array.isArray(a.messages) || a.messages.length === 0 || a.messages.length > 500) return 'Geçersiz mesaj listesi'
   if (!a.workspace || typeof a.workspace !== 'object' || !Array.isArray(a.workspace.sketchPaths)) {
@@ -101,7 +100,7 @@ export function agentIpcKaydet(service: AgentService): void {
     return service.undo(checkpointId)
   })
   ipcMain.handle(C.testProvider, (_e, provider: AIProviderId, model?: string) => {
-    if (!GECERLI_SAGLAYICILAR.has(provider)) throw new Error('Geçersiz sağlayıcı')
+    if (!isValidProviderId(provider)) throw new Error('Geçersiz sağlayıcı')
     return service.testProvider(provider, typeof model === 'string' ? model : undefined)
   })
 }

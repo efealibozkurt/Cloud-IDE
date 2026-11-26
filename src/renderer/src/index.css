@@ -519,6 +519,16 @@ body,
 .cloudai-halka[data-aktif='true'] .cloudai-ic {
   background: #1b2733;
 }
+/* İlk kurulum sihirbazındaki belirsiz süreli ilerleme çubuğu */
+@keyframes kurulum-kayan {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+
 @keyframes cloudai-don {
   to {
     transform: translate(-50%, -50%) rotate(360deg);

@@ -18,7 +18,7 @@ function EditorArea(): ReactElement {
 
   if (!state.sketch.info) {
     return (
-      <main className="flex flex-1 flex-col overflow-hidden bg-panel">
+      <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-panel">
         <div className="flex h-9 shrink-0 items-center border-b border-panel-border bg-panel-light" />
         <div className="flex flex-1 flex-col items-center justify-center gap-5 select-none">
           <div className="flex items-center gap-1.5 opacity-90 transition-opacity hover:opacity-100">
@@ -38,13 +38,13 @@ function EditorArea(): ReactElement {
           <div className="flex gap-2.5">
             <button
               onClick={() => void newSketch()}
-              className="rounded border border-panel-border bg-panel-light px-3 py-1.5 text-xs text-gray-200 transition-colors hover:border-accent hover:bg-panel-border hover:text-white"
+              className="rounded border border-panel-border bg-panel-light px-3 py-1.5 text-xs text-gray-200 transition-colors hover:border-white/30 hover:bg-panel-border hover:text-white"
             >
               {t('Yeni Sketch (Ctrl+N)')}
             </button>
             <button
               onClick={() => void openSketchDialog()}
-              className="rounded border border-panel-border bg-panel-light px-3 py-1.5 text-xs text-gray-200 transition-colors hover:border-accent hover:bg-panel-border hover:text-white"
+              className="rounded border border-panel-border bg-panel-light px-3 py-1.5 text-xs text-gray-200 transition-colors hover:border-white/30 hover:bg-panel-border hover:text-white"
             >
               {t('Sketch Aç (Ctrl+O)')}
             </button>

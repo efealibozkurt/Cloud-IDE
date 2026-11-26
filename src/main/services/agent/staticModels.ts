@@ -1,14 +1,21 @@
-import type { AIProviderId } from '@shared/types'
+import type { BuiltinAIProviderId } from '@shared/types'
+
+/**
+ * Gemini'de seçim yapılmamışsa denenecek ve kullanılacak modeller, tercih sırasıyla; ilki varsayılandır.
+ * Google eski modelleri yeni kullanıcılara kapatabildiği için sürüm çıkarmadan önce
+ * https://ai.google.dev/gemini-api/docs/models adresinden doğrulayın.
+ */
+export const GEMINI_ONERILEN_MODELLER = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite']
+
+/** Önerilen modelleri listenin başına alır; kalanların sırası değişmez */
+export function geminiModelleriniSirala(liste: string[]): string[] {
+  const onerilen = GEMINI_ONERILEN_MODELLER.filter((m) => liste.includes(m))
+  return [...onerilen, ...liste.filter((m) => !onerilen.includes(m))]
+}
 
 /** Canlı model listesi alınamadığında kullanılan çevrimdışı yedek model listeleri */
-export const STATIK_MODELLER: Record<AIProviderId, string[]> = {
-  gemini: [
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
-    'gemini-1.5-pro',
-    'gemini-2.0-flash-thinking-exp-01-21',
-    'gemini-2.5-flash'
-  ],
+export const STATIK_MODELLER: Record<BuiltinAIProviderId, string[]> = {
+  gemini: [...GEMINI_ONERILEN_MODELLER, 'gemini-3.1-flash-lite'],
   openai: [
     'gpt-4o',
     'gpt-4o-mini',

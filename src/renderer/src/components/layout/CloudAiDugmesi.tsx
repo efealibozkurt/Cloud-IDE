@@ -20,7 +20,7 @@ function CloudAiDugmesi({ aktif, onClick }: CloudAiDugmesiProps): ReactElement {
   const onayBekliyor = Boolean(agent.calisma?.onay)
 
   return (
-    <div className="cloudai-halka ml-1" data-tur="cloudai" data-aktif={aktif} data-calisiyor={calisiyor && !onayBekliyor}>
+    <div className="cloudai-halka ml-1 shrink-0 whitespace-nowrap" data-tur="cloudai" data-aktif={aktif} data-calisiyor={calisiyor && !onayBekliyor}>
       <button
         onClick={onClick}
         aria-pressed={aktif}

@@ -1,5 +1,5 @@
-import type { AIProviderId } from '@shared/types'
-import { isLocalProvider } from '@shared/types'
+import type { AIProviderId, BuiltinAIProviderId, CustomAIProviderId } from '@shared/types'
+import { isCustomProvider, isLocalProvider, isLoopbackUrl } from '@shared/types'
 import type { SecretsService } from '../SecretsService'
 import type { SettingsService } from '../SettingsService'
 import {
@@ -14,12 +14,13 @@ import {
   type ToolCall,
   type ToolDef
 } from './llmTypes'
+import { GEMINI_ONERILEN_MODELLER } from './staticModels'
 
 // ────────────────────────────────────────────────────────────────────────
 // Sağlayıcı çözümleme (adres, anahtar, model)
 // ────────────────────────────────────────────────────────────────────────
 
-const VARSAYILAN_ADRESLER: Record<AIProviderId, string> = {
+const VARSAYILAN_ADRESLER: Record<BuiltinAIProviderId, string> = {
   openai: 'https://api.openai.com/v1',
   deepseek: 'https://api.deepseek.com',
   kimi: 'https://api.moonshot.ai/v1',
@@ -30,13 +31,13 @@ const VARSAYILAN_ADRESLER: Record<AIProviderId, string> = {
   ollama: 'http://127.0.0.1:11434'
 }
 
-const VARSAYILAN_MODELLER: Partial<Record<AIProviderId, string>> = {
+const VARSAYILAN_MODELLER: Partial<Record<BuiltinAIProviderId, string>> = {
   openai: 'gpt-4o',
   deepseek: 'deepseek-chat',
   kimi: 'kimi-k2.5',
   nvidia: 'meta/llama-3.3-70b-instruct',
   anthropic: 'claude-3-5-sonnet-latest',
-  gemini: 'gemini-2.5-flash',
+  gemini: GEMINI_ONERILEN_MODELLER[0],
   lmstudio: 'local-model'
 }
 
@@ -78,9 +79,10 @@ export function resolveProvider(
   secrets: SecretsService,
   settings: SettingsService
 ): ResolvedProvider {
+  const kayitliAnahtar = secrets.getDecryptedApiKey(id)
+  if (isCustomProvider(id)) return ozelSaglayiciyiCozumle(id, model, kayitliAnahtar, settings)
   const kind = saglayiciTuru(id)
   const yerel = isLocalProvider(id)
-  const kayitliAnahtar = secrets.getDecryptedApiKey(id)
   const ayarAdresi = settings.get('aiBaseUrls')?.[id]?.trim()
   const secilenModel = (model || settings.get('selectedModelPerProvider')?.[id] || VARSAYILAN_MODELLER[id] || '').trim()
 
@@ -113,6 +115,31 @@ export function resolveProvider(
   }
 
   return { id, kind, baseUrl, apiKey: apiKey.trim(), model: secilenModel, isLocal: yerel }
+}
+
+/** Kullanıcının eklediği sağlayıcı: her zaman OpenAI uyumlu; adres tanımından gelir */
+function ozelSaglayiciyiCozumle(
+  id: CustomAIProviderId,
+  model: string | undefined,
+  kayitliAnahtar: string | null,
+  settings: SettingsService
+): ResolvedProvider {
+  const tanim = settings.get('customAiProviders')?.find((s) => s.id === id)
+  if (!tanim) {
+    throw new ProviderError('Bu özel sağlayıcı artık tanımlı değil. Ayarlar > Yapay Zekâ bölümünden başka bir sağlayıcı seçin.', {
+      kind: 'bad_request'
+    })
+  }
+  const yerel = isLoopbackUrl(tanim.baseUrl)
+  const apiKey = (kayitliAnahtar ?? '').trim()
+  if (!apiKey && !yerel) {
+    throw new ProviderError(`${tanim.name} için API anahtarı girilmemiş. Ayarlar > Yapay Zekâ bölümünden ekleyin.`, { kind: 'auth' })
+  }
+  const secilenModel = (model || settings.get('selectedModelPerProvider')?.[id] || '').trim()
+  if (!secilenModel) {
+    throw new ProviderError(`${tanim.name} için model seçilmedi.`, { kind: 'bad_request' })
+  }
+  return { id, kind: 'openai', baseUrl: openAiTabanAdresiniDuzelt(tanim.baseUrl), apiKey, model: secilenModel, isLocal: yerel }
 }
 
 // ────────────────────────────────────────────────────────────────────────
@@ -472,7 +499,8 @@ async function* openAiAkisi(p: ResolvedProvider, req: ChatRequest, sinyal: Abort
     messages: openAiMesajlari(req, p),
     stream: true
   }
-  if (p.id !== 'lmstudio') govde.stream_options = { include_usage: true }
+  // Bazı uyumlu sunucular tanımadıkları alanı reddeder; özel sağlayıcılara yalnızca standart alanlar gönderilir
+  if (p.id !== 'lmstudio' && !isCustomProvider(p.id)) govde.stream_options = { include_usage: true }
   const araclar = openAiAraclari(req.tools)
   if (araclar) {
     govde.tools = araclar
@@ -486,7 +514,7 @@ async function* openAiAkisi(p: ResolvedProvider, req: ChatRequest, sinyal: Abort
     const kimiSabit = p.id === 'kimi' && /k2\.5|k3|thinking/i.test(p.model)
     govde.temperature = kimiSabit ? 1 : req.temperature
   }
-  if (p.isLocal) {
+  if (p.isLocal && !isCustomProvider(p.id)) {
     govde.repeat_penalty = 1.05
   }
 

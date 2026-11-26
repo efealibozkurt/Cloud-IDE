@@ -42,7 +42,7 @@ const MEKTUP_YAZISI: CSSProperties = { fontFamily: "Georgia, 'Palatino Linotype'
 function DeveloperMessageModal({ onClose }: DeveloperMessageModalProps): ReactElement {
   const t = useT()
   const [birDahaGosterme, setBirDahaGosterme] = useState(false)
-  const [surum, setSurum] = useState('0.1.7')
+  const [surum, setSurum] = useState('0.1.8')
   useEffect(() => {
     window.api.app.getVersion().then(setSurum).catch(() => undefined)
   }, [])

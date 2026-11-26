@@ -69,7 +69,7 @@ function KartAyarlari(): ReactElement | null {
         title={t('Kart ayarları (işlemci, bölüm şeması, yükleme hızı…)')}
         aria-label={t('Kart ayarları')}
         className={`relative flex h-7 w-7 items-center justify-center rounded border bg-panel transition-colors hover:bg-panel-border ${
-          acik ? 'border-accent text-gray-100' : 'border-panel-border text-gray-400 hover:text-gray-200'
+          acik ? 'border-white/30 bg-white/[0.12] text-gray-100' : 'border-panel-border text-gray-400 hover:text-gray-200'
         }`}
       >
         <SlidersIcon />

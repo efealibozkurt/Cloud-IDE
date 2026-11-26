@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react'
-import { ADJUSTABLE_CONTEXT_PRESETS, type AIProviderId } from '@shared/types'
+import { ADJUSTABLE_CONTEXT_PRESETS, type AIProviderId, isContextAdjustable } from '@shared/types'
 import { useT } from '../../i18n'
 
 export interface ContextMeterVerisi {
@@ -38,9 +38,9 @@ export function formatToken(sayi: number): string {
 }
 
 /**
- * Bağlam kullanımı göstergesi. Kapalıyken yalnızca ince bir çizgi ve
- * "12,4K / 128K" metni gösterir; tıklanınca nelerin bağlamı doldurduğunu
- * üç satırda listeler. Renk yalnızca eşik aşıldığında değişir.
+ * Bağlam kullanımı göstergesi. Kapalıyken küçük bir doluluk halkasıdır (üzerine gelince
+ * "12,4K / 128K" yazar); tıklanınca nelerin bağlamı doldurduğunu üç satırda listeler.
+ * Renk yalnızca eşik aşıldığında değişir.
  */
 function ContextMeter({
   veri,
@@ -74,8 +74,8 @@ function ContextMeter({
 
   const yuzde = Math.min(100, Math.max(0, (veri.toplamTokens / Math.max(1, veri.limitTokens)) * 100))
   const uyari = yuzde >= UYARI_ESIGI
-  const cizgiRenk = uyari ? 'bg-amber-400' : 'bg-gray-400'
-  const limitDuzenlenebilir = saglayici === 'nvidia' || saglayici === 'lmstudio' || saglayici === 'ollama'
+  const ozetMetni = `${t('Bağlam')} ${gercekKullanim ? '' : '~'}${formatToken(veri.toplamTokens)} / ${formatToken(veri.limitTokens)}`
+  const limitDuzenlenebilir = isContextAdjustable(saglayici) || saglayici === 'ollama'
   const onek = gercekKullanim ? '' : '~'
 
   const satirlar: Array<{ ad: string; ayrinti?: string; token: number }> = [
@@ -85,28 +85,39 @@ function ContextMeter({
   ]
 
   return (
-    <div ref={kapsayiciRef} className="relative border-b border-panel-border/60">
+    <div ref={kapsayiciRef} className="relative flex shrink-0">
       <button
         type="button"
         onClick={() => setAcik((a) => !a)}
         aria-expanded={acik}
-        title={t('Bağlam kullanımı')}
-        className="block w-full px-3 pb-1.5 pt-1 text-left hover:bg-white/[0.03]"
+        aria-label={t('Bağlam kullanımı')}
+        title={ozetMetni}
+        className="flex h-7 w-7 items-center justify-center rounded hover:bg-white/[0.08]"
       >
-        <div className="flex items-baseline justify-between text-[11px] text-gray-400">
-          <span>{t('Bağlam')}</span>
-          <span className={uyari ? 'text-amber-300' : ''}>
-            {onek}
-            {formatToken(veri.toplamTokens)} / {formatToken(veri.limitTokens)}
-          </span>
-        </div>
-        <div className="mt-1 h-0.5 w-full bg-white/10">
-          <div className={`h-full ${cizgiRenk} transition-[width] duration-300`} style={{ width: `${Math.max(1, yuzde)}%` }} />
-        </div>
+        <svg width="16" height="16" viewBox="0 0 20 20" className="-rotate-90" aria-hidden="true">
+          <circle cx="10" cy="10" r="7" fill="none" strokeWidth="2.5" className="stroke-white/15" />
+          <circle
+            cx="10"
+            cy="10"
+            r="7"
+            fill="none"
+            strokeWidth="2.5"
+            pathLength={100}
+            strokeDasharray={`${Math.max(3, yuzde)} 100`}
+            className={uyari ? 'stroke-amber-400' : 'stroke-gray-300'}
+          />
+        </svg>
       </button>
 
       {acik && (
-        <div className="absolute inset-x-2 top-full z-40 mt-1 rounded border border-panel-border bg-panel-light p-3 text-xs shadow-lg">
+        <div className="absolute bottom-full right-[-36px] z-40 mb-2 w-64 rounded border border-panel-border bg-panel-light p-3 text-left text-xs shadow-lg">
+          <p className={`mb-2 flex justify-between border-b border-panel-border pb-2 ${uyari ? 'text-amber-300' : 'text-gray-200'}`}>
+            <span>{t('Bağlam')}</span>
+            <span className="tabular-nums">
+              {onek}
+              {formatToken(veri.toplamTokens)} / {formatToken(veri.limitTokens)}
+            </span>
+          </p>
           <ul className="flex flex-col gap-1.5">
             {satirlar.map((s) => (
               <li key={s.ad} className="flex items-baseline justify-between gap-3">

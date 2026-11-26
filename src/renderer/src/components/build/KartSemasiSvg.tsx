@@ -85,7 +85,7 @@ function KartSemasiSvg({
       <div className="flex h-full min-h-[160px] flex-col items-center justify-center rounded-lg border border-dashed border-panel-border bg-panel/60 px-4 py-6 text-center">
         <p className="text-xs font-medium text-gray-300">{t('Çizilecek pin veya kablo bağlantısı bulunamadı')}</p>
         <p className="mt-1 max-w-xs text-[11px] text-gray-500">
-          {t('Kodunuza pin veya sensör ekleyin ya da sağ üstten')} <span className="text-[#7cc4f0]">{t('AI ile Oluştur')}</span> {t('düğmesiyle tam bağlantı şeması hazırlayın.')}
+          {t('Kodunuza pin veya sensör ekleyin ya da sağ üstten')} <span className="font-medium text-gray-300">{t('AI ile Oluştur')}</span> {t('düğmesiyle tam bağlantı şeması hazırlayın.')}
         </p>
       </div>
     )

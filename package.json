@@ -1,7 +1,7 @@
 {
   "name": "cloud-ide",
   "productName": "Cloud IDE",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Gömülü sistemler için modern AI destekli Cloud IDE (Arduino uyumlu)",
   "main": "./out/main/index.js",
   "author": "Efe Ali Bozkurt <iletisim@efealibozkurt.com.tr>",

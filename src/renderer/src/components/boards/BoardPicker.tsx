@@ -83,7 +83,7 @@ function BoardPicker({ boards, value, disabled, onChange }: BoardPickerProps): R
   }
 
   return (
-    <div ref={kapRef} className="relative">
+    <div ref={kapRef} className="relative min-w-0 flex-1">
       <button
         type="button"
         disabled={disabled}
@@ -91,7 +91,7 @@ function BoardPicker({ boards, value, disabled, onChange }: BoardPickerProps): R
         aria-haspopup="listbox"
         aria-expanded={acik}
         title={t('Kart seçici')}
-        className="flex h-7 max-w-[240px] items-center gap-2 rounded border border-panel-border bg-panel pl-1 pr-2 text-xs text-gray-300 hover:enabled:bg-panel-border disabled:cursor-not-allowed disabled:text-gray-500"
+        className="flex h-7 w-full max-w-[240px] items-center gap-2 overflow-hidden rounded border border-panel-border bg-panel pl-1 pr-2 text-xs text-gray-300 hover:enabled:bg-panel-border disabled:cursor-not-allowed disabled:text-gray-500"
       >
         <BoardThumb src={kartGorseli(secili)} renk={kartRengi(secili)} genislik={34} />
         <span className="truncate">{secili ? secili.name : t('Kart seçilmedi')}</span>

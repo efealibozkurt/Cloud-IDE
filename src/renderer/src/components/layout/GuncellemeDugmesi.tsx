@@ -27,12 +27,12 @@ function GuncellemeDugmesi(): ReactElement | null {
   const etiket = g.durum === 'hazir' ? t('Kurmaya hazır') : g.durum === 'indiriliyor' ? t('İndiriliyor %{n}', { n: g.yuzde ?? 0 }) : `${t('Yeni sürüm')} ${g.surum ?? ''}`.trim()
 
   return (
-    <div ref={kapRef} className="relative">
+    <div ref={kapRef} className="relative shrink-0 whitespace-nowrap">
       <button
         onClick={() => setAcik((a) => !a)}
         aria-expanded={acik}
         title={t('Uygulama güncellemesi')}
-        className="flex h-7 items-center gap-1.5 rounded border border-accent/60 bg-accent/10 px-2 text-xs text-[#7cc4f0] transition-colors hover:bg-accent/20"
+        className="flex h-7 items-center gap-1.5 rounded border border-panel-border bg-panel px-2 text-xs text-gray-200 transition-colors hover:bg-panel-border"
       >
         <span className={`h-1.5 w-1.5 rounded-full bg-[#7cc4f0] ${g.durum === 'var' ? 'animate-pulse' : ''}`} aria-hidden="true" />
         {etiket}

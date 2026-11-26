@@ -47,6 +47,7 @@ Arduino'da aynı klasörde iki .ino dosyası derlenemez (setup/loop çakışır)
 const KOD_KALITESI = `KOD KALİTESİ:
 - Seçili kartın mimarisine, voltajına (3.3V/5V), belleğine ve pin kısıtlarına uy. Kart seçili değilse varsayım yapıp belirt.
 - delay() yerine uygun yerde millis() kullan; blokları kısa tut; Serial.begin hızını açıkça yaz.
+- IDE, seri monitörün baud hızını koddaki Serial.begin değerine göre kendisi ayarlar: kullanıcıdan baud'u elle seçmesini isteme, tüm projede tek bir hız kullan.
 - Derlenebilir, eksiksiz, modern Arduino C++ yaz. Türkçe yorumlar kullan.`
 
 const YEREL_NOTU = `YEREL MODEL İÇİN KISA KURALLAR:

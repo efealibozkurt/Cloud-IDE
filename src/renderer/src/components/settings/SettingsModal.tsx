@@ -4,8 +4,13 @@ import {
   AI_PROVIDERS,
   EDITOR_TEMALARI,
   getModelContextLimit,
+  isContextAdjustable,
+  isCustomProvider,
   isLocalProvider,
+  MAX_CUSTOM_PROVIDERS,
+  providerList,
   type AIProviderId,
+  type BuiltinAIProviderId,
   type LocalToolMode
 } from '@shared/types'
 import { surumAdiBul } from '@shared/surumAdlari'
@@ -14,6 +19,7 @@ import { useToast } from '../../state/ToastContext'
 import { useYardim } from '../../state/HelpContext'
 import { useI18n, DILLER, type Dil } from '../../i18n'
 import { useGuncelleme } from '../../hooks/useGuncelleme'
+import OzelSaglayiciFormu from './OzelSaglayiciFormu'
 import { AyarBolumu, AyarSatiri, Anahtar, BIRINCIL_DUGME, GIRIS, KUCUK_DUGME, SECICI } from './AyarBilesenleri'
 
 interface SettingsModalProps {
@@ -32,7 +38,7 @@ const SEKMELER: Array<{ id: Sekme; ad: string; ozet: string }> = [
 
 const SEKME_ANAHTARI = 'cloud_ide_ayar_sekmesi'
 
-const SAGLAYICI_BILGILERI: Record<AIProviderId, { placeholder: string; aciklama?: string }> = {
+const SAGLAYICI_BILGILERI: Record<BuiltinAIProviderId, { placeholder: string; aciklama?: string }> = {
   gemini: { placeholder: 'Google AI Studio API anahtarı (AIzaSy...)', aciklama: 'Google Gemini modelleri için API anahtarı.' },
   kimi: { placeholder: 'Kimi / Moonshot API anahtarı (sk-...)', aciklama: 'Kimi AI (Moonshot) modelleri için API anahtarı (platform.moonshot.ai / cn).' },
   lmstudio: { placeholder: "Yerel sunucu anahtarı veya 'lm-studio'", aciklama: 'LM Studio yerel model sunucusunu kullanır.' },
@@ -71,7 +77,7 @@ function ilkSekme(): Sekme {
  */
 function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
   const { t, dil, setDil } = useI18n()
-  const { state, setEditorFontSize, setEditorTheme, setSelectedAiProvider, setSelectedAiModel, setCustomContextLimit, saveApiKey, clearApiKey } = useAppState()
+  const { state, setEditorFontSize, setEditorTheme, setSelectedAiProvider, setSelectedAiModel, setCustomContextLimit, saveApiKey, clearApiKey, removeCustomProvider } = useAppState()
   const { toastGoster } = useToast()
   const { yardimAc, turuBaslat, sorunBildirAc } = useYardim()
   const ayarlar = state.settings
@@ -92,6 +98,9 @@ function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
   const [kaydediliyor, setKaydediliyor] = useState(false)
   const [modeller, setModeller] = useState<string[]>([])
   const [modellerYukleniyor, setModellerYukleniyor] = useState(false)
+  /** Açık olan özel sağlayıcı formu: yeni ekleme ya da seçili olanı düzenleme */
+  const [form, setForm] = useState<'yeni' | 'duzenle' | null>(null)
+  const [silOnayi, setSilOnayi] = useState(false)
 
   const aktifModel = ayarlar?.selectedModelPerProvider?.[secilenSaglayici] ?? modeller[0] ?? ''
 
@@ -115,7 +124,8 @@ function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
       const liste = await window.api.chat.getProviderModels(provider)
       setModeller(liste)
       const mevcutModel = ayarlar?.selectedModelPerProvider?.[provider]
-      if (liste.length > 0 && (!mevcutModel || !liste.includes(mevcutModel))) void setSelectedAiModel(provider, liste[0])
+      // Özel sağlayıcıda elle yazılan model listede olmayabilir; üzerine yazılmaz
+      if (liste.length > 0 && (!mevcutModel || (!isCustomProvider(provider) && !liste.includes(mevcutModel)))) void setSelectedAiModel(provider, liste[0])
     } catch (err) {
       console.error('Modeller getirilemedi:', err)
     } finally {
@@ -139,14 +149,26 @@ function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
   if (!ayarlar) return <></>
 
   const saglayiciAyarliMi = state.configuredAiProviders.includes(secilenSaglayici)
-  const bilgi = SAGLAYICI_BILGILERI[secilenSaglayici]
+  const ozel = ayarlar.customAiProviders?.find((s) => s.id === secilenSaglayici)
+  const ozelListe = ayarlar.customAiProviders ?? []
+  const bilgi = isCustomProvider(secilenSaglayici) ? undefined : SAGLAYICI_BILGILERI[secilenSaglayici]
+  const modelSecenekleri = aktifModel && !modeller.includes(aktifModel) ? [aktifModel, ...modeller] : modeller
   const yerel = isLocalProvider(secilenSaglayici)
-  const baglamOzellestirilebilir = secilenSaglayici === 'nvidia' || secilenSaglayici === 'lmstudio'
+  const baglamOzellestirilebilir = isContextAdjustable(secilenSaglayici)
 
   const saglayiciDegisti = (id: AIProviderId): void => {
     setSecilenSaglayici(id)
     setSelectedAiProvider(id)
     setAnahtarGirdisi('')
+    setForm(null)
+    setSilOnayi(false)
+  }
+
+  const ozelSil = async (): Promise<void> => {
+    if (!silOnayi) return setSilOnayi(true)
+    await removeCustomProvider(secilenSaglayici)
+    setSilOnayi(false)
+    setSecilenSaglayici(AI_PROVIDERS[0].id)
   }
 
   const anahtarKaydet = async (): Promise<void> => {
@@ -270,7 +292,7 @@ function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
                 <AyarBolumu baslik={t('Sağlayıcı ve model')} aciklama={t('Cloud AI’ın kullanacağı yapay zekâ servisi.')}>
                   <AyarSatiri baslik={t('Sağlayıcı')}>
                     <select value={secilenSaglayici} onChange={(e) => saglayiciDegisti(e.target.value as AIProviderId)} aria-label={t('Sağlayıcı')} className={`${SECICI} w-56`}>
-                      {AI_PROVIDERS.map((p) => (
+                      {providerList(ayarlar.customAiProviders).map((p) => (
                         <option key={p.id} value={p.id}>
                           {p.name}
                           {state.configuredAiProviders.includes(p.id) ? ' ✓' : ''}
@@ -278,9 +300,42 @@ function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
                       ))}
                     </select>
                   </AyarSatiri>
+                  {form ? (
+                    <OzelSaglayiciFormu
+                      key={form}
+                      mevcut={form === 'duzenle' ? ozel : undefined}
+                      onKaydedildi={(s) => {
+                        setSecilenSaglayici(s.id)
+                        setAnahtarGirdisi('')
+                      }}
+                      onKapat={() => {
+                        setForm(null)
+                        void modelleriYukle(secilenSaglayici)
+                      }}
+                    />
+                  ) : (
+                    <div className="flex flex-wrap items-center justify-end gap-2 px-3.5 py-2">
+                      {ozel && (
+                        <>
+                          <span className="mr-auto min-w-0 truncate font-mono text-[11px] text-gray-500" title={ozel.baseUrl}>
+                            {ozel.baseUrl}
+                          </span>
+                          <button onClick={() => setForm('duzenle')} className={KUCUK_DUGME}>
+                            {t('Düzenle')}
+                          </button>
+                          <button onClick={() => void ozelSil()} onBlur={() => setSilOnayi(false)} className={`${KUCUK_DUGME} text-red-300 hover:enabled:bg-red-950/60`}>
+                            {silOnayi ? t('Silmek için yeniden tıklayın') : t('Sil')}
+                          </button>
+                        </>
+                      )}
+                      <button onClick={() => setForm('yeni')} disabled={ozelListe.length >= MAX_CUSTOM_PROVIDERS} className={KUCUK_DUGME}>
+                        {t('+ Sağlayıcı ekle')}
+                      </button>
+                    </div>
+                  )}
                   <AyarSatiri baslik={t('Model')} aciklama={modellerYukleniyor ? t('Modeller listeleniyor…') : modeller.length === 0 ? t('Model listesi alınamadı. Anahtarı ya da sunucu adresini kontrol edin.') : undefined}>
-                    <select disabled={modellerYukleniyor || modeller.length === 0} value={aktifModel} onChange={(e) => void setSelectedAiModel(secilenSaglayici, e.target.value)} aria-label={t('Model')} className={`${SECICI} w-56`}>
-                      {modeller.map((m) => (
+                    <select disabled={modellerYukleniyor || modelSecenekleri.length === 0} value={aktifModel} onChange={(e) => void setSelectedAiModel(secilenSaglayici, e.target.value)} aria-label={t('Model')} className={`${SECICI} w-56`}>
+                      {modelSecenekleri.map((m) => (
                         <option key={m} value={m}>
                           {m}
                         </option>
@@ -310,6 +365,7 @@ function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
                   </AyarSatiri>
                 </AyarBolumu>
 
+                {!form && (
                 <AyarBolumu baslik={t('API anahtarı')} aciklama={t('Anahtar yalnızca bu bilgisayarda, işletim sistemi düzeyinde şifrelenerek saklanır; hiçbir harici sunucuya gönderilmez.')}>
                   <AyarSatiri
                     baslik={saglayiciAyarliMi ? t('Anahtar kayıtlı') : t('Anahtar girilmedi')}
@@ -346,6 +402,7 @@ function SettingsModal({ onClose }: SettingsModalProps): ReactElement {
                     )}
                   </AyarSatiri>
                 </AyarBolumu>
+                )}
 
                 {yerel && (
                   <AyarBolumu baslik={t('Yerel sunucu')} aciklama={t('Ollama ya da LM Studio başka bir bilgisayarda ya da farklı portta çalışıyorsa adresi girin.')}>

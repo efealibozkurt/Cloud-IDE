@@ -7,6 +7,7 @@ import { useToast } from '../../state/ToastContext'
 import { ayniDosyaMi } from '../../utils/paths'
 import { kutuphaneSembolleriniYenile } from '../editor/arduinoIntelliSense'
 import { useT } from '../../i18n'
+import { AiDugmesi } from '../common/AiDugmesi'
 
 /** Dosya adını yoldan çıkarır (hem / hem \ ayraçlarını destekler) */
 function dosyaAdi(yol: string): string {
@@ -123,9 +124,9 @@ function HataSatiri({ hata, onGit }: { hata: DerlemeHatasi; onGit: () => void })
           </span>
         </button>
         {hata.tur !== 'note' && hata.dosya && (
-          <button onClick={() => void aiyaSor()} className={KUCUK_DUGME} title={t("Hatayı ve çevresindeki kodu Cloud AI'a gönder")}>
+          <AiDugmesi onClick={() => void aiyaSor()} title={t("Hatayı ve çevresindeki kodu Cloud AI'a gönder")}>
             {t('Açıkla')}
-          </button>
+          </AiDugmesi>
         )}
       </div>
       {baslik && <EksikKutuphane baslik={baslik} />}
@@ -200,7 +201,7 @@ function EksikKutuphane({ baslik }: { baslik: string }): ReactElement {
               </button>
             ) : (
               <>
-                <button onClick={() => void kur(a.name, true)} disabled={kuruluyor !== null} className={`${KUCUK_DUGME} !border-accent !text-accent-hover`}>
+                <button onClick={() => void kur(a.name, true)} disabled={kuruluyor !== null} className={KUCUK_DUGME}>
                   {kuruluyor === a.name ? t('Kuruluyor…') : t('Kur ve derle')}
                 </button>
                 <button onClick={() => void kur(a.name, false)} disabled={kuruluyor !== null} className={KUCUK_DUGME}>

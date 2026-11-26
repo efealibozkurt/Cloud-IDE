@@ -21,6 +21,7 @@ import { AgentWorkspace, CheckpointStore } from './AgentWorkspace'
 import { ProviderError, type LlmMessage, type ResolvedProvider, type ToolCall, type ToolDef } from './llmTypes'
 import { saglayiciyiSina } from './models'
 import { METIN_PROTOKOLU, sistemPromptuOlustur } from './prompt'
+import { isCustomProvider } from '@shared/ozelSaglayici'
 import { aracDestegiYokHatasiMi, iptalMi, resolveProvider, streamChat } from './providers'
 import { MetinAkisSuzgeci, metinAraclariniAyikla, metinModuAracListesi } from './textProtocol'
 import { TEXT_MODE_TOOL_NAMES, TOOL_DEFS, type ApprovalResult, type ToolContext } from './tools'
@@ -237,6 +238,8 @@ export class AgentService {
       if (yerel) {
         const mod = ayarlar.localToolMode ?? 'auto'
         metinModu = mod === 'text' || (mod === 'auto' && this.metinModuModelleri.has(modelAnahtari))
+      } else if (isCustomProvider(saglayici.id)) {
+        metinModu = this.metinModuModelleri.has(modelAnahtari)
       }
       const araclar: ToolDef[] = yerel ? TOOL_DEFS.filter((t) => TEXT_MODE_TOOL_NAMES.includes(t.name)) : TOOL_DEFS
       const izinliAraclar = new Set(araclar.map((t) => t.name))
@@ -379,10 +382,11 @@ export class AgentService {
         } catch (err) {
           if (iptalMi(err) || sinyal.aborted) throw err
           // Model araç çağırmayı desteklemiyorsa metin protokolüne geç ve aynı adımı yeniden dene
-          if (yerel && !metinModu && !metinModuDenemesiYapildi && aracDestegiYokHatasiMi(err)) {
+          // Özel sağlayıcıdaki model de araç çağırmayı desteklemeyebilir
+          if ((yerel || isCustomProvider(saglayici.id)) && !metinModu && !metinModuDenemesiYapildi && aracDestegiYokHatasiMi(err)) {
             metinModuDenemesiYapildi = true
             metinModu = true
-            if ((ayarlar.localToolMode ?? 'auto') === 'auto') this.metinModuModelleri.add(modelAnahtari)
+            if (!yerel || (ayarlar.localToolMode ?? 'auto') === 'auto') this.metinModuModelleri.add(modelAnahtari)
             sistem += `\n\n${METIN_PROTOKOLU}\n\n${metinModuAracListesi(araclar)}`
             emit({
               runId,

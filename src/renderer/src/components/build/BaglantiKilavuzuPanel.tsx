@@ -13,6 +13,7 @@ import { useToast } from '../../state/ToastContext'
 import { ayniDosyaMi } from '../../utils/paths'
 import KartSemasiSvg from './KartSemasiSvg'
 import { useI18n } from '../../i18n'
+import { AiDugmesi } from '../common/AiDugmesi'
 
 const KAYNAK_TURLERI = new Set(['ino', 'h', 'hpp', 'cpp', 'c'])
 
@@ -253,14 +254,14 @@ function BaglantiKilavuzuPanel(): ReactElement {
           </button>
         )}
 
-        <button
+        <AiDugmesi
           onClick={aiIleOlustur}
           disabled={agent.calisiyor}
           title={t('Cloud AI kodu okuyup direnç, voltaj ve güvenlik uyarılarıyla eksiksiz bağlantı kılavuzu oluştursun')}
-          className="rounded border border-accent/50 bg-accent/20 px-2.5 py-1 text-[11px] font-medium text-[#7cc4f0] transition-colors hover:enabled:bg-accent/30 disabled:cursor-not-allowed disabled:opacity-50"
+          className="!py-1 font-medium"
         >
           {agent.calisiyor ? t('AI hazırlıyor…') : aiKilavuzu ? t('AI ile Güncelle') : t('AI ile Oluştur')}
-        </button>
+        </AiDugmesi>
 
         <button
           onClick={() => setBuyutulmus((b) => !b)}
@@ -325,13 +326,13 @@ function BaglantiKilavuzuPanel(): ReactElement {
                       onClick={() => setVurguluBilesen((onceki) => (onceki === b.ad ? null : b.ad))}
                       className={`rounded-md border px-2 py-1 text-left transition-colors ${
                         secili
-                          ? 'border-accent bg-accent/15 text-white'
+                          ? 'border-white/40 bg-white/[0.1] text-white'
                           : 'border-panel-border bg-panel text-gray-300 hover:border-gray-500'
                       }`}
                     >
                       <div className="text-[11px] font-medium">
                         {b.ad}
-                        {b.voltaj && <span className="ml-1.5 font-mono text-[10px] text-[#7cc4f0]">{b.voltaj}</span>}
+                        {b.voltaj && <span className="ml-1.5 font-mono text-[10px] text-gray-400">{b.voltaj}</span>}
                       </div>
                       {b.ekParcalar && b.ekParcalar.length > 0 && (
                         <div className="text-[10px] text-amber-300/90">+ {b.ekParcalar.join(', ')}</div>
@@ -360,7 +361,7 @@ function BaglantiKilavuzuPanel(): ReactElement {
                       onMouseLeave={() => setVurguluHatId(null)}
                       onClick={() => hatDurumDegistir(h.id)}
                       className={`flex cursor-pointer items-start gap-2 px-2.5 py-1.5 transition-colors ${
-                        vurgulu ? 'bg-accent/15' : 'hover:bg-white/[0.03]'
+                        vurgulu ? 'bg-white/[0.08]' : 'hover:bg-white/[0.03]'
                       }`}
                     >
                       <input

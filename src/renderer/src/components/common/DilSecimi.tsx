@@ -23,7 +23,7 @@ function DilSecimi({ onSecildi }: { onSecildi: () => void }): ReactElement {
                 setDil(d.id)
                 onSecildi()
               }}
-              className="rounded-lg border border-white/15 bg-white/[0.05] px-4 py-3 text-sm font-medium text-gray-100 transition-colors hover:border-[#2aa8f2]/60 hover:bg-[#2aa8f2]/10"
+              className="rounded-lg border border-white/15 bg-white/[0.05] px-4 py-3 text-sm font-medium text-gray-100 transition-colors hover:border-white/30 hover:bg-white/[0.08]"
             >
               {d.ad}
             </button>
