@@ -64,6 +64,7 @@ The vision behind Cloud IDE is that even people who don't know coding or embedde
 - An **agent** that can read your project, write and edit files, build, and try to fix errors
 - **You control changes:** Approval (shows the diff before writing files), Semi-automatic, Fully automatic. The changes from each reply can be undone with one click
 - Providers: DeepSeek, OpenAI, Anthropic (Claude), Google Gemini, Kimi, NVIDIA NIM and local **Ollama / LM Studio** (works offline)
+- **Custom providers** for services that are not in the list: any OpenAI-compatible server (templates for OpenRouter, Groq, Mistral, Together)
 - **Live code writing:** the AI's change streams into the editor line by line (skip with **Esc**); when it finishes, **Accept** or **Undo** from the bar at the top right (the old code comes back both in the editor and on disk)
 - **Fix with AI**, **Explain** and **Write a prompt** for selected code; one-click "what does this mean?" for build errors
 - Automatic summarization of long chats, AI-generated chat titles, context meter
@@ -88,14 +89,18 @@ The vision behind Cloud IDE is that even people who don't know coding or embedde
 - Zero-setup, built-in `arduino-cli` core
 - **Flash/RAM** usage after building; error lines and one-click **installation of missing libraries**
 - **Board settings** (processor, partition scheme, upload speed…) and **automatic detection** of boards plugged in over USB
+- Your board is listed apart from other COM ports; the port of a newly plugged board is selected automatically
 - Port coordination that keeps building and uploading safe
 
 ### 📟 Serial monitor
+- Opens to the **right** of the editor, at the **bottom** or **full screen**
+- The baud rate **follows** the `Serial.begin()` value in your code
 - **Multiple ports**: watch several boards at the same time in tabs
 - **Live plot** (`value`, `1,2,3` or `label:value` formats), timestamps, bootloader output hiding
 
 ### 🕘 Version history
-- Per-project snapshots, side-by-side comparison, restore, tags and branches
+- Per-project snapshots, side-by-side comparison with the current code, and restore
+- **Name** a version and start an **experiment** without touching your main code
 - Build information (board, library versions, memory usage) is stored with each version
 - Automatic snapshots; export/import a project together with its history as a `.zip`
 
@@ -125,7 +130,7 @@ The vision behind Cloud IDE is that even people who don't know coding or embedde
 | Hardware communication | `serialport` |
 | Persistent storage | `electron-store` |
 | Updates | `electron-updater` (GitHub Releases) |
-| Packaging | electron-builder (Windows: NSIS Setup + Portable · Linux: AppImage + .deb, experimental) |
+| Packaging | electron-builder (Windows: NSIS Setup · Linux: AppImage + .deb, experimental) |
 | Built-in compiler | `arduino-cli` v1.5.1 |
 
 ## 📸 Screenshots
@@ -137,8 +142,8 @@ The vision behind Cloud IDE is that even people who don't know coding or embedde
 
 ## 🚀 Installation
 
-1. Download the latest `Setup.exe` (installer) or portable `.exe` from the [Releases](https://github.com/efealibozkurt/Cloud-IDE/releases) page.
-2. Follow the setup wizard, or run the portable version directly.
+1. Download the latest `Setup.exe` installer from the [Releases](https://github.com/efealibozkurt/Cloud-IDE/releases) page.
+2. Follow the setup wizard.
 3. No separate Arduino IDE installation is needed; the compiler is bundled.
 4. For Cloud AI, enter a provider and API key under **Settings › AI**, or use a local model (Ollama / LM Studio).
 
@@ -160,7 +165,6 @@ npm run typecheck    # type checking
 npm run lint         # ESLint
 npm test             # unit tests (Vitest)
 npm run build:setup  # Windows installer (NSIS): release/Cloud-IDE-Setup-<version>.exe
-npm run build:win    # Setup + Portable
 npm run build:linux  # Linux: AppImage + .deb (on Linux only)
 ```
 

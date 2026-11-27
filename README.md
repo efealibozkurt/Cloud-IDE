@@ -64,6 +64,7 @@ Kodlama ve gömülü sistemler bilmeyen insanların dahi aklındaki fiziksel pro
 - Projenizi okuyabilen, dosya yazıp düzenleyebilen, derleyip hataları düzeltmeyi deneyen bir **agent**
 - **Değişiklik izni sizde:** Onaylı (dosya yazmadan önce farkı gösterir), Yarı otomatik, Tam otomatik. Her yanıttaki değişiklikler tek tıkla geri alınabilir
 - Sağlayıcılar: DeepSeek, OpenAI, Anthropic (Claude), Google Gemini, Kimi, NVIDIA NIM ve yerel **Ollama / LM Studio** (internetsiz çalışır)
+- Listede olmayan servisler için **özel sağlayıcı ekleme**: OpenAI uyumlu her sunucu (OpenRouter, Groq, Mistral, Together için hazır şablon)
 - **Canlı kod yazımı:** AI'ın yaptığı değişiklik editöre satır satır akarak yazılır (**Esc** ile atlanır); bitince sağ üstteki çubuktan **Onayla** ya da **Geri Al** (eski kod hem editörde hem diskte geri gelir)
 - Seçili kod için **AI ile Düzelt**, **Açıkla** ve **Prompt Gir**; derleme hatası için tek tıkla "bu ne demek?"
 - Uzun sohbetlerde otomatik özetleme, sohbet başlıklarını yapay zekâyla üretme, bağlam göstergesi
@@ -88,14 +89,18 @@ Kodlama ve gömülü sistemler bilmeyen insanların dahi aklındaki fiziksel pro
 - Sıfır kurulumlu, gömülü `arduino-cli` çekirdeği
 - Derleme sonrası **Flash/RAM** göstergesi; hata satırları ve tek tıkla **eksik kütüphane kurulumu**
 - **Kart ayarları** (işlemci, bölüm şeması, yükleme hızı…) ve USB'ye takılan kartı **otomatik tanıma**
+- Port listesinde kartınız diğer COM portlarından ayrılır; yeni takılan kartın portu kendiliğinden seçilir
 - Derleme ve yüklemeyi güvenli yöneten port koordinasyonu
 
 ### 📟 Seri monitör
+- Editörün **sağında**, **altında** ya da **tam ekran** açılır
+- Baud hızı koddaki `Serial.begin()` değerine göre **kendiliğinden ayarlanır**
 - **Çoklu port**: birden çok kartı sekmelerle aynı anda izleme
 - **Canlı grafik** (`değer`, `1,2,3` ya da `etiket:değer` biçimleri), zaman damgası, bootloader gizleme
 
 ### 🕘 Sürüm geçmişi
-- Projeye özel kayıt, karşılaştırma (yan yana fark), geri yükleme, etiket ve dal
+- Projeye özel kayıt, şu ankiyle yan yana karşılaştırma ve geri yükleme
+- Sürüme **isim verme** ve ana kodu bozmadan **deneme** başlatma
 - Derleme bilgisi (kart, kütüphane sürümleri, bellek kullanımı) sürümle birlikte saklanır
 - Otomatik anlık görüntüler; projeyi geçmişiyle birlikte `.zip` olarak dışa/içe aktarma
 
@@ -125,7 +130,7 @@ Kodlama ve gömülü sistemler bilmeyen insanların dahi aklındaki fiziksel pro
 | Donanım İletişimi | `serialport` |
 | Kalıcı Depolama | `electron-store` |
 | Güncelleme | `electron-updater` (GitHub Releases) |
-| Paketleme | electron-builder (Windows: NSIS Setup + Portable · Linux: AppImage + .deb, deneysel) |
+| Paketleme | electron-builder (Windows: NSIS Setup · Linux: AppImage + .deb, deneysel) |
 | Gömülü Derleyici | `arduino-cli` v1.5.1 |
 
 ## 📸 Ekran Görüntüleri
@@ -137,8 +142,8 @@ Kodlama ve gömülü sistemler bilmeyen insanların dahi aklındaki fiziksel pro
 
 ## 🚀 Kurulum
 
-1. [Releases](https://github.com/efealibozkurt/Cloud-IDE/releases) sayfasından güncel `Setup.exe` (kurulum) veya portable `.exe` dosyasını indirin.
-2. Kurulum sihirbazını takip edin ya da portable sürümü doğrudan çalıştırın.
+1. [Releases](https://github.com/efealibozkurt/Cloud-IDE/releases) sayfasından güncel `Setup.exe` kurulum dosyasını indirin.
+2. Kurulum sihirbazını takip edin.
 3. Harici bir Arduino IDE kurulumuna gerek yoktur; derleyici pakete gömülüdür.
 4. Cloud AI için **Ayarlar › Yapay zekâ** bölümünden bir sağlayıcı ve API anahtarı girin ya da yerel bir model (Ollama / LM Studio) kullanın.
 
@@ -160,7 +165,6 @@ npm run typecheck    # tip denetimi
 npm run lint         # ESLint
 npm test             # birim testleri (Vitest)
 npm run build:setup  # Windows kurulum dosyası (NSIS): release/Cloud-IDE-Setup-<sürüm>.exe
-npm run build:win    # Setup + Portable
 npm run build:linux  # Linux: AppImage + .deb (yalnızca Linux'ta)
 ```
 
